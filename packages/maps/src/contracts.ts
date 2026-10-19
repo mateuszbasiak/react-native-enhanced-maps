@@ -38,5 +38,5 @@ export function createRevisionGate() {
 
 /** Tile/content failure does not destroy an already initialized map. */
 export function classifyMapError(error: { readonly code: string; readonly message: string }): MapError {
-  return { ...error, fatal: error.code !== 'map-load' };
+  return { ...error, fatal: error.code !== 'map-load' && error.code !== 'raster-overlay' };
 }

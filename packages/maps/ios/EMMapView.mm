@@ -1,4 +1,6 @@
 #import "EMMapView.h"
+#import "CameraEventGate.h"
+#import "EMRasterOverlay.h"
 #import <MapKit/MapKit.h>
 #import <QuartzCore/QuartzCore.h>
 #import <react/renderer/components/EnhancedMapsSpec/ComponentDescriptors.h>
@@ -18,6 +20,12 @@ using namespace facebook::react;
 @end
 
 @implementation EMMapView {
+  enhancedmaps::CameraEventGate _cameraEvents;
+  NSString *_rasterSource;
+  EMRasterOverlay *_raster;
+#if EM_GOOGLE_MAPS
+  GMSGroundOverlay *_googleRaster;
+#endif
   MKMapView *_apple;
 #if EM_GOOGLE_MAPS
   GMSMapView *_google;
@@ -45,6 +53,7 @@ using namespace facebook::react;
     if (_provider && ![_provider isEqualToString:@(next.provider.c_str())]) {
       [self emitError:@"provider-change" message:@"Remount MapView to change provider"];
     }
+    [self updateRaster];
     return;
   }
   [self configureIfNeeded];
@@ -78,7 +87,34 @@ using namespace facebook::react;
     _apple.delegate = self;
     self.contentView = _apple;
   }
+  [self updateRaster];
   [self animateCamera:p.initialLatitude longitude:p.initialLongitude zoom:p.initialZoom heading:p.initialHeading pitch:p.initialPitch durationMs:0];
+}
+- (void)updateRaster {
+  const auto &p = *std::static_pointer_cast<const EnhancedMapViewProps>(_props);
+  NSString *source = @(p.rasterOverlay.c_str());
+  if ([_rasterSource isEqualToString:source]) return;
+  _rasterSource = source;
+  if (_raster && _apple) [_apple removeOverlay:_raster];
+  _raster = nil;
+#if EM_GOOGLE_MAPS
+  _googleRaster.map = nil; _googleRaster = nil;
+#endif
+  if (source.length == 0 || _disposed) return;
+  _raster = [EMRasterOverlay fromJSON:source];
+  if (!_raster) { [self emitError:@"raster-overlay" message:@"Invalid raster overlay payload"]; return; }
+  if (_apple) [_apple addOverlay:_raster level:MKOverlayLevelAboveRoads];
+#if EM_GOOGLE_MAPS
+  if (_google) {
+    GMSCoordinateBounds *bounds = [[GMSCoordinateBounds alloc] initWithCoordinate:_raster.southWest coordinate:_raster.northEast];
+    _googleRaster = [GMSGroundOverlay groundOverlayWithBounds:bounds icon:_raster.image];
+    _googleRaster.zIndex = 1; _googleRaster.tappable = NO; _googleRaster.map = _google;
+  }
+#endif
+}
+- (MKOverlayRenderer *)mapView:(MKMapView *)mapView rendererForOverlay:(id<MKOverlay>)overlay {
+  if ([overlay isKindOfClass:EMRasterOverlay.class]) return [[EMRasterRenderer alloc] initWithOverlay:overlay];
+  return [[MKOverlayRenderer alloc] initWithOverlay:overlay];
 }
 - (void)didMoveToWindow {
   [super didMoveToWindow];
@@ -133,27 +169,59 @@ using namespace facebook::react;
 - (void)mapViewDidFailLoadingMap:(MKMapView *)mapView withError:(NSError *)error {
   [self emitError:@"map-load" message:@"MapKit failed to load map content"];
 }
-- (void)mapView:(MKMapView *)mapView regionDidChangeAnimated:(BOOL)animated {
-  if (_disposed || !_eventEmitter || self.bounds.size.width <= 0) return;
-  double zoom = log2(MKMapSizeWorld.width * self.bounds.size.width / (256.0 * MAX(mapView.visibleMapRect.size.width, 1.0)));
+- (void)mapView:(MKMapView *)mapView regionWillChangeAnimated:(BOOL)animated { _cameraEvents.beginMovement(); }
+- (void)mapViewDidChangeVisibleRegion:(MKMapView *)mapView {
+  _cameraEvents.beginMovement();
+  [self emitAppleCamera:NO];
+}
+- (void)emitAppleCamera:(BOOL)finalPosition {
+  if (_disposed || !_eventEmitter || !_apple || self.bounds.size.width <= 0) return;
+  const auto &p = *std::static_pointer_cast<const EnhancedMapViewProps>(_props);
+  if (!p.cameraEventsEnabled && !(finalPosition && p.cameraIdleEventsEnabled)) return;
+  double zoom = log2(MKMapSizeWorld.width * self.bounds.size.width / (256.0 * MAX(_apple.visibleMapRect.size.width, 1.0)));
   auto emitter = std::static_pointer_cast<const EnhancedMapViewEventEmitter>(_eventEmitter);
-  emitter->onCameraChange({mapView.centerCoordinate.latitude, mapView.centerCoordinate.longitude, zoom, mapView.camera.heading, mapView.camera.pitch, std::string(_origin.UTF8String)});
-  _origin = @"unknown"; // Detailed MapKit gesture provenance is not implemented by this spike.
+  if (_cameraEvents.shouldEmit(CACurrentMediaTime() * 1000, p.cameraEventsEnabled, p.cameraEventIntervalMs, finalPosition)) {
+    emitter->onCameraChange({_apple.centerCoordinate.latitude, _apple.centerCoordinate.longitude, zoom, _apple.camera.heading, _apple.camera.pitch, std::string(_origin.UTF8String)});
+  }
+  if (finalPosition && p.cameraIdleEventsEnabled) {
+    emitter->onCameraIdle({_apple.centerCoordinate.latitude, _apple.centerCoordinate.longitude, zoom, _apple.camera.heading, _apple.camera.pitch, std::string(_origin.UTF8String)});
+  }
+}
+- (void)mapView:(MKMapView *)mapView regionDidChangeAnimated:(BOOL)animated {
+  if (_cameraEvents.finishMovement()) [self emitAppleCamera:YES];
+  _origin = @"unknown"; // Detailed MapKit gesture provenance remains a separate capability.
 }
 #if EM_GOOGLE_MAPS
 - (void)mapViewSnapshotReady:(GMSMapView *)mapView { [self emitReady]; }
 - (void)mapView:(GMSMapView *)mapView willMove:(BOOL)gesture {
+  _cameraEvents.beginMovement();
   _origin = gesture ? @"gesture" : ([_origin isEqualToString:@"application"] ? @"application" : @"unknown");
 }
 - (void)mapView:(GMSMapView *)mapView didChangeCameraPosition:(GMSCameraPosition *)position {
-  if (_disposed || !_eventEmitter) return;
-  auto emitter = std::static_pointer_cast<const EnhancedMapViewEventEmitter>(_eventEmitter);
-  emitter->onCameraChange({position.target.latitude, position.target.longitude, position.zoom, position.bearing, position.viewingAngle, std::string(_origin.UTF8String)});
+  _cameraEvents.beginMovement();
+  [self emitGoogleCamera:position finalPosition:NO];
 }
-- (void)mapView:(GMSMapView *)mapView idleAtCameraPosition:(GMSCameraPosition *)position { _origin = @"unknown"; }
+- (void)emitGoogleCamera:(GMSCameraPosition *)position finalPosition:(BOOL)finalPosition {
+  if (_disposed || !_eventEmitter) return;
+  const auto &p = *std::static_pointer_cast<const EnhancedMapViewProps>(_props);
+  if (!p.cameraEventsEnabled && !(finalPosition && p.cameraIdleEventsEnabled)) return;
+  auto emitter = std::static_pointer_cast<const EnhancedMapViewEventEmitter>(_eventEmitter);
+  if (_cameraEvents.shouldEmit(CACurrentMediaTime() * 1000, p.cameraEventsEnabled, p.cameraEventIntervalMs, finalPosition)) {
+  emitter->onCameraChange({position.target.latitude, position.target.longitude, position.zoom, position.bearing, position.viewingAngle, std::string(_origin.UTF8String)});
+  }
+  if (finalPosition && p.cameraIdleEventsEnabled) {
+    emitter->onCameraIdle({position.target.latitude, position.target.longitude, position.zoom, position.bearing, position.viewingAngle, std::string(_origin.UTF8String)});
+  }
+}
+- (void)mapView:(GMSMapView *)mapView idleAtCameraPosition:(GMSCameraPosition *)position { if (_cameraEvents.finishMovement()) [self emitGoogleCamera:position finalPosition:YES]; _origin = @"unknown"; }
 #endif
 - (void)prepareForRecycle {
   _disposed = YES;
+  if (_raster && _apple) [_apple removeOverlay:_raster];
+  _raster = nil; _rasterSource = nil;
+#if EM_GOOGLE_MAPS
+  _googleRaster.map = nil; _googleRaster = nil;
+#endif
   _apple.delegate = nil;
   [_apple removeFromSuperview];
   _apple = nil;
@@ -164,6 +232,7 @@ using namespace facebook::react;
 #endif
   self.contentView = nil;
   [super prepareForRecycle];
+  _cameraEvents.reset();
   _configured = NO;
   _readySent = NO;
   _provider = nil;

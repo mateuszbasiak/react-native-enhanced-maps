@@ -4,6 +4,10 @@ import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNati
 import codegenNativeCommands from 'react-native/Libraries/Utilities/codegenNativeCommands';
 
 export interface NativeProps extends ViewProps {
+  rasterOverlay?: WithDefault<string, ''>;
+  cameraIdleEventsEnabled?: WithDefault<boolean, false>;
+  cameraEventsEnabled?: WithDefault<boolean, false>;
+  cameraEventIntervalMs?: WithDefault<Double, 100>;
   provider?: WithDefault<string, 'apple'>;
   initialLatitude?: WithDefault<Double, 0>;
   initialLongitude?: WithDefault<Double, 0>;
@@ -12,6 +16,10 @@ export interface NativeProps extends ViewProps {
   initialPitch?: WithDefault<Double, 0>;
   onMapReady?: DirectEventHandler<Readonly<{ provider: string }>>;
   onMapError?: DirectEventHandler<Readonly<{ code: string; message: string }>>;
+  onCameraIdle?: DirectEventHandler<Readonly<{
+    latitude: Double; longitude: Double; zoom: Double;
+    heading: Double; pitch: Double; origin: string;
+  }>>;
   onCameraChange?: DirectEventHandler<Readonly<{
     latitude: Double; longitude: Double; zoom: Double;
     heading: Double; pitch: Double; origin: string;

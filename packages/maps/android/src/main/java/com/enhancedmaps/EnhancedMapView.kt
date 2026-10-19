@@ -2,6 +2,7 @@ package com.enhancedmaps
 
 import android.content.pm.PackageManager
 import android.widget.FrameLayout
+import android.os.SystemClock
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.common.LifecycleState
@@ -13,15 +14,40 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.GroundOverlay
+import com.google.android.gms.maps.model.GroundOverlayOptions
 import com.google.android.gms.maps.model.LatLng
 
 class EnhancedMapView(private val reactContext: ThemedReactContext) : FrameLayout(reactContext), LifecycleEventListener {
+  private var rasterSource = ""
+  private var rasterOverlay: GroundOverlay? = null
+  fun setRasterOverlay(source: String) {
+    if (source == rasterSource) return
+    rasterSource = source
+    updateRaster()
+  }
+  private fun updateRaster() {
+    val googleMap = map ?: return
+    rasterOverlay?.remove(); rasterOverlay = null
+    if (rasterSource.isEmpty() || disposed) return
+    try {
+      val raster = RasterImage.decode(rasterSource)
+      try {
+        rasterOverlay = googleMap.addGroundOverlay(GroundOverlayOptions().image(BitmapDescriptorFactory.fromBitmap(raster.bitmap)).positionFromBounds(raster.bounds).clickable(false).zIndex(1f))
+      } finally { raster.bitmap.recycle() }
+    } catch (_: Exception) { error("raster-overlay", "Invalid raster or native overlay creation failed") }
+  }
   var latitude = 0.0
   var longitude = 0.0
   var zoom = 3.0
   var heading = 0.0
   var pitch = 0.0
   var provider = "google"
+  var cameraIdleEventsEnabled = false
+  var cameraEventsEnabled = false
+  var cameraEventIntervalMs = 100.0
+  private val cameraEvents = CameraEventGate()
   private var nativeMap: MapView? = null
   private var map: GoogleMap? = null
   private var initialized = false
@@ -46,7 +72,9 @@ class EnhancedMapView(private val reactContext: ThemedReactContext) : FrameLayou
       view.getMapAsync { googleMap ->
         if (disposed) return@getMapAsync
         map = googleMap
+        updateRaster()
         googleMap.setOnCameraMoveStartedListener { reason ->
+          cameraEvents.beginMovement()
           origin = when (reason) {
             GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE -> "gesture"
             GoogleMap.OnCameraMoveStartedListener.REASON_DEVELOPER_ANIMATION -> "application"
@@ -55,7 +83,10 @@ class EnhancedMapView(private val reactContext: ThemedReactContext) : FrameLayou
           }
         }
         googleMap.setOnCameraMoveListener { emitCamera() }
-        googleMap.setOnCameraIdleListener { emitCamera(); origin = "unknown" }
+        googleMap.setOnCameraIdleListener {
+          if (cameraEvents.finishMovement()) { emitCamera(true); emitCameraIdle() }
+          origin = "unknown"
+        }
         animateCamera(latitude, longitude, zoom, heading, pitch, 0.0)
         // Map-loaded is stronger than getMapAsync: initialization does not prove tiles rendered.
         googleMap.setOnMapLoadedCallback { if (!disposed) emit("topMapReady", Arguments.createMap().apply { putString("provider", "google") }) }
@@ -71,10 +102,21 @@ class EnhancedMapView(private val reactContext: ThemedReactContext) : FrameLayou
     if (duration <= 0) map?.moveCamera(update)
     else map?.animateCamera(update, duration.coerceIn(1.0, Int.MAX_VALUE.toDouble()).toInt(), null)
   }
-  private fun emitCamera() {
+  private fun emitCamera(finalPosition: Boolean = false) {
+    if (!finalPosition) cameraEvents.beginMovement()
+    if (disposed || !cameraEvents.shouldEmit(SystemClock.uptimeMillis().toDouble(), cameraEventsEnabled, cameraEventIntervalMs, finalPosition)) return
     val camera = map?.cameraPosition ?: return
     if (disposed) return
     emit("topCameraChange", Arguments.createMap().apply {
+      putDouble("latitude", camera.target.latitude); putDouble("longitude", camera.target.longitude)
+      putDouble("zoom", camera.zoom.toDouble()); putDouble("heading", camera.bearing.toDouble())
+      putDouble("pitch", camera.tilt.toDouble()); putString("origin", origin)
+    })
+  }
+  private fun emitCameraIdle() {
+    if (disposed || !cameraIdleEventsEnabled) return
+    val camera = map?.cameraPosition ?: return
+    emit("topCameraIdle", Arguments.createMap().apply {
       putDouble("latitude", camera.target.latitude); putDouble("longitude", camera.target.longitude)
       putDouble("zoom", camera.zoom.toDouble()); putDouble("heading", camera.bearing.toDouble())
       putDouble("pitch", camera.tilt.toDouble()); putString("origin", origin)
@@ -93,6 +135,7 @@ class EnhancedMapView(private val reactContext: ThemedReactContext) : FrameLayou
     disposed = true
     reactContext.removeLifecycleEventListener(this)
     map?.setOnCameraMoveStartedListener(null); map?.setOnCameraMoveListener(null)
+    rasterOverlay?.remove(); rasterOverlay = null; rasterSource = ""
     map?.setOnCameraIdleListener(null); map?.setOnMapLoadedCallback(null)
     onHostPause()
     nativeMap?.onDestroy()

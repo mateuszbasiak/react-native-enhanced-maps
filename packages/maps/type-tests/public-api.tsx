@@ -12,3 +12,10 @@ map.animateCamera({ zoom: 5 });
 resolveProvider('web');
 // @ts-expect-error event payload is not a number
 <MapView onCameraChange={(event: number) => { void event; }} />;
+
+import type { ExperimentalRasterOverlay } from '../src/index.js';
+const raster: ExperimentalRasterOverlay = { width: 1, height: 1, rgbaBase64: '/wAA/w==', bounds: { north: 53, south: 52, west: 20, east: 21 } };
+const rasterMap = <MapView experimentalRasterOverlay={raster} />;
+void rasterMap;
+// @ts-expect-error raster geographic bounds are immutable
+raster.bounds.north = 54;
