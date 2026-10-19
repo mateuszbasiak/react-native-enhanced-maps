@@ -1,0 +1,31 @@
+{
+  "name": "enhanced-maps-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "packages/*",
+    "example"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc -p packages/maps/tsconfig.build.json && tsc -p packages/typegpu/tsconfig.build.json",
+    "typecheck": "npm run build && tsc --noEmit -p packages/maps/tsconfig.json && tsc --noEmit -p packages/typegpu/tsconfig.json && tsc --noEmit -p example/tsconfig.json",
+    "test:contracts": "npm run build && node --test tests/*.test.mjs",
+    "pack:check": "npm run build && node scripts/check-package.mjs",
+    "codegen": "node scripts/codegen.mjs",
+    "check": "npm run typecheck && npm run test:contracts && npm run codegen && npm run pack:check",
+    "example:bundle": "node scripts/bundle-example.mjs",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@webgpu/types": "0.1.74",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "typescript": "5.9.3",
+    "typegpu": "0.12.8",
+    "react-native-webgpu": "0.17.0"
+  }
+}
