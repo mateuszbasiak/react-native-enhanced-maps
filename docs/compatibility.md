@@ -1,8 +1,9 @@
 # Compatibility and verification status
 
 Initial baseline: React Native 0.85.3 / React 19.2.3, New Architecture only.
-TypeGPU 0.12.8 and react-native-webgpu 0.17.0 are installed in the example, but
-shader integration has not been implemented.
+TypeGPU 0.12.8 and react-native-webgpu 0.17.0 power an experimental one-shot
+shader texture on all three native map backends. Live GPU layer integration
+remains unimplemented.
 
 ## Implemented checks
 
@@ -12,7 +13,7 @@ shader integration has not been implemented.
 - Codegen generation for iOS and Android.
 - Packed tarball file checks and declaration resolution in a separate consumer.
 
-Native build and runtime evidence will be recorded in `docs/verification.md`.
+Native Debug build and simulator/emulator runtime evidence is recorded in `docs/verification.md`.
 Generation is not native compilation; compilation is not device verification.
 
 ## react-native-maps baseline

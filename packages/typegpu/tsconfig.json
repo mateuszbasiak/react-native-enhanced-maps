@@ -3,5 +3,12 @@
   "include": [
     "src",
     "type-tests"
-  ]
+  ],
+  "compilerOptions": {
+    "types": [
+      "react",
+      "react-native",
+      "@webgpu/types"
+    ]
+  }
 }

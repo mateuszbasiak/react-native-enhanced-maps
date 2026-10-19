@@ -29,9 +29,14 @@ Google distinguishes gesture/application/SDK movement where public APIs permit.
 MapKit currently reports application movement or unknown. Detailed native pan,
 pinch, rotate, tilt and cancellation contracts remain unimplemented.
 
-The initial MapKit callback reports completed region changes, not frame-level
-camera synchronization. No event stream in this spike is suitable evidence that
-GPU geographic alignment or JS-independent rendering works.
+All three adapters use the same camera event contract. `onCameraChange` receives
+continuous samples at most once per `cameraEventIntervalMs` (default 100 ms,
+range 16–1000 ms), plus an immediate final snapshot. `onCameraIdle` receives one
+event when a movement completes. SDK initialization can also cause movements.
+Omit `onCameraChange` for end-only delivery through `onCameraIdle`. Native adapters
+skip change-event payload construction when there is no change subscriber.
+The final snapshot bypasses the interval limit. These callbacks are not frame-level
+GPU synchronization or evidence of geographic shader alignment.
 
 ## Lifetime
 
@@ -43,10 +48,19 @@ yet and will require its own generation/revision guards.
 
 ## TypeGPU
 
-The companion exports frame, renderer factory, renderer lifetime, and status types.
-There is no rendering surface, GPU pipeline, shader execution, projection matrix,
-or picking implementation yet. The eventual API must expose a verified projection
-and typed targets, handle device loss, and meet threading/lifecycle acceptance tests.
+The optional companion now includes an experimental one-shot TypeGPU triangle
+renderer with typed RGBA uniforms and bounded RGBA8 readback. Core accepts
+`experimentalRasterOverlay`: one immutable image, dimensions 1–256, ordered bounds
+within ±85 latitude, at most 180 longitude span without antimeridian crossing.
+Google uses native ground overlays; Apple uses MKOverlayRenderer above roads.
+Transparency and camera projection are SDK-owned; overlay touches pass through.
+Replacing/removing the prop replaces/removes the native image. Invalid raster
+errors are recoverable and do not invalidate map readiness.
+
+This proves a static shader-to-geographic-raster path only. It does not implement
+live GPU shader animation, a native WebGPU render hook, portable projection
+matrices, shared depth, arbitrary style-layer insertion, or picking. The exported
+frame/lifetime interfaces remain provisional contracts for future live rendering.
 
 ## Capabilities and compatibility
 

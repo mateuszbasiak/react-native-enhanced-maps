@@ -11,8 +11,9 @@ Stability, measurable performance, and a typed API are the priorities.
 - Type tests, runtime contract tests, native autolinking regression check, Codegen verification, production Metro bundling, and packed declaration-consumer checks.
 
 This is **not a production release**. Layers, clustering, detailed gesture recognition,
-and actual TypeGPU shader rendering are required v1 work that is not implemented yet.
-The GPU companion currently contains provisional TypeScript contracts only.
+and live TypeGPU shader layers remain required v1 work.
+The GPU companion includes an experimental TypeGPU triangle baked to a native
+geographic raster; it does not yet implement a live custom render pass.
 No performance or react-native-maps drop-in compatibility claim is made.
 
 Start with [development](docs/development.md), [contracts](docs/contracts.md),
