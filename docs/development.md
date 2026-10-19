@@ -78,8 +78,11 @@ cd example/ios
 ENHANCED_MAPS_GOOGLE_IOS=1 pod install
 ```
 
-Add `EnhancedMapsGoogleApiKey` to your app's Info.plist using local build settings
-or a local credentials process. The view reports a structured missing-key error;
+Put `GOOGLE_MAPS_IOS_API_KEY` and `GOOGLE_MAPS_ANDROID_API_KEY` in root `.env.local`,
+then run `npm run example:configure` from root. This generates ignored native
+configuration files; environment variables override local values. The tracked
+Info.plist references the generated iOS build setting. Never commit actual keys.
+The view reports a structured missing-key error;
 it must not log the key. Enabling Google changes native dependencies and requires
 rebuilding. A provider change requires a React remount (the example does this).
 
@@ -98,7 +101,7 @@ npm start
 npm run android
 ```
 
-Set `GOOGLE_MAPS_ANDROID_API_KEY` in the local environment before building. It is
+Configure the local keys as above, or set `GOOGLE_MAPS_ANDROID_API_KEY` in the local environment before building. It is
 passed through a manifest placeholder; use an appropriately restricted development
 key. No location permission is requested by this spike. Missing credentials produce
 an error rather than substituting another map provider.

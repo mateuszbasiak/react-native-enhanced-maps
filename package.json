@@ -17,7 +17,8 @@
     "codegen": "node scripts/codegen.mjs",
     "check": "npm run typecheck && npm run test:contracts && npm run codegen && npm run pack:check",
     "example:bundle": "node scripts/bundle-example.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "example:configure": "node scripts/configure-example.mjs"
   },
   "devDependencies": {
     "@types/react": "19.2.14",

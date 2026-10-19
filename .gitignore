@@ -12,3 +12,5 @@ build/
 local.properties
 *.xcuserstate
 xcuserdata/
+example/ios/Config/Maps.local.xcconfig
+example/android/maps.local.properties
