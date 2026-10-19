@@ -114,3 +114,18 @@ means the provider reports loading/rendering, not merely that an SDK object exis
 Google may never report loaded when authentication/network configuration is invalid.
 These manual controls are the beginning of the scenario app, not the planned
 machine-readable scenario runner. Physical-device release benchmarks remain pending.
+
+## GitHub Actions
+
+`Package checks` runs on every push and pull request and supports manual runs from
+GitHub's Actions page once the workflow is on the default branch. Two independent
+Ubuntu jobs run `npm run check` and production Metro bundles for iOS/Android.
+Node 22.17.1 and Temurin Java 17 are explicitly selected; the runner's C++ compiler
+executes the native camera gate contracts. npm installs use the lockfile without
+lifecycle scripts. No Google Maps keys or repository secrets are required.
+
+Download `package-verification` for tarballs/check logs and `production-bundles`
+for bundles/logs; artifacts are retained for seven days, including available logs
+on failures. New runs cancel superseded runs for the same branch or pull request.
+These checks compile the standalone Java/C++ gates, not full native SDK apps;
+Xcode/Gradle SDK builds and device performance testing remain separate gates.
