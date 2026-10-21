@@ -1,5 +1,8 @@
 /** WebGPU validation errors are asynchronous and do not necessarily reject mapAsync. */
-export async function withGpuValidation<T>(device: Pick<GPUDevice, 'pushErrorScope' | 'popErrorScope'>, operation: () => Promise<T>): Promise<T> {
+export async function withGpuValidation<T>(
+  device: Pick<GPUDevice, 'pushErrorScope' | 'popErrorScope'>,
+  operation: () => Promise<T>,
+): Promise<T> {
   device.pushErrorScope('validation');
   let popped = false;
   try {

@@ -17,5 +17,10 @@ export type CreateMapGpuRenderer = (root: TgpuRoot) => MapGpuRenderer;
 export type MapGpuStatus =
   | { readonly state: 'initializing' }
   | { readonly state: 'ready' }
-  | { readonly state: 'error'; readonly code: 'unavailable' | 'initialization' | 'render' | 'device-lost'; readonly message: string }
+  | {
+      readonly state: 'error';
+      readonly code:
+        'unavailable' | 'initialization' | 'render' | 'device-lost';
+      readonly message: string;
+    }
   | { readonly state: 'disposed' };
