@@ -1,0 +1,11 @@
+node_modules/
+lib/
+build/
+Pods/
+.gradle/
+.cxx/
+artifacts/
+vendor/
+package-lock.json
+*.xcworkspacedata
+.env*

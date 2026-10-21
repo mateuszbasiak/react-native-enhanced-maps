@@ -15,18 +15,39 @@
     "test:contracts": "npm run build && node --test tests/*.test.mjs",
     "pack:check": "npm run build && node scripts/check-package.mjs",
     "codegen": "node scripts/codegen.mjs",
-    "check": "npm run typecheck && npm run test:contracts && npm run codegen && npm run pack:check",
+    "check:packages": "npm run typecheck && npm run test:contracts && npm run codegen && npm run pack:check",
+    "check": "npm run lint && npm run format:check && npm run check:packages",
     "example:bundle": "node scripts/bundle-example.mjs",
     "doctor": "node scripts/doctor.mjs",
-    "example:configure": "node scripts/configure-example.mjs"
+    "start": "npm run start --workspace example --",
+    "start:reset": "npm run start -- --reset-cache",
+    "example:ios": "node scripts/project.mjs ios",
+    "example:android": "node scripts/project.mjs android",
+    "example:pods": "node scripts/project.mjs pods",
+    "build:ios": "node scripts/project.mjs build:ios",
+    "build:android": "node scripts/project.mjs build:android",
+    "test": "npm run test:contracts",
+    "ci": "npm run check && npm run example:bundle",
+    "clean": "node scripts/project.mjs clean",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/react": "19.2.14",
     "@webgpu/types": "0.1.74",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.10",
     "react": "19.2.3",
     "react-native": "0.85.3",
-    "typescript": "5.9.3",
+    "react-native-webgpu": "0.17.0",
     "typegpu": "0.12.8",
-    "react-native-webgpu": "0.17.0"
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.0"
   }
 }

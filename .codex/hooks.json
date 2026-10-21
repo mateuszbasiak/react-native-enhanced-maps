@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/check-quality.sh\"",
+            "timeout": 120,
+            "statusMessage": "Running Prettier and ESLint"
+          }
+        ]
+      }
+    ]
+  }
+}
