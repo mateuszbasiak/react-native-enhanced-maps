@@ -15,5 +15,5 @@ react {
 }
 dependencies {
   implementation 'com.facebook.react:react-android'
-  implementation 'com.google.android.gms:play-services-maps:20.0.0'
+  implementation 'org.maplibre.gl:android-sdk-opengl:13.6.1'
 }
