@@ -75,10 +75,6 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
-def localMapKeys = new Properties()
-def localMapKeysFile = rootProject.file("maps.local.properties")
-if (localMapKeysFile.exists()) { localMapKeysFile.withInputStream { localMapKeys.load(it) } }
-
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -89,7 +85,6 @@ android {
         applicationId "com.enhancedmapsexample"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        manifestPlaceholders = [GOOGLE_MAPS_API_KEY: System.getenv("GOOGLE_MAPS_ANDROID_API_KEY") ?: localMapKeys.getProperty("GOOGLE_MAPS_ANDROID_API_KEY", "")]
         versionCode 1
         versionName "1.0"
     }

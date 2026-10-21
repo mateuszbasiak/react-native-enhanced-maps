@@ -1,6 +1,5 @@
 PODS:
   - EnhancedMaps (0.0.0):
-    - GoogleMaps (= 10.15.0)
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -23,9 +22,6 @@ PODS:
     - ReactNativeDependencies
     - Yoga
   - FBLazyVector (0.85.3)
-  - GoogleMaps (10.15.0):
-    - GoogleMaps/Maps (= 10.15.0)
-  - GoogleMaps/Maps (10.15.0)
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
   - hermes-engine/Pre-built (250829098.0.10)
@@ -1916,10 +1912,6 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - Yoga (from `../../node_modules/react-native/ReactCommon/yoga`)
 
-SPEC REPOS:
-  trunk:
-    - GoogleMaps
-
 EXTERNAL SOURCES:
   EnhancedMaps:
     :path: "../../node_modules/react-native-enhanced-maps"
@@ -2076,9 +2068,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  EnhancedMaps: b514308507b0478d075ce0a735bf7bddea3e65a5
+  EnhancedMaps: b559e626a872339361a265a0682bd7ac505e5aef
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
-  GoogleMaps: 306f6ea18af2dc9ef85d98b0d1b41bc7d506df5f
   hermes-engine: 30d32e193b765f51de6f081979aae6d7fde19055
   RCTDeprecation: a4c521821fab57cbb125b36effe84d897d0dfa12
   RCTRequired: 9f3a7e5645d4bc3f551593de7550bb66ab6e42bc
@@ -2154,6 +2145,6 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: fcc8b94da65a360bc234c7b772491458fb260e4e
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
-PODFILE CHECKSUM: 27cc6caf36d1f8329e8472988f5370b2973d18b2
+PODFILE CHECKSUM: a5c8a4f4f04aa68273598e47737c9a3a54519a56
 
 COCOAPODS: 1.16.2

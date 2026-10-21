@@ -3,11 +3,16 @@
 module.exports = ({ types: t }) => ({
   name: 'typegpu-string-namespace-export-compat',
   post(file) {
-    if (!file.opts.filename?.replaceAll('\\', '/').includes('/typegpu/')) return;
+    if (!file.opts.filename?.replaceAll('\\', '/').includes('/typegpu/'))
+      return;
     file.path.traverse({
       MemberExpression(path) {
         const node = path.node;
-        if (!node.computed && t.isIdentifier(node.property) && !t.isValidIdentifier(node.property.name, false)) {
+        if (
+          !node.computed &&
+          t.isIdentifier(node.property) &&
+          !t.isValidIdentifier(node.property.name, false)
+        ) {
           node.property = t.stringLiteral(node.property.name);
           node.computed = true;
         }
