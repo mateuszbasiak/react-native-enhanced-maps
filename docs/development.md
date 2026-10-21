@@ -1,131 +1,69 @@
 # Development workflow
 
-## Selected spike versions
-
-Node 22.17.1 (minimum 22.13), npm 11.5.2, React Native 0.85.3, React 19.2.3,
-TypeScript 5.9.3, TypeGPU 0.12.8, react-native-webgpu 0.17.0.
-These are an initial test set, not a broad compatibility guarantee. Dependencies
-are locked in package-lock.json. Native baselines: iOS 16 and Android 24 for core;
-the GPU example requires Android 26. Google Android is pinned to 20.0.0.
-Google iOS uses optional CocoaPods 10.15.0 for the spike. Google's newer 11.x
-installation direction is Swift Package Manager; evaluate that before release.
-
-Sources used when selecting versions:
-- https://reactnative.dev/docs/turbo-native-modules-introduction
-- https://wcandillon.github.io/react-native-webgpu/docs/getting-started/installation
-- https://docs.swmansion.com/TypeGPU/integration/react-native/
-- https://developers.google.com/maps/documentation/android-sdk/release-notes
-- https://developers.google.com/maps/documentation/ios-sdk/release-notes
-
-## JavaScript and package checks
-
-Run from repository root:
+Install with `npm ci --ignore-scripts`. The workspace contains the core maps package,
+optional TypeGPU companion and bare React Native example. Native integration belongs
+to the core package; do not patch third-party React Native map wrappers.
 
 ```sh
-npm ci --ignore-scripts
-npm run check
-npm run example:bundle
-npm run doctor
+npm run example:pods        # macOS: install React Native Pods + MapLibre SPM setup
+npm start                   # Metro port 8088; keep running
+npm run example:ios         # separate terminal; or example:android
+npm run example:ios -- --simulator "iPhone 17 Pro"
 ```
 
-`check` builds declarations, checks public type cases and the example, runs native
-boundary contracts, checks consumer CLI autolinking, generates native code for both
-platforms, and packs/installs tarballs into a temporary declaration consumer.
-It does not build native SDKs or test device behavior.
-
-`example:bundle` creates production JS bundles for both platforms without starting
-Metro. `doctor` writes redacted tool/credential-presence information to
-`artifacts/doctor.json`. Never reinstall node_modules while native builds are running.
-
-No additional runtime npm dependencies are declared by either library. React and RN
-are peers; the companion also peers on the core package, TypeGPU and WebGPU. The
-example installs GPU dependencies for future validation. This does not imply that
-GPU rendering is implemented or that native binaries are small: WebGPU brings Dawn.
-
-## iOS
-
-Prerequisites: Xcode, CocoaPods, Node, a supported simulator runtime. The example
-uses CocoaPods rather than mixing SPM and Pods.
+Prerequisites: Node >=22.13, JDK 17, Android SDK 36; Xcode, CocoaPods and simulator
+runtime for iOS. Android does not require Google Play Services. The example uses
+public MapLibre styles; style/tile hosting requirements are separate from the SDK.
 
 ```sh
-cd example/ios
-pod install
-cd ..
-npm start
-# In another terminal, from example/:
-npm run ios
+npm run build               # TypeScript packages and declarations
+npm run check               # lint, formatting, types, contracts, Codegen, packages
+npm run lint                # ESLint for JavaScript, TypeScript, and React Hooks
+npm run lint:fix            # apply automatic ESLint fixes
+npm run format              # format supported repository files with Prettier
+npm run format:check        # check formatting without changing files
+npm run example:bundle      # production bundles for iOS and Android
+npm run build:ios           # Debug simulator app, no launch/signing
+npm run build:android -- -PreactNativeArchitectures=arm64-v8a
+npm run doctor              # tool availability; writes artifacts/doctor.json
+npm run clean -- --dry-run  # preview generated-output cleanup
 ```
 
-The example uses Metro port 8088 to avoid other local apps on 8081.
-Use `EnhancedMapsExample.xcworkspace`. For command-line build-only verification:
+Native SDKs: Android MapLibre OpenGL 13.6.1; iOS MapLibre 6.31.0. Minimum iOS 16,
+Android 24 (GPU companion example requires Android 26). iOS combines React Native
+Pods with the package's `maplibre-spm.rb` post-install hook; open the generated
+`EnhancedMapsExample.xcworkspace`. No Google keys or provider-specific pod variants.
 
-```sh
-cd example/ios
-xcodebuild -workspace EnhancedMapsExample.xcworkspace \
-  -scheme EnhancedMapsExample -configuration Debug -sdk iphonesimulator \
-  -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
-```
+Build output: `example/ios/build/DerivedData/Build/Products/Debug-iphonesimulator/`
+and `example/android/app/build/outputs/apk/debug/`. Native subprocess logs still
+redact local secrets left from older experiments. Existing ignored local key files
+are preserved, but no longer configure the app.
 
-If a generated `.xcode.env.local` selects an old Node, update that ignored file to
-use the selected Node executable. Do not commit a machine-specific path.
+`check` and production bundling do not verify native SDK compilation or device
+behavior. After native changes build both platforms and exercise map loading,
+camera movement, custom marker updates, presses, dragging, zIndex, remounting and
+background/resume. Record any remaining input arbitration or performance limits.
 
-MapKit is the default and requires no Google API key. Google iOS is deliberately
-not linked by default:
+## Repository automation
 
-```sh
-cd example/ios
-ENHANCED_MAPS_GOOGLE_IOS=1 pod install
-```
+GitHub runs lint/Prettier, package checks, production bundles, and separate Android
+ARM64 Debug and iOS simulator Debug builds on pushes and pull requests. Native build
+logs are retained for seven days. iOS CI uses Xcode 16.4 on macOS 15 and the runner's
+CocoaPods installation, with `pod install --deployment` to enforce `Podfile.lock`.
+These compilation checks do not replace device smoke tests or release builds.
 
-Put `GOOGLE_MAPS_IOS_API_KEY` and `GOOGLE_MAPS_ANDROID_API_KEY` in root `.env.local`,
-then run `npm run example:configure` from root. This generates ignored native
-configuration files; environment variables override local values. The tracked
-Info.plist references the generated iOS build setting. Never commit actual keys.
-The view reports a structured missing-key error;
-it must not log the key. Enabling Google changes native dependencies and requires
-rebuilding. A provider change requires a React remount (the example does this).
+`npm run check:packages` runs the types, contracts, Codegen, and packaging checks.
+CI uses this command so lint and Prettier run only in their dedicated job;
+`npm run check` still includes everything for local use. Node comes from `.nvmrc`.
 
-## Android
+Dependabot checks npm workspaces, GitHub Actions, the example's Gradle project,
+and its Ruby dependencies weekly. Updates require review; they are not auto-merged.
+`.editorconfig` provides shared whitespace defaults for editors that support it.
 
-Prerequisites: JDK 17, Android SDK 36, Google Play-enabled emulator/device, and
-ANDROID_HOME. Gradle resolves the pinned NDK/CMake requirements. The example
-expects workspace dependencies at the repository root.
-
-```sh
-cd example/android
-./gradlew :app:assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
-cd ..
-npm start
-# In another terminal, from example/:
-npm run android
-```
-
-Configure the local keys as above, or set `GOOGLE_MAPS_ANDROID_API_KEY` in the local environment before building. It is
-passed through a manifest placeholder; use an appropriately restricted development
-key. No location permission is requested by this spike. Missing credentials produce
-an error rather than substituting another map provider.
-
-## What to verify on a device
-
-Open the example and observe the status. Test initial display, Move, Unmount/Mount,
-Remount, navigation/background/resume, and provider switching on iOS. Readiness
-means the provider reports loading/rendering, not merely that an SDK object exists.
-Google may never report loaded when authentication/network configuration is invalid.
-These manual controls are the beginning of the scenario app, not the planned
-machine-readable scenario runner. Physical-device release benchmarks remain pending.
-
-## GitHub Actions
-
-`Package checks` runs on every push and pull request and supports manual runs from
-GitHub's Actions page once the workflow is on the default branch. Two independent
-Ubuntu jobs run `npm run check` and production Metro bundles for iOS/Android.
-Node 22.17.1 and Temurin Java 17 are explicitly selected; the runner's C++ compiler
-executes the native camera gate contracts. npm installs use the lockfile without
-lifecycle scripts. No Google Maps keys or repository secrets are required.
-
-Download `package-verification` for tarballs/check logs and `production-bundles`
-for bundles/logs; artifacts are retained for seven days, including available logs
-on failures. New runs cancel superseded runs for the same branch or pull request.
-These checks compile the standalone Java/C++ gates, not full native SDK apps;
-Xcode/Gradle SDK builds and device performance testing remain separate gates.
+The task completion hook runs `scripts/check-quality.sh`: Prettier writes formatting
+first, then ESLint checks the result. Both commands run even if one fails, and the
+script returns a failure status if either fails. Cursor uses `.cursor/hooks.json`;
+Codex uses `.codex/hooks.json`. In Codex, review and trust the project hook through
+`/hooks` before expecting automatic execution. The script can also be tested with
+`printf '{}' | bash scripts/check-quality.sh`. A direct script test does not prove
+that the editor has loaded and trusted the lifecycle hook.

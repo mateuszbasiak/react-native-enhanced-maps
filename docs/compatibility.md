@@ -1,34 +1,14 @@
-# Compatibility and verification status
+# Compatibility
 
-Initial baseline: React Native 0.85.3 / React 19.2.3, New Architecture only.
-TypeGPU 0.12.8 and react-native-webgpu 0.17.0 power an experimental one-shot
-shader texture on all three native map backends. Live GPU layer integration
-remains unimplemented.
+Current renderer: package-owned MapLibre Native on iOS and Android, with Fabric
+components exported by `react-native-enhanced-maps`. Google Maps and Apple Maps
+experiments have been removed; provider selection is not a public API.
 
-## Implemented checks
+Development baseline: React Native 0.85.3, React 19.2.3, iOS 16+, Android 24+,
+MapLibre iOS 6.31.0, MapLibre Android OpenGL 13.6.1. This is a feasibility baseline,
+not a broad compatibility guarantee. Native migration verification is ongoing.
 
-- TypeScript public contracts and expected compilation failures.
-- Runtime provider/camera validation and JS revision lifetime contracts.
-- Consumer CLI discovery for both native platforms.
-- Codegen generation for iOS and Android.
-- Packed tarball file checks and declaration resolution in a separate consumer.
-
-Native Debug build and simulator/emulator runtime evidence is recorded in `docs/verification.md`.
-Generation is not native compilation; compilation is not device verification.
-
-## react-native-maps baseline
-
-Research baseline: npm 1.29.11. No dependency on react-native-maps is installed.
-A full pinned API inventory is still pending. Current component is an initial
-MapView spike; region props, children/markers, shape components, fit-to-coordinates,
-callouts, snapshots, location tracking, and full event/method compatibility are
-not implemented. Familiar naming does not establish drop-in compatibility.
-
-## Open release constraints
-
-- Native SDK/OS support ranges need device evidence before widening peer ranges.
-- Google iOS 10.15.0 Pods integration is a temporary spike choice; assess current SPM distribution.
-- Newer RN releases are not yet tested; only 0.85.x is declared as the initial peer range.
-- No Expo config plugin, clean native tarball consumers, release-device benchmarks,
-  clustering, layers, accessibility equivalents, or geographic GPU synchronization yet.
-- Packages remain private/UNLICENSED; publishing is intentionally disabled.
+The package does not claim react-native-maps drop-in compatibility. Circle, line
+and fill sources/layers and custom React Native marker children are implemented.
+Clustering, additional style types, live GPU layers, complete RNGH integration and
+release-device performance benchmarks remain future work.

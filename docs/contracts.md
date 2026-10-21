@@ -1,3 +1,5 @@
+> Historical prototype record. Apple/Google experiments were removed in the package-owned MapLibre migration. See the root README and package source for the current API; earlier verification does not verify the migrated native implementation.
+
 # Initial contracts
 
 All contracts are provisional until three-provider feasibility is measured.
@@ -46,6 +48,16 @@ JS revision gate invalidates stale revisions after replacement/disposal; it is
 not a substitute for native cancellation. Native async dataset work does not exist
 yet and will require its own generation/revision guards.
 
+## Map content components
+
+`Polyline` and `Polygon` are standalone MapView descriptors backed by native SDK
+shapes. Each owns an ID, visibility, opacity and zIndex. Increasing zIndex requests
+later drawing; ties retain declaration order, subject to provider rendering groups.
+There is no universal ordering across basemap content, markers, raster and shapes.
+Geometry is immutable and stable references avoid repeat source serialization.
+See [native-components.md](native-components.md). Heatmap/particles and shape
+picking remain planned. The shared custom renderer was removed.
+
 ## TypeGPU
 
 The optional companion now includes an experimental one-shot TypeGPU triangle
@@ -65,6 +77,13 @@ frame/lifetime interfaces remain provisional contracts for future live rendering
 ## Capabilities and compatibility
 
 Capability types distinguish supported, unsupported, and unvalidated. No runtime
-capability report is provided yet. Layers and clustering are not exported as fake
-components. The complete react-native-maps API inventory and expression specification
+capability report is provided yet. Only the implemented GeoJSON/line/fill layer components are exported; clustering
+and other rendering kinds remain unimplemented. The complete react-native-maps API inventory and expression specification
 remain later contract work; names in the design are requirements, not implemented APIs.
+
+## Current MapLibre source revisions
+
+Explicit `GeoJSONSource.revision` values cross the native boundary and are enforced
+by both hosts before scene replacement. Omitted revisions remain unversioned.
+See [source revision semantics](source-revisions.md) for rejection, reload and
+removal behavior. Earlier provider-specific contracts above remain historical.

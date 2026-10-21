@@ -1,30 +1,35 @@
 # React Native Enhanced Maps
 
-A New Architecture native maps package in active feasibility development.
-Stability, measurable performance, and a typed API are the priorities.
+A package-owned React Native Fabric integration with MapLibre Native on iOS and Android.
+The core package exports `MapView`, `Marker`, `GeoJSONSource`, `Layer`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
+have been removed. No React Native MapLibre wrapper or dependency patches are required.
 
-## Current implementation
-
-- npm workspaces for the core maps package, optional TypeGPU companion, and bare native example.
-- Typed Fabric MapView boundary with initial camera, camera command, events, and errors.
-- Initial MapKit and Google Maps native adapters. See verification status in `docs/compatibility.md`.
-- Type tests, runtime contract tests, native autolinking regression check, Codegen verification, production Metro bundling, and packed declaration-consumer checks.
-
-This is **not a production release**. Layers, clustering, detailed gesture recognition,
-and live TypeGPU shader layers remain required v1 work.
-The GPU companion includes an experimental TypeGPU triangle baked to a native
-geographic raster; it does not yet implement a live custom render pass.
-No performance or react-native-maps drop-in compatibility claim is made.
-
-Start with [development](docs/development.md), [contracts](docs/contracts.md),
-and [the implementation plan](docs/plans/2026-10-19-feasibility-implementation-plan.md).
+Custom markers accept React Native children. Android draws marker textures inside
+MapLibre's render pass and keeps native children for input; bitmap captures happen
+when content changes. iOS uses native annotation views. Layer ordering and marker
+`zIndex` are owned by the package. Gesture arbitration and production performance
+still need further verification.
 
 ```sh
 npm ci --ignore-scripts
-npm run check
-npm run example:bundle
-npm run doctor
+npm run example:pods         # macOS: Pods + package-owned MapLibre SPM hook
+npm start                   # Metro on 8088
+npm run example:ios          # in another terminal; or example:android
 ```
 
-Packages remain private and UNLICENSED pending repository ownership, licensing,
-and npm naming decisions. No publishing workflow is enabled.
+Examples use a MapLibre style URL. No Google credentials are needed. Tile/style
+hosting can have its own terms, availability and costs.
+
+```sh
+npm run check               # types, contracts, Codegen, packed consumer checks
+npm run example:bundle      # production JS bundles
+npm run build:ios           # native simulator build
+npm run build:android -- -PreactNativeArchitectures=arm64-v8a
+```
+
+See [development](docs/development.md) and the
+[package migration plan](docs/plans/2026-10-20-package-owned-maplibre.md).
+Historical prototype documents describe earlier experiments and are not the current
+API. Packages remain private and UNLICENSED; this is not a production release.
+
+Shape props and compatibility limits: [shape components](docs/shapes.md).

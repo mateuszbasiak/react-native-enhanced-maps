@@ -1,11 +1,15 @@
 # Enhanced Maps example
 
-Bare React Native 0.85.3 application for native maps feasibility testing.
-See [the development guide](../docs/development.md) for setup and native build commands.
+Bare React Native 0.85.3 app consuming the workspace's core package exports.
+The app contains custom marker and native source/layer scenarios using MapLibre.
+Apple Maps and Google Maps experiments have been removed.
 
-From this directory, `npm start` starts Metro on port 8088. Use `npm run ios` or
-`npm run android` in another terminal. The app provides map mounting, remounting,
-provider selection on iOS, camera movement, and visible readiness/error state.
+From the repository root, run `npm run example:pods` on macOS, then `npm start`.
+In another terminal run `npm run example:ios` or `npm run example:android`.
+Metro uses port 8088. No Google credentials are required.
 
-This is not yet the planned automated device scenario runner. GPU rendering,
-clustering, and data layers are not implemented.
+See [development](../docs/development.md) for native build and verification commands.
+
+Development builds expose Open clustering for the deterministic native cluster
+fixture, separate cluster/point styles, high/low zoom, revision rejection, style
+reload and remount controls. See [clustering](../docs/clustering.md).
