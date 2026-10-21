@@ -4,10 +4,6 @@
     "rootDir": "src",
     "outDir": "lib"
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "type-tests"
-  ]
+  "include": ["src"],
+  "exclude": ["type-tests"]
 }

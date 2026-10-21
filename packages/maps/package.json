@@ -22,7 +22,8 @@
     "android/build.gradle",
     "android/src",
     "*.podspec",
-    "react-native.config.cjs"
+    "react-native.config.cjs",
+    "*.rb"
   ],
   "peerDependencies": {
     "react": "^19.2.3",
@@ -38,7 +39,8 @@
     },
     "ios": {
       "componentProvider": {
-        "EnhancedMapView": "EMMapView"
+        "EnhancedMapLibreView": "EMMapLibreView",
+        "EnhancedMarkerView": "EMMarkerView"
       }
     }
   }
