@@ -8,17 +8,14 @@
     "start": "react-native start --port 8088"
   },
   "dependencies": {
-    "@react-native-enhanced-maps/typegpu": "0.0.0",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-enhanced-maps": "0.0.0",
     "react-native-webgpu": "0.17.0",
-    "typegpu": "0.12.8"
+    "react-native-worklets": "0.12.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@babel/plugin-transform-class-static-block": "^7.28.3",
-    "@babel/plugin-transform-export-namespace-from": "^7.27.1",
     "@babel/runtime": "^7.25.0",
     "@react-native-community/cli": "20.1.0",
     "@react-native-community/cli-platform-android": "20.1.0",

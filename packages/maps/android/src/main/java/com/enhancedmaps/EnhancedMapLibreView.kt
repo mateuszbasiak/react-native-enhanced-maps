@@ -29,6 +29,7 @@ import org.maplibre.android.style.sources.GeoJsonSource
 private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLibre.getInstance(context); return context }
 
 class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapView(initialized(reactContext), MapLibreMapOptions.createFromAttributes(reactContext)), LifecycleEventListener {
+  private val shaderLayerOwners=mutableMapOf<String,String>()
   var styleURL = ""
   var styleRevision = 0.0
   private var loadedStyleRevision: Double? = null
@@ -57,6 +58,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var styleGeneration = 0L
   private var sceneSources = listOf<String>()
   private var clusteredSources = setOf<String>()
+  private var lastMarkerLayout: String? = null
   private var clusterIndexRevision = 0L
   private var sceneLayers = listOf<String>()
   private val interactiveLayers = mutableSetOf<String>()
@@ -161,7 +163,20 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       markers.forEach { textures[it] = EMMarkerTexture(nativeMap, it) }
       configure()
     }
+    addOnDidFinishRenderingFrameListener { fully, _, _ ->
+      if(fully) post { publishMarkerClusters() }
+    }
     addOnDidFailLoadingMapListener { message -> error("style-load", message) }
+  }
+  private fun publishMarkerClusters() {
+    if(disposed || !isAttachedToWindow || readyStyleRevision!=styleRevision) return
+    val nativeMap=map ?: return
+    try {
+      val layout=MarkerClusterLayout.read(nativeMap,acceptedScene,clusterIndexRevision,width,height) ?: return
+      if(layout==lastMarkerLayout) return
+      lastMarkerLayout=layout
+      emit("topMarkerClusters",Arguments.createMap().apply { putString("layoutJSON",layout);putDouble("styleRevision",readyStyleRevision) })
+    } catch(exception:Exception) { error("marker-cluster",exception.message ?: "Marker cluster layout failed") }
   }
   private fun emitMapPress(action: String, coordinate: LatLng) {
     if(disposed || !mapPressEventsEnabled || readyStyleRevision != styleRevision) return
@@ -208,9 +223,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val generation = ++styleGeneration
       loadedURL = requestedURL
       loadedStyleRevision = requestedRevision
+      shaderLayerOwners.clear()
       nativeMap.setStyle(Style.Builder().fromUri(requestedURL)) {
         if (!disposed && generation == styleGeneration && loadedURL == requestedURL && styleURL == requestedURL && styleRevision == requestedRevision) {
           readyStyleRevision = requestedRevision
+          lastMarkerLayout = null
           appliedScene = null; sceneSources = emptyList(); sceneLayers = emptyList(); orderStyle = null
           if (!applyScene()) acceptedScene?.let { applyScene(it) }
           orderDirty = true; scheduleFrame()
@@ -372,6 +389,32 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val nativeMap=map
       require(nativeMap!=null && readyStyleRevision==revision && styleRevision==revision) { "Map is not ready" }
       val response=when(request.getString("kind")) {
+        "shaderLayer" -> {
+          val style=nativeMap.style ?: throw IllegalStateException("Style not ready")
+          val id=request.getString("id");require(Regex("^[a-zA-Z0-9_.:-]{1,128}$").matches(id))
+          val pool=request.getString("poolId")
+          when(request.getString("action")) {
+            "attach" -> {
+              require(shaderLayerOwners[id]==null || shaderLayerOwners[id]==pool) { "Duplicate shader layer id" }
+              require(style.getLayer(id)==null || shaderLayerOwners[id]==pool) { "Duplicate style layer id" }
+              val before=if(request.has("beforeId")) {
+                val beforeID=request.getString("beforeId");require(beforeID!=id)
+                style.getLayer(beforeID) ?: throw IllegalArgumentException("beforeId layer is missing")
+              } else if(request.optString("placement")=="above-labels")null else style.layers.firstOrNull { it is SymbolLayer }
+              val weakMap=java.lang.ref.WeakReference(nativeMap)
+              val layer=CustomLayer(id,SharedOutputNative.host(pool,Runnable {
+                com.facebook.react.bridge.UiThreadUtil.runOnUiThread { weakMap.get()?.triggerRepaint() }
+              }))
+              if(shaderLayerOwners[id]==pool)style.removeLayer(id)
+              if(before==null)style.addLayer(layer) else style.addLayerBelow(layer,before.id)
+              shaderLayerOwners[id]=pool
+            }
+            "remove" -> if(shaderLayerOwners[id]==pool) { style.removeLayer(id);shaderLayerOwners.remove(id) }
+            "redraw" -> { require(shaderLayerOwners[id]==pool) { "Shader layer owner mismatch" };nativeMap.triggerRepaint() }
+            else -> throw IllegalArgumentException("Invalid shader action")
+          }
+          JSONObject().put("accepted",true)
+        }
         "clusterChildren", "clusterLeaves", "clusterExpansion" -> NativeClusterQueries.execute(nativeMap,request,clusterIndexRevision,clusteredSources)
         "fit" -> {
           val duration=request.getDouble("durationMs"); require(duration.isFinite() && duration in 0.0..60000.0)

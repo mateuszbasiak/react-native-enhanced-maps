@@ -1,30 +1,9 @@
-import MapView, {
-  Marker,
-  GeoJSONSource,
-  Layer,
-  Polyline,
-  Polygon,
-  Circle,
+import MapView, { Marker, Polyline, Polygon, Circle } from '../src/index.js';
+import type {
+  Camera,
+  MapViewRef,
+  ClusterComponentProps,
 } from '../src/index.js';
-import type { Camera, MapViewRef, GeoJSONData } from '../src/index.js';
-import type { ClusterOptions } from '../src/index.js';
-const clustering: ClusterOptions = { radius: 50, maxZoom: 14, minPoints: 2 };
-<GeoJSONSource
-  id="clustered"
-  data={{ type: 'FeatureCollection', features: [] }}
-  cluster={clustering}
->
-  <Layer id="clusters" type="circle" clusterFilter="clusters" />
-  <Layer id="points" type="circle" clusterFilter="points" />
-</GeoJSONSource>;
-<GeoJSONSource
-  id="bad"
-  data={{ type: 'FeatureCollection', features: [] }}
-  // @ts-expect-error clustering is not a string
-  cluster="yes"
-/>;
-// @ts-expect-error unsupported cluster filter
-<Layer id="bad-filter" type="circle" clusterFilter="all" />;
 const camera: Camera = {
   center: { latitude: 52, longitude: 21 },
   zoom: 10,
@@ -32,16 +11,6 @@ const camera: Camera = {
   pitch: 0,
 };
 declare const map: MapViewRef;
-declare const cluster: import('../src/index.js').ClusterHandle;
-const clusterChildren: Promise<import('../src/index.js').ClusterPage> =
-  map.getClusterChildren(cluster);
-const clusterLeaves = map.getClusterLeaves(cluster, { limit: 2, offset: 2 });
-const clusterZoom: Promise<number> = map.getClusterExpansionZoom(cluster);
-void clusterChildren;
-void clusterLeaves;
-void clusterZoom;
-// @ts-expect-error cluster handles are opaque
-map.getClusterLeaves({ sourceId: 'points', id: 1, pointCount: 2 });
 const pointQuery: Promise<Readonly<{ x: number; y: number }>> =
   map.pointForCoordinate(camera.center);
 const coordinateQuery: Promise<
@@ -111,39 +80,47 @@ map.animateCamera({ zoom: 5 });
 <Marker id="m" coordinate={camera.center} zIndex="top">
   {null}
 </Marker>;
-const data: GeoJSONData = { type: 'FeatureCollection', features: [] };
-<GeoJSONSource
-  id="hits"
-  data={data}
-  onPress={(id) => {
-    const value: string = id;
-    void value;
-  }}
-  onFeaturePress={(hit) => {
-    const layer: string = hit.layerId;
-    const source: string = hit.sourceId;
-    const latitude: number = hit.coordinate.latitude;
-    void layer;
-    void source;
-    void latitude;
-    void hit.properties;
-    // @ts-expect-error hit snapshots are readonly
-    hit.position.x = 1;
-  }}
-/>;
-<MapView styleURL="https://example.com/style.json">
-  <GeoJSONSource id="points" data={data}>
-    <Layer
-      id="dots"
-      type="circle"
-      style={{ circleColor: '#ff0000', circleRadius: 6 }}
-    />
-  </GeoJSONSource>
-  <Polyline
-    id="route"
-    coordinates={[camera.center, { latitude: 53, longitude: 22 }]}
-  />
+const CustomCluster = ({
+  count,
+  coordinate,
+  getMembers,
+  expand,
+}: ClusterComponentProps) => {
+  void count;
+  void coordinate.latitude;
+  getMembers().then((members) => {
+    const id: string = members[0]!.id;
+    void id;
+  });
+  void expand;
+  return null;
+};
+<MapView
+  styleURL="https://example.com/style.json"
+  clusterComponent={CustomCluster}
+>
+  <Marker
+    id="clustered"
+    coordinate={camera.center}
+    cluster
+    data={{ status: 'moving' }}
+  >
+    {null}
+  </Marker>
+  <Marker id="independent" coordinate={camera.center} cluster={false}>
+    {null}
+  </Marker>
 </MapView>;
+// @ts-expect-error marker clustering is strictly boolean
+<Marker id="bad-cluster" coordinate={camera.center} cluster="yes">
+  {null}
+</Marker>;
+// @ts-expect-error source-oriented cluster methods are no longer public
+map.getClusterLeaves({});
+// @ts-expect-error generic source/layer components are no longer exported
+import { GeoJSONSource, Layer } from '../src/index.js';
+void GeoJSONSource;
+void Layer;
 
 <Circle
   center={camera.center}
@@ -190,3 +167,26 @@ const data: GeoJSONData = { type: 'FeatureCollection', features: [] };
   // @ts-expect-error gesture interval is numeric
   gestureEventIntervalMs="fast"
 />;
+
+// Shader entry declarations remain independent of GPU implementation types.
+import { ShaderLayer } from '../src/shaders.js';
+const shaders = (
+  <ShaderLayer
+    id="wind"
+    shaders={{
+      fragment:
+        '@fragment fn fragmentMain() -> @location(0) vec4f { return vec4f(0); }',
+    }}
+    simulation={{ byteLength: 32, workgroups: [1] }}
+  />
+);
+const invalidShader = (
+  <ShaderLayer
+    id="bad"
+    shaders={{ fragment: 'shader' }}
+    // @ts-expect-error world coverage replaces geographic rectangle props
+    bounds={{ north: 1, south: 0, east: 1, west: 0 }}
+  />
+);
+void shaders;
+void invalidShader;

@@ -833,3 +833,43 @@ performed. Later shader-source/uniform builds were not installed by this agent.
 The user described the initial prototype as looking nice. Device, lifecycle,
 JS-contention and performance verification remain open. See
 [prototype scope and authoring alternatives](custom-gpu-prototype.md).
+
+### React Native WebGPU shared-output prototype — 2026-10-21
+
+The Debug example now renders one WGSL module through RN WebGPU on iOS and
+Android, and samples three pooled native output surfaces inside MapLibre's
+render stack. IOSurface/Metal and AHardwareBuffer/EGLImage/GLES paths visibly
+rendered waves and radar. Above/below-symbol placement, camera tilt/rotation,
+style reload and map remount smoke checks continued rendering. Android's
+available emulator uses a software Vulkan adapter; it was rejected by default
+and then tested using an explicitly labeled diagnostic opt-in.
+
+Package checks passed 72 tests, types, lint/format, Codegen and packed consumers;
+both native Debug builds and both production Metro bundles passed. A dedicated
+C++ regression covers output front/read/producer ownership and closure. Reviewed
+Android fence-failure/context-loss fixes were rebuilt separately. No physical
+Android, Release performance, device-loss or leak-stress acceptance is claimed.
+The prototype uses main-JS encoding and asynchronous completion-mediated handoff;
+it does not establish JS-independent animation or production fence scheduling.
+See [full fixture, implementation and limits](webgpu-shared-output-prototype.md).
+
+## TypeGPU cleanup (2026-10-21)
+
+Removed the unused TypeGPU workspace, triangle/readback helpers, provisional raster
+type and validator, obsolete tests, example dependencies and Babel transforms.
+The react-native-webgpu prototype remains; TypeGPU is only a possible future typed
+authoring adapter. Current checks pass 67 tests after retiring the five obsolete
+tests. Both production example JS bundles pass with the standard React Native
+Babel preset. No native code changed during this cleanup.
+
+## World ShaderLayer and Worklets (2026-10-23)
+
+The shared-output renderer now lives behind the optional `react-native-enhanced-maps/shaders` entry point. It publishes a bounded world tile atlas from a dedicated Worklets runtime through synchronous native JSI handles. Compute state belongs to the layer, not individual tiles; the wind example stores particle positions and tail endpoints in one persistent storage buffer.
+
+Validation includes tile coverage/wrapping/budgets, native slot/metadata ownership and close behavior, revision-scoped teardown, and a mocked worklet submission test proving one compute update per atlas and preservation across tile changes/backpressure. Both native Debug builds and both production example bundles pass. A separate core-only Metro bundle rejects WebGPU/Worklets imports in its resolver and still passes.
+
+iPhone 17 Pro simulator and Android API 36 emulator render the same procedural and wind WGSL. Controls exercise hot program swaps, uniforms, world/dateline cameras, layer visibility, multiple layers, remount and style reload. Native counters recorded 140 (iOS) and 50 (Android software diagnostic mode) atlas publications during separate three-second main-JS stalls with procedural rendering. These demonstrate scheduling independence, not physical-device FPS or GPU timings. The earlier 4096-particle diagnostic also continued publishing during a stall; the current visual example uses 1024 particles.
+
+Review findings fixed: Android consumer polling under backpressure, native pool cleanup on React reload, timing consistency across failed acquisitions, and stale-style cleanup requests. Native redraws now follow publication/camera changes, with additional Android polls only while consumer reads remain pending.
+
+Remaining limits are documented in [ShaderLayer](shader-layer.md): planar Mercator coverage, fixed atlas resolution, no LOD crossfade, no weather-texture streaming API, no automatic device-loss recovery, and physical-device projection/performance/energy acceptance still open.

@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, {
-  GeoJSONSource,
-  Layer,
+  Marker,
   Circle,
   Polygon,
   Polyline,
@@ -15,7 +14,6 @@ export default function MapDemo() {
     [ready, setReady] = useState(false),
     [selection, setSelection] = useState(''),
     [generation, setGeneration] = useState(0);
-  const [below, setBelow] = useState(true);
   const camera = useRef<MapViewRef>(null),
     step = useRef(0);
   const data = useMemo(() => createFleet(count), [count]);
@@ -49,10 +47,6 @@ export default function MapDemo() {
           }
         />
         <Button
-          title={below ? 'Route above labels' : 'Route below labels'}
-          onPress={() => setBelow((v) => !v)}
-        />
-        <Button
           title="Remount"
           onPress={() => {
             setReady(false);
@@ -74,25 +68,43 @@ export default function MapDemo() {
         onMapReady={() => setReady(true)}
         onError={(e) => setSelection(e.code)}
       >
-        <GeoJSONSource
+        <Polyline
           id="route"
-          data={{ type: 'FeatureCollection', features: [route] }}
-        >
-          <Layer
-            id="route-line"
-            type="line"
-            beforeId={below ? 'waterway_line_label' : undefined}
-            style={{ lineColor: '#ef4274', lineWidth: 12, lineOpacity: 0.85 }}
-          />
-        </GeoJSONSource>
-        <GeoJSONSource id="fleet" data={data} onPress={setSelection}>
-          <Layer
-            id="fleet-circles"
-            type="circle"
-            visible={visible}
-            style={{ circleColor: '#145e99', circleRadius: 5 }}
-          />
-        </GeoJSONSource>
+          coordinates={route.geometry.coordinates.map(
+            ([longitude, latitude]) => ({ latitude, longitude }),
+          )}
+          strokeColor="#ef4274"
+          strokeWidth={12}
+          opacity={0.85}
+        />
+        {visible &&
+          data.features.map((feature) => {
+            const [longitude, latitude] =
+              feature.geometry.type === 'Point'
+                ? feature.geometry.coordinates
+                : [0, 0];
+            return (
+              <Marker
+                key={feature.id}
+                id={feature.id}
+                coordinate={{ latitude, longitude }}
+                cluster
+                data={feature.properties}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <Pressable
+                  accessibilityLabel={`Select ${feature.id}`}
+                  onPress={() => setSelection(feature.id)}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: '#145e99',
+                  }}
+                />
+              </Marker>
+            );
+          })}
         <Circle
           id="harbor-circle"
           center={{ latitude: 54.37, longitude: 18.66 }}

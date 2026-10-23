@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
   Platform,
@@ -13,19 +7,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import {
-  MapView,
-  GeoJSONSource,
-  Layer,
-  Marker,
-} from 'react-native-enhanced-maps';
+import { MapView, Circle, Marker } from 'react-native-enhanced-maps';
 import type {
   CameraEvent,
-  GeoJSONData,
   MapCapabilities,
   MapError,
   MapGestureEvent,
-  MapFeaturePressEvent,
+  ShapePressEvent,
   MapPressEvent,
   MapPoint,
   MapBounds,
@@ -38,7 +26,7 @@ type Snapshot = {
   platform: string;
   gestures: MapGestureEvent[];
   subscriptionTransitions: { enabled: boolean; gestureCount: number }[];
-  featureHits: MapFeaturePressEvent[];
+  featureHits: ShapePressEvent[];
   legacyFeatureIds: string[];
   mapPresses: MapPressEvent[];
   markerPresses: number;
@@ -180,27 +168,6 @@ export default function RuntimeVerification() {
       setSummary(`Fit failed: ${String(error)}`);
     }
   };
-  const data = useMemo<GeoJSONData>(
-    () => ({
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          id: 'revision-point',
-          properties: {
-            revision: candidate.revision,
-            name: 'Łódź',
-            flags: [true, null, 3],
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: [candidate.longitude, 54.37],
-          },
-        },
-      ],
-    }),
-    [candidate],
-  );
   const onGesture = useCallback((event: MapGestureEvent) => {
     append(evidence.current.gestures, event, 256);
     setSummary(
@@ -363,7 +330,7 @@ export default function RuntimeVerification() {
           }}
         />
         <Button
-          title="Advance source"
+          title="Move shape"
           onPress={() => {
             const next = {
               revision: accepted.revision + 1,
@@ -374,26 +341,11 @@ export default function RuntimeVerification() {
           }}
         />
         <Button
-          title="Send stale source"
-          onPress={() =>
-            setCandidate({
-              revision: Math.max(0, accepted.revision - 1),
-              longitude: 18.64,
-            })
-          }
-        />
-        <Button
-          title="Equal revision change"
-          onPress={() =>
-            setCandidate({ revision: accepted.revision, longitude: 18.64 })
-          }
-        />
-        <Button
           title="Restore accepted"
           onPress={() => setCandidate(accepted)}
         />
         <Button
-          title={present ? 'Remove source' : 'Re-add at zero'}
+          title={present ? 'Remove shape' : 'Re-add shape'}
           onPress={() => {
             if (!present) {
               const next = { revision: 0, longitude: 18.66 };
@@ -532,26 +484,18 @@ export default function RuntimeVerification() {
             </Marker>
           )}
           {present && (
-            <GeoJSONSource
-              id="verification-source"
-              data={data}
-              revision={candidate.revision}
-              onPress={(id) =>
-                append(evidence.current.legacyFeatureIds, id, 64)
-              }
-              onFeaturePress={(hit) => {
-                append(evidence.current.featureHits, hit, 64);
-                setSummary(
-                  `Hit ${hit.layerId} · revision ${hit.properties.revision}`,
-                );
+            <Circle
+              id="verification-shape"
+              center={{ latitude: 54.37, longitude: candidate.longitude }}
+              radius={60}
+              strokeWidth={0}
+              fillColor="#e02020"
+              tappable
+              onPress={(event) => {
+                append(evidence.current.featureHits, event, 64);
+                setSummary(`Shape hit ${event.nativeEvent.identifier}`);
               }}
-            >
-              <Layer
-                id="verification-dot"
-                type="circle"
-                style={{ circleColor: '#e02020', circleRadius: 12 }}
-              />
-            </GeoJSONSource>
+            />
           )}
         </MapView>
       </View>

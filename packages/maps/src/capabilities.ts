@@ -91,6 +91,9 @@ export function createMapReadiness(platform: MapPlatform) {
       capabilities = parseCapabilities(json, platform);
       return capabilities;
     },
+    isReady(styleRequest: number) {
+      return active && request === styleRequest && capabilities !== null;
+    },
     getCapabilities() {
       return active ? capabilities : null;
     },

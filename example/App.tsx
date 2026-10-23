@@ -5,7 +5,9 @@ import MapDemo from './maplibre/MapLibrePrototype';
 import RuntimeVerification from './verification/RuntimeVerification';
 import ClusterVerification from './verification/ClusterVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
+import WebGPUPrototype from './gpu/WebGPUPrototype';
 export default function App() {
+  const [webgpu, setWebgpu] = useState(false);
   const [shader, setShader] = useState(false);
   const [markers, setMarkers] = useState(true);
   const [verification, setVerification] = useState(false);
@@ -42,7 +44,15 @@ export default function App() {
           onPress={() => setShader((v) => !v)}
         />
       )}
-      {shader && __DEV__ ? (
+      {__DEV__ && (
+        <Button
+          title={webgpu ? 'Close WebGPU prototype' : 'Open WebGPU prototype'}
+          onPress={() => setWebgpu((v) => !v)}
+        />
+      )}
+      {webgpu && __DEV__ ? (
+        <WebGPUPrototype />
+      ) : shader && __DEV__ ? (
         <ShaderPrototype />
       ) : clustering && __DEV__ ? (
         <ClusterVerification />

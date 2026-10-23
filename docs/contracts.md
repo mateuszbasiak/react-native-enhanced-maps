@@ -58,7 +58,11 @@ Geometry is immutable and stable references avoid repeat source serialization.
 See [native-components.md](native-components.md). Heatmap/particles and shape
 picking remain planned. The shared custom renderer was removed.
 
-## TypeGPU
+## Historical TypeGPU experiment (removed)
+
+The following describes the retired Apple/Google raster experiment. Its companion
+package, exported raster types and readback helpers were removed after the switch
+to the react-native-webgpu shared-output prototype. See [current GPU direction](shader-layer-api.md).
 
 The optional companion now includes an experimental one-shot TypeGPU triangle
 renderer with typed RGBA uniforms and bounded RGBA8 readback. Core accepts

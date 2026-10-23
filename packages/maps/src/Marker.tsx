@@ -7,6 +7,10 @@ import type { Coordinate } from './types';
 export interface MarkerProps {
   readonly id: string;
   readonly coordinate: Coordinate;
+  /** Participate in the map's marker clusters. Default false. */
+  readonly cluster?: boolean;
+  /** Application metadata returned lazily by a cluster's getMembers(). */
+  readonly data?: unknown;
   readonly zIndex?: number;
   readonly anchor?: Readonly<{ x: number; y: number }>;
   readonly offset?: Readonly<{ x: number; y: number }>;

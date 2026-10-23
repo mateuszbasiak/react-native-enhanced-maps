@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import type { JSONValue } from './layers';
 
@@ -69,19 +69,9 @@ export interface MapError {
   readonly message: string;
   readonly fatal: boolean;
 }
-/** Experimental shader snapshot, not a live GPU layer. Immutable; max 256 × 256. */
-export interface ExperimentalRasterOverlay {
-  readonly width: number;
-  readonly height: number;
-  readonly rgbaBase64: string;
-  readonly bounds: {
-    readonly north: number;
-    readonly south: number;
-    readonly east: number;
-    readonly west: number;
-  };
-}
 export interface MapViewProps {
+  /** Custom cluster contents; omitted uses a count bubble that expands on press. */
+  readonly clusterComponent?: ComponentType<ClusterComponentProps>;
   readonly styleURL: string;
   readonly children?: ReactNode;
   readonly initialCamera?: Camera;
@@ -102,15 +92,6 @@ export interface MapViewProps {
   readonly onError?: (error: MapError) => void;
 }
 export interface MapViewRef {
-  getClusterChildren(
-    cluster: ClusterHandle,
-    page?: ClusterPageOptions,
-  ): Promise<ClusterPage>;
-  getClusterLeaves(
-    cluster: ClusterHandle,
-    page?: ClusterPageOptions,
-  ): Promise<ClusterPage>;
-  getClusterExpansionZoom(cluster: ClusterHandle): Promise<number>;
   /** Resolves when the native fit command is accepted, not when animation completes. */
   fitCoordinates(
     coordinates: readonly Coordinate[],
@@ -124,6 +105,18 @@ export interface MapViewRef {
   getCapabilities(): MapCapabilities | null;
   /** An accepted command is not evidence that the camera animation completed. */
   animateCamera(camera: Camera, durationMs?: number): void;
+}
+export interface ClusterMember {
+  readonly id: string;
+  readonly coordinate: Coordinate;
+  readonly data: unknown;
+}
+export interface ClusterComponentProps {
+  readonly count: number;
+  readonly coordinate: Coordinate;
+  /** Fetches all members in bounded native pages. Rejects for obsolete clusters. */
+  readonly getMembers: () => Promise<readonly ClusterMember[]>;
+  readonly expand: () => Promise<void>;
 }
 declare const clusterHandleBrand: unique symbol;
 /** Opaque, map-owned handle; copies and handles from obsolete indexes reject. */

@@ -67,21 +67,21 @@ test('structured feature callback makes a source interactive without changing le
       /from '(\.\/[^']+)'/g,
       (_, path) => `from '${new URL(path + '.js', moduleURL).href}'`,
     );
-  const { compileScene, GeoJSONSource, Layer } = await import(
+  const { compileScene, InternalSource, InternalLayer } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
   );
   const hits = [],
     ids = [];
   const scene = compileScene(
     React.createElement(
-      GeoJSONSource,
+      InternalSource,
       {
         id: 'boats',
         data: { type: 'FeatureCollection', features: [] },
         onPress: (id) => ids.push(id),
         onFeaturePress: (hit) => hits.push(hit),
       },
-      React.createElement(Layer, { id: 'dots', type: 'circle' }),
+      React.createElement(InternalLayer, { id: 'dots', type: 'circle' }),
     ),
   );
   assert.equal(JSON.parse(scene.json).layers[0].interactive, true);
@@ -92,13 +92,13 @@ test('structured feature callback makes a source interactive without changing le
   assert.deepEqual(hits, [hit]);
   const only = compileScene(
     React.createElement(
-      GeoJSONSource,
+      InternalSource,
       {
         id: 'boats',
         data: { type: 'FeatureCollection', features: [] },
         onFeaturePress: () => {},
       },
-      React.createElement(Layer, { id: 'dots', type: 'circle' }),
+      React.createElement(InternalLayer, { id: 'dots', type: 'circle' }),
     ),
   );
   assert.equal(JSON.parse(only.json).layers[0].interactive, true);

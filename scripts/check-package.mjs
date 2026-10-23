@@ -11,7 +11,7 @@ const npmEnv = {
   npm_config_cache: path.join(output, 'npm-cache'),
 };
 const tarballs = [];
-for (const directory of ['maps', 'typegpu']) {
+for (const directory of ['maps']) {
   const result = JSON.parse(
     execFileSync(
       'npm',
@@ -89,7 +89,7 @@ execFileSync(
 );
 writeFileSync(
   path.join(consumer, 'consumer.ts'),
-  `import type { Camera, MapViewProps } from 'react-native-enhanced-maps';\nimport type { MapGpuFrame } from '@react-native-enhanced-maps/typegpu';\ndeclare const camera: Camera;\nconst props: MapViewProps = { styleURL: 'https://example.com/style.json', initialCamera: camera };\ndeclare const frame: MapGpuFrame;\nconst width: number = frame.widthPixels;\nvoid props; void width;\n`,
+  `import type { Camera, MapViewProps } from 'react-native-enhanced-maps';\nimport { ShaderLayer } from 'react-native-enhanced-maps/shaders';\nvoid ShaderLayer;\ndeclare const camera: Camera;\nconst props: MapViewProps = { styleURL: 'https://example.com/style.json', initialCamera: camera };\nvoid props;\n`,
 );
 execFileSync(
   process.execPath,
