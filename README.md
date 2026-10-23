@@ -1,7 +1,7 @@
 # React Native Enhanced Maps
 
 A package-owned React Native Fabric integration with MapLibre Native on iOS and Android.
-The core package exports `MapView`, `Marker`, `GeoJSONSource`, `Layer`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
+The core package exports `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
 have been removed. No React Native MapLibre wrapper or dependency patches are required.
 
 Custom markers accept React Native children. Android draws marker textures inside
@@ -34,4 +34,8 @@ API. Packages remain private and UNLICENSED; this is not a production release.
 
 Shape props and compatibility limits: [shape components](docs/shapes.md).
 
-Experimental world shader layers: [ShaderLayer contract](docs/shader-layer.md).
+Opt-in marker clustering uses `Marker.cluster` and optional `MapView.clusterComponent`.
+Cluster components receive count, coordinate, lazy `getMembers()` and `expand()`.
+Sources and style layers are private implementation details.
+
+Experimental world shader layers (`react-native-enhanced-maps/shaders`): [ShaderLayer contract](docs/shader-layer.md).
