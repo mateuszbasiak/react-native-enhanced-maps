@@ -1,0 +1,47 @@
+steps:
+  - tool: run-sequence
+    args:
+      steps:
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+        - tool: gesture-tap
+          args:
+            x: 0.45
+            y: 0.207
+          delayMs: 850
+executionPrerequisite: Android custom marker screen ready, initial flat camera,
+  pulse/timer stopped, Move marker visible. Record screen during replay to
+  compare marker ring and reference dot.

@@ -1,0 +1,11 @@
+steps:
+  - tool: gesture-swipe
+    args:
+      fromX: 0.3
+      fromY: 0.8
+      toX: 0.6
+      toY: 0.8
+      durationMs: 1600
+      momentum: false
+executionPrerequisite: Custom markers screen ready on emulator-5554, fresh map
+  at initial camera. Swipe starts on bare map below the cards.

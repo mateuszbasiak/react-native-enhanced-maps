@@ -1,0 +1,19 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'com.facebook.react'
+
+android {
+  namespace 'com.enhancedmaps'
+  compileSdk rootProject.ext.compileSdkVersion
+  defaultConfig { minSdk 24 }
+  sourceSets.main.java.srcDirs += 'build/generated/source/codegen/java'
+}
+react {
+  jsRootDir = file('../src')
+  libraryName = 'EnhancedMapsSpec'
+  codegenJavaPackageName = 'com.enhancedmaps'
+}
+dependencies {
+  implementation 'com.facebook.react:react-android'
+  implementation 'org.maplibre.gl:android-sdk-opengl:13.6.1'
+}

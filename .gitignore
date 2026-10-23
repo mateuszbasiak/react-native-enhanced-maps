@@ -1,0 +1,16 @@
+node_modules/
+lib/
+artifacts/
+*.tgz
+.DS_Store
+.env
+.env.*
+!.env.example
+Pods/
+build/
+.gradle/
+local.properties
+*.xcuserstate
+xcuserdata/
+example/ios/Config/Maps.local.xcconfig
+example/android/maps.local.properties

@@ -1,0 +1,91 @@
+{
+  "environment": "Pixel_9a arm64 API 36 emulator, debug, Metro 8088; single smoke runs; baseline heavily stalled; not a throughput ranking",
+  "interactionChecks": {
+    "overlay100": {
+      "childPresses": 1
+    },
+    "advanced100": {
+      "childPresses": 1,
+      "nativeClicks": 1
+    },
+    "bitmap100": {
+      "childPresses": 0,
+      "nativeClicks": 1
+    },
+    "advanced1000": {
+      "childLongPresses": 1
+    }
+  },
+  "reports": [
+    {
+      "mode": "overlay",
+      "count": 100,
+      "setupMs": 29.2195,
+      "samples": 116,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 449.999982,
+      "over33ms": 27,
+      "nativeClicks": 0
+    },
+    {
+      "mode": "advanced",
+      "count": 100,
+      "setupMs": 694.696292,
+      "samples": 69,
+      "p50FrameIntervalMs": 33.333332,
+      "p95FrameIntervalMs": 616.666642,
+      "over33ms": 25,
+      "nativeClicks": 0
+    },
+    {
+      "mode": "bitmap",
+      "count": 100,
+      "setupMs": 66.346959,
+      "samples": 85,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 733.333304,
+      "over33ms": 23,
+      "nativeClicks": 0
+    },
+    {
+      "count": 0,
+      "mode": "baseline",
+      "nativeClicks": 0,
+      "over33ms": 21,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 633.333308,
+      "samples": 82,
+      "setupMs": 0.002833
+    },
+    {
+      "count": 1000,
+      "mode": "overlay",
+      "nativeClicks": 0,
+      "over33ms": 14,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 716.666638,
+      "samples": 81,
+      "setupMs": 229.765833
+    },
+    {
+      "count": 1000,
+      "mode": "bitmap",
+      "nativeClicks": 0,
+      "over33ms": 21,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 416.66665,
+      "samples": 127,
+      "setupMs": 1942.979251
+    },
+    {
+      "mode": "advanced",
+      "count": 1000,
+      "setupMs": 14939.26809,
+      "samples": 100,
+      "p50FrameIntervalMs": 16.666666,
+      "p95FrameIntervalMs": 716.666638,
+      "over33ms": 17,
+      "nativeClicks": 0
+    }
+  ]
+}

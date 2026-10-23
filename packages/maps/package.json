@@ -1,0 +1,47 @@
+{
+  "name": "react-native-enhanced-maps",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "react-native": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "react-native": "./src/index.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "README.md",
+    "ios/**/*.{h,m,mm}",
+    "android/build.gradle",
+    "android/src",
+    "*.podspec",
+    "react-native.config.cjs",
+    "*.rb"
+  ],
+  "peerDependencies": {
+    "react": "^19.2.3",
+    "react-native": "0.85.x"
+  },
+  "sideEffects": false,
+  "codegenConfig": {
+    "name": "EnhancedMapsSpec",
+    "type": "all",
+    "jsSrcsDir": "src/specs",
+    "android": {
+      "javaPackageName": "com.enhancedmaps"
+    },
+    "ios": {
+      "componentProvider": {
+        "EnhancedMapLibreView": "EMMapLibreView",
+        "EnhancedMarkerView": "EMMarkerView"
+      }
+    }
+  }
+}
