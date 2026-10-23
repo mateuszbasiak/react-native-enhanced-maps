@@ -27,6 +27,8 @@
     "build:ios": "node scripts/project.mjs build:ios",
     "build:android": "node scripts/project.mjs build:android",
     "test": "npm run test:contracts",
+    "verify:ios:bridge": "node scripts/check-ios-bridge.mjs",
+    "verify:android:bridge": "node scripts/check-android-bridge.mjs",
     "ci": "npm run check && npm run example:bundle",
     "clean": "node scripts/project.mjs clean",
     "lint": "eslint . --max-warnings 0",

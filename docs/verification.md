@@ -873,3 +873,28 @@ iPhone 17 Pro simulator and Android API 36 emulator render the same procedural a
 Review findings fixed: Android consumer polling under backpressure, native pool cleanup on React reload, timing consistency across failed acquisitions, and stale-style cleanup requests. Native redraws now follow publication/camera changes, with additional Android polls only while consumer reads remain pending.
 
 Remaining limits are documented in [ShaderLayer](shader-layer.md): planar Mercator coverage, fixed atlas resolution, no LOD crossfade, no weather-texture streaming API, no automatic device-loss recovery, and physical-device projection/performance/energy acceptance still open.
+
+## Release shader bridge diagnostics (2026-10-23)
+
+Shader aggregate counters and per-pool bridge `stats` are now Debug-only exports.
+Android source sets declare their own annotated transport methods because React
+Native 0.85 scans concrete-class declared methods. Review caught an initial
+inheritance-only implementation; the stronger compiled-method verifier reproduced
+its missing-install failure before the forwarding-method fix.
+
+Both Android Kotlin variants compile. `verify:android:bridge` inspects concrete
+class annotations and confirms the exact Debug/Release export sets and synchronous
+installation. iOS Debug and Release simulator builds pass with Xcode 26.2;
+`verify:ios:bridge` confirms selectors and export metadata for arm64 and x86_64.
+The worklet's private GPU-error check remains available in Release. Full package
+checks pass 78 tests, types, lint/format, Codegen and packed declarations.
+
+The corrected Android Debug APK assembled. Android Release app assembly failed
+at Hermes compiler discovery: the workspace hoists `hermes-compiler` outside the
+example root searched by Gradle. This is separate build configuration work, not a
+successful Release app result. CocoaPods required local path-dependent checksum
+regeneration in the isolated worktree; its four-checksum diff is excluded from
+this change. Wider privacy and clean-Release-consumer acceptance remain open.
+
+Physical-device Release testing was explicitly deferred to the maintainer on
+2026-10-23. No physical-device gate is closed by these compilation checks.
