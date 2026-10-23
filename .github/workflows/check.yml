@@ -2,6 +2,7 @@ name: Package checks
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -109,5 +110,5 @@ jobs:
             artifacts/bundles/
             artifacts/ci/*.log
 
-# Native compilation runs in native.yml; physical-device performance remains a release gate.
+# Physical-device performance remains a release gate.
 # These jobs need no Google Maps credentials or repository secrets.
