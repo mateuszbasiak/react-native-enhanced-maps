@@ -1,7 +1,7 @@
 # Development workflow
 
 Install with `npm ci --ignore-scripts`. The workspace contains the core maps package and a
-bare React Native example. Native integration belongs
+bare React Native example with a react-native-webgpu shader prototype. Native integration belongs
 to the core package; do not patch third-party React Native map wrappers.
 
 ```sh

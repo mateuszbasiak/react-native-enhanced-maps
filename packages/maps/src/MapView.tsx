@@ -20,6 +20,7 @@ import {
 import type { MarkerLayout } from './markerClustering';
 import NativeMap, { Commands } from './specs/MapLibreViewNativeComponent';
 import { MapContext } from './maplibreContext';
+import { ShaderMapContext } from './shaderContext';
 import { compileScene, InternalSource, InternalLayer } from './maplibreContent';
 import { validateCamera, classifyMapError } from './contracts';
 import { createMapReadiness } from './capabilities';
@@ -73,6 +74,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         enabled: gestureEnabled,
         revision: gestureSubscription.revision + 1,
       });
+    const [shaderReadyRevision, setShaderReadyRevision] = useState<
+      number | null
+    >(null);
     const nativeRef = useRef<ElementRef<typeof NativeMap>>(null);
     const { styleURL, onCapabilitiesChange } = props;
     const [styleRequest, setStyleRequest] = useState({
@@ -321,147 +325,165 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       }),
       [readiness, queries, styleRequest.revision],
     );
+    const shaderHost = useMemo(
+      () => ({
+        ready: shaderReadyRevision === styleRequest.revision,
+        revision: styleRequest.revision,
+        request(input: Record<string, string | number>) {
+          if (!readiness.isReady(styleRequest.revision))
+            return Promise.reject(new Error('Map is not ready'));
+          return queries.request('shaderLayer', input, styleRequest.revision);
+        },
+      }),
+      [shaderReadyRevision, styleRequest.revision, readiness, queries],
+    );
     return (
       <MapContext.Provider value={true}>
-        <NativeMap
-          ref={nativeRef}
-          style={props.style}
-          testID={props.testID}
-          styleURL={props.styleURL}
-          styleRevision={styleRequest.revision}
-          sceneJSON={scene.json}
-          onMarkerClusters={({ nativeEvent: e }) => {
-            if (
-              e.styleRevision !== styleRequest.revision ||
-              !readiness.getCapabilities()
-            )
-              return;
-            const layout = parseMarkerLayout(
-              e.layoutJSON,
-              markerVersion.revision,
-            );
-            if (
-              !layout ||
-              layout.features.some(
-                (feature) =>
-                  feature.clusterId === undefined &&
-                  !markerContent.markers.has(feature.id),
+        <ShaderMapContext.Provider value={shaderHost}>
+          <NativeMap
+            ref={nativeRef}
+            style={props.style}
+            testID={props.testID}
+            styleURL={props.styleURL}
+            styleRevision={styleRequest.revision}
+            sceneJSON={scene.json}
+            onMarkerClusters={({ nativeEvent: e }) => {
+              if (
+                e.styleRevision !== styleRequest.revision ||
+                !readiness.getCapabilities()
               )
-            )
-              return;
-            if (
-              layout.features.reduce(
-                (sum, feature) => sum + (feature.count ?? 1),
-                0,
-              ) > markerContent.markers.size
-            )
-              return;
-            setMarkerLayout({ styleRevision: e.styleRevision, layout });
-          }}
-          onMapQueryResult={({ nativeEvent: e }) => {
-            if (
-              e.styleRevision !== styleRequest.revision ||
-              !readiness.getCapabilities()
-            )
-              return;
-            queries.accept(e.requestId, e.resultJSON, e.error);
-          }}
-          mapPressEventsEnabled={Boolean(props.onPress || props.onLongPress)}
-          onMapPress={({ nativeEvent }) => {
-            if (
-              nativeEvent.styleRevision !== styleRequest.revision ||
-              !readiness.getCapabilities()
-            )
-              return;
-            const event = parseNativeMapPress(nativeEvent);
-            if (!event) return;
-            if (event.action === 'tap') props.onPress?.(event);
-            else props.onLongPress?.(event);
-          }}
-          gestureEventsEnabled={gestureEnabled}
-          gestureSubscriptionRevision={gestureSubscription.revision}
-          gestureEventIntervalMs={gestureInterval}
-          onGesture={({ nativeEvent }) => {
-            if (
-              !gestureEnabled ||
-              nativeEvent.subscriptionRevision !== gestureSubscription.revision
-            )
-              return;
-            const event = parseNativeGesture(nativeEvent);
-            if (event) props.onGesture?.(event);
-          }}
-          initialLatitude={initial.center.latitude}
-          initialLongitude={initial.center.longitude}
-          initialZoom={initial.zoom}
-          initialHeading={initial.heading}
-          initialPitch={initial.pitch}
-          onMapReady={({ nativeEvent }) => {
-            let report: MapCapabilities | null;
-            try {
-              report = readiness.acceptReport(
-                nativeEvent.styleRevision,
-                nativeEvent.capabilitiesJSON,
+                return;
+              const layout = parseMarkerLayout(
+                e.layoutJSON,
+                markerVersion.revision,
               );
-            } catch {
-              readiness.invalidate();
-              queries.cancelAll('Map is unavailable');
-              props.onCapabilitiesChange?.(null);
-              props.onError?.({
-                code: 'invalid-native-capabilities',
-                message: 'Invalid native map capabilities',
-                fatal: true,
+              if (
+                !layout ||
+                layout.features.some(
+                  (feature) =>
+                    feature.clusterId === undefined &&
+                    !markerContent.markers.has(feature.id),
+                )
+              )
+                return;
+              if (
+                layout.features.reduce(
+                  (sum, feature) => sum + (feature.count ?? 1),
+                  0,
+                ) > markerContent.markers.size
+              )
+                return;
+              setMarkerLayout({ styleRevision: e.styleRevision, layout });
+            }}
+            onMapQueryResult={({ nativeEvent: e }) => {
+              if (
+                e.styleRevision !== styleRequest.revision ||
+                !readiness.getCapabilities()
+              )
+                return;
+              queries.accept(e.requestId, e.resultJSON, e.error);
+            }}
+            mapPressEventsEnabled={Boolean(props.onPress || props.onLongPress)}
+            onMapPress={({ nativeEvent }) => {
+              if (
+                nativeEvent.styleRevision !== styleRequest.revision ||
+                !readiness.getCapabilities()
+              )
+                return;
+              const event = parseNativeMapPress(nativeEvent);
+              if (!event) return;
+              if (event.action === 'tap') props.onPress?.(event);
+              else props.onLongPress?.(event);
+            }}
+            gestureEventsEnabled={gestureEnabled}
+            gestureSubscriptionRevision={gestureSubscription.revision}
+            gestureEventIntervalMs={gestureInterval}
+            onGesture={({ nativeEvent }) => {
+              if (
+                !gestureEnabled ||
+                nativeEvent.subscriptionRevision !==
+                  gestureSubscription.revision
+              )
+                return;
+              const event = parseNativeGesture(nativeEvent);
+              if (event) props.onGesture?.(event);
+            }}
+            initialLatitude={initial.center.latitude}
+            initialLongitude={initial.center.longitude}
+            initialZoom={initial.zoom}
+            initialHeading={initial.heading}
+            initialPitch={initial.pitch}
+            onMapReady={({ nativeEvent }) => {
+              let report: MapCapabilities | null;
+              try {
+                report = readiness.acceptReport(
+                  nativeEvent.styleRevision,
+                  nativeEvent.capabilitiesJSON,
+                );
+              } catch {
+                setShaderReadyRevision(null);
+                readiness.invalidate();
+                queries.cancelAll('Map is unavailable');
+                props.onCapabilitiesChange?.(null);
+                props.onError?.({
+                  code: 'invalid-native-capabilities',
+                  message: 'Invalid native map capabilities',
+                  fatal: true,
+                });
+                return;
+              }
+              if (!report) return;
+              setShaderReadyRevision(nativeEvent.styleRevision);
+              props.onCapabilitiesChange?.(report);
+              props.onMapReady?.();
+            }}
+            onMapError={({ nativeEvent }) => {
+              const error = classifyMapError(nativeEvent);
+              if (error.fatal) {
+                setShaderReadyRevision(null);
+                readiness.invalidate();
+                queries.cancelAll('Map is unavailable');
+                props.onCapabilitiesChange?.(null);
+              }
+              props.onError?.(error);
+            }}
+            onCameraIdle={({ nativeEvent: e }) =>
+              props.onCameraIdle?.({
+                camera: {
+                  center: { latitude: e.latitude, longitude: e.longitude },
+                  zoom: e.zoom,
+                  heading: e.heading,
+                  pitch: e.pitch,
+                },
+                origin: normalizeCameraOrigin(e.origin),
+              })
+            }
+            onFeaturePress={({ nativeEvent: e }) => {
+              if (e.styleRevision !== styleRequest.revision) return;
+              let hit = parseNativeFeatureHit(e);
+              if (!hit) return;
+              if (e.indexRevision > 0) {
+                const cluster = clusterHandles.capture(
+                  hit.sourceId,
+                  hit.featureId,
+                  hit.properties,
+                  e.indexRevision,
+                  e.styleRevision,
+                );
+                if (!cluster) return;
+                hit = { ...hit, cluster };
+              }
+              scene.presses.get(hit.sourceId)?.(hit.featureId, {
+                coordinate: hit.coordinate,
+                position: hit.position,
               });
-              return;
-            }
-            if (!report) return;
-            props.onCapabilitiesChange?.(report);
-            props.onMapReady?.();
-          }}
-          onMapError={({ nativeEvent }) => {
-            const error = classifyMapError(nativeEvent);
-            if (error.fatal) {
-              readiness.invalidate();
-              queries.cancelAll('Map is unavailable');
-              props.onCapabilitiesChange?.(null);
-            }
-            props.onError?.(error);
-          }}
-          onCameraIdle={({ nativeEvent: e }) =>
-            props.onCameraIdle?.({
-              camera: {
-                center: { latitude: e.latitude, longitude: e.longitude },
-                zoom: e.zoom,
-                heading: e.heading,
-                pitch: e.pitch,
-              },
-              origin: normalizeCameraOrigin(e.origin),
-            })
-          }
-          onFeaturePress={({ nativeEvent: e }) => {
-            if (e.styleRevision !== styleRequest.revision) return;
-            let hit = parseNativeFeatureHit(e);
-            if (!hit) return;
-            if (e.indexRevision > 0) {
-              const cluster = clusterHandles.capture(
-                hit.sourceId,
-                hit.featureId,
-                hit.properties,
-                e.indexRevision,
-                e.styleRevision,
-              );
-              if (!cluster) return;
-              hit = { ...hit, cluster };
-            }
-            scene.presses.get(hit.sourceId)?.(hit.featureId, {
-              coordinate: hit.coordinate,
-              position: hit.position,
-            });
-            scene.featurePresses.get(hit.sourceId)?.(hit);
-          }}
-        >
-          {scene.live}
-          {clusterChildren}
-        </NativeMap>
+              scene.featurePresses.get(hit.sourceId)?.(hit);
+            }}
+          >
+            {scene.live}
+            {clusterChildren}
+          </NativeMap>
+        </ShaderMapContext.Provider>
       </MapContext.Provider>
     );
   },

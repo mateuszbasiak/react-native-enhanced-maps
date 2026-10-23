@@ -167,3 +167,26 @@ void Layer;
   // @ts-expect-error gesture interval is numeric
   gestureEventIntervalMs="fast"
 />;
+
+// Shader entry declarations remain independent of GPU implementation types.
+import { ShaderLayer } from '../src/shaders.js';
+const shaders = (
+  <ShaderLayer
+    id="wind"
+    shaders={{
+      fragment:
+        '@fragment fn fragmentMain() -> @location(0) vec4f { return vec4f(0); }',
+    }}
+    simulation={{ byteLength: 32, workgroups: [1] }}
+  />
+);
+const invalidShader = (
+  <ShaderLayer
+    id="bad"
+    shaders={{ fragment: 'shader' }}
+    // @ts-expect-error world coverage replaces geographic rectangle props
+    bounds={{ north: 1, south: 0, east: 1, west: 0 }}
+  />
+);
+void shaders;
+void invalidShader;

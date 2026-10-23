@@ -11,6 +11,6 @@ Pod::Spec.new do |s|
   s.source = { :git => 'https://example.invalid/react-native-enhanced-maps.git', :tag => s.version }
   s.platforms = { :ios => '16.0' }
   s.source_files = 'ios/**/*.{h,m,mm}'
-  s.frameworks = 'UIKit', 'CoreLocation', 'QuartzCore'
+  s.frameworks = 'UIKit', 'CoreLocation', 'QuartzCore', 'IOSurface', 'CoreVideo'
   install_modules_dependencies(s)
 end

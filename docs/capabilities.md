@@ -23,10 +23,11 @@ The report identifies `engine: 'maplibre'` and the native `platform`, and includ
 - `unsupported`: absent from the integrated native map API.
 
 Both current hosts report circle/line/fill and detailed gesture lifecycle events
-as `unvalidated`, and symbol/raster/heatmap and live shaders as `unsupported`.
+as `unvalidated`, and shaders as `unvalidated`, and symbol/raster/heatmap as `unsupported`.
 This deliberately does not advertise every capability of the underlying MapLibre
-SDK. Installing the optional TypeGPU snapshot helper does not add a native shader
-layer to MapView and therefore does not change the shader capability.
+SDK. The experimental ShaderLayer transport is available in native builds, but
+requires optional WebGPU/Worklets peers and compatible GPU sharing features. The
+report does not guarantee that a particular adapter or shader will initialize.
 
 Reports originate in the native readiness events and are bounded, schema-checked
 and frozen by JavaScript. A missing, malformed or platform-mismatched report emits
