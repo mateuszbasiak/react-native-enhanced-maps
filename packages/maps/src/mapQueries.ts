@@ -2,7 +2,7 @@ import type { Coordinate, MapBounds, MapPoint } from './types';
 import type { ClusterQueryKind, NativeClusterPage } from './clusterQueries';
 
 export type MapQueryKind =
-  'point' | 'coordinate' | 'bounds' | 'fit' | ClusterQueryKind;
+  'point' | 'coordinate' | 'bounds' | 'fit' | 'shaderLayer' | ClusterQueryKind;
 type Result =
   Coordinate | MapPoint | MapBounds | void | NativeClusterPage | number;
 const finite = (value: unknown): value is number =>
@@ -47,7 +47,8 @@ export function parseMapQueryResult(
     const v: unknown = JSON.parse(json);
     if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error();
     const r = v as Record<string, unknown>;
-    if (kind === 'fit' && r.accepted === true) return;
+    if ((kind === 'fit' || kind === 'shaderLayer') && r.accepted === true)
+      return;
     if (kind === 'point' && finite(r.x) && finite(r.y))
       return { x: r.x, y: r.y };
     // Preserve the SDK's unwrapped inverse longitude and bounds semantics.

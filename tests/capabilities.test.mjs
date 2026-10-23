@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const report = () => ({
   engine: 'maplibre',
   platform: 'android',
-  shaders: 'unsupported',
+  shaders: 'unvalidated',
   detailedGestures: 'unvalidated',
   layers: {
     circle: 'unvalidated',

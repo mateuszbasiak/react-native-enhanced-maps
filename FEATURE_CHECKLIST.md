@@ -3,7 +3,7 @@
 Last reviewed: **2026-10-21**. Current phase: **package-owned MapLibre implementation and verification**.
 This is the living inventory for the whole package, through npm release and maintenance.
 Stability and measured performance take priority. **Layers, native clustering, native
-gesture recognition and TypeGPU shaders are required v1 work.** A prototype does
+gesture recognition and custom GPU shaders are required v1 work.** A prototype does
 not satisfy the corresponding production feature or release gate.
 
 Current scope: [package-owned MapLibre migration](docs/plans/2026-10-20-package-owned-maplibre.md)
@@ -43,7 +43,7 @@ identify further differences as we investigate them.
 - [x] **ARCH-04 · Done** — Core has no runtime npm dependencies; GPU runtime dependencies remain companion peers.
 - [x] **ARCH-05 · Done** — Public TypeScript declarations and positive/negative API type tests.
 - [x] **ARCH-06 · Done** — Packed file/export checks, CLI autolinking discovery and declaration-consumer installation.
-- [x] **ARCH-07 · Done (bounded current host)** — Native readiness reports identify MapLibre/platform and expose layer, detailed-gesture and integrated shader evidence states through getCapabilities/onCapabilitiesChange. Reports are bounded/validated/frozen, invalidated on style/fatal/disposal transitions and tied to request revisions. Existing layers remain unvalidated; absent integrations are unsupported even with the optional TypeGPU helper installed. [Contract and limits](docs/capabilities.md), [regressions](tests/capabilities.test.mjs).
+- [x] **ARCH-07 · Done (bounded current host)** — Native readiness reports identify MapLibre/platform and expose layer, detailed-gesture and integrated shader evidence states through getCapabilities/onCapabilitiesChange. Reports are bounded/validated/frozen, invalidated on style/fatal/disposal transitions and tied to request revisions. Existing layers remain unvalidated; the experimental ShaderLayer integration reports unvalidated shader support. [Contract and limits](docs/capabilities.md), [regressions](tests/capabilities.test.mjs).
 - [ ] **ARCH-08 · Prototype** — Map error classification and fatal-readiness reset exist; consistent recoverable/fatal taxonomy across sources, layers, commands and GPU resources remains open.
 - [ ] **ARCH-09 · Planned** — Native generation/revision guards, cancellation, bounded queues and backpressure for asynchronous feature work.
 - [ ] **ARCH-10 · Planned** — TurboModule interfaces for operations that need a non-view module; current operations use Fabric view commands.
@@ -159,27 +159,30 @@ Historical LAYER-12 evidence: [shader raster scenario](docs/shader-raster-scenar
 - [ ] **CLUSTER-07 · Prototype** — Both hosts pass exact duplicate/nearby/isolated membership and child inspection, plus complete 1000/10000 coincident-point audits across 10/100 pages with no missing/duplicate IDs, frozen results and empty terminal pages. Spatial overlap, zoom-boundary and antimeridian matrices remain open.
 - [ ] **CLUSTER-08 · Planned** — Release-device benchmarks for 1k/10k/100k points and cross-provider semantic parity.
 
-## 9. TypeGPU and custom shaders — required v1 scope
+## 9. Custom GPU shaders — required v1 scope
 
 - [x] **GPU-01 · Superseded** — Removed the obsolete TypeGPU raster companion and dependencies. react-native-webgpu is the current runtime direction; optional typed authoring remains a future adapter.
 - [ ] **GPU-02 · Superseded** — Removed the triangle/readback experiment; shared-output MapLibre integration is tracked in GPU-17.
 - [ ] **GPU-03 · Superseded** — Removed the old typed triangle uniform API. The WebGPU prototype accepts JS uniforms; public typed resource contracts remain GPU-09.
 - [ ] **GPU-04 · Superseded** — Removed obsolete raster tests and TypeGPU-specific Babel transforms with their implementation. Current shared-output checks are tracked in GPU-17.
-- [ ] **GPU-05 · Planned** — Live GPU renderer integration; the sibling Canvas particle prototype was dropped in favor of designing the general layer API first.
-- [ ] **GPU-06 · Planned** — Provider rendering/projection contract; the prototype JS projection feed was removed and is not the general layer abstraction.
+- [ ] **GPU-05 · Experimental** — ShaderLayer integrates shared native output on both hosts; dedicated worklet submission replaces the old sibling Canvas approach. Production acceptance remains open.
+- [ ] **GPU-06 · Experimental** — Native camera projection anchors Mercator atlas tiles and supplies coverage directly to the worklet; spherical/polar projection and full horizon validation remain open.
 - [ ] **GPU-07 · Unverified** — Quantified alignment under pan, zoom, rotation, tilt, resize, padding and camera animations on MapLibre iOS/Android, after restoring a GPU integration path.
 - [ ] **GPU-08 · Planned** — Native reference anchors, high-zoom precision, local-origin strategy and wrapping/polar behavior.
-- [ ] **GPU-09 · Planned** — Reusable public custom-shader layer API with typed buffers, uniforms, viewport/projection state and ownership.
-- [ ] **GPU-10 · Planned** — Scheduling decision backed by JS-contention measurements; prove independence if it is advertised.
-- [ ] **GPU-11 · Planned** — Frame scheduling/backpressure and bounded allocations; no per-frame GPU readback in live rendering.
+- [ ] **GPU-09 · Experimental** — Public /shaders entry exports ShaderLayer with WGSL stages, bounded packed uniforms, optional shared simulation storage and world coordinates. Schema-typed shader authoring and streamed texture inputs remain open.
+- [ ] **GPU-10 · Experimental** — A dedicated worklet publishes via native JSI handles. Native counters advance during a three-second main-JS stall on both simulators; release-device scheduling and throughput budgets remain open.
+- [ ] **GPU-11 · Experimental** — Triple-buffered atlas leases, bounded tile coverage, shared simulation allocation and backpressure are implemented without pixel readback. Native-fence handoff and release allocation/energy measurements remain open.
 - [ ] **GPU-12 · Unverified** — Initialization interruption, shader failure, device loss/recovery, pause/resume and idempotent disposal under stress.
 - [ ] **GPU-13 · Planned** — Runtime GPU capability reporting and graceful degradation that preserves the ordinary map.
 - [ ] **GPU-14 · Planned** — Explicit composition limits, attribution/control protection and interactions with ordinary layers.
 - [ ] **GPU-15 · Planned** — Physical-device release frame times, alignment, memory, GPU dependency size and build-cost budgets.
 
 - [ ] **GPU-16 · Prototype** — iOS Debug custom Metal style layer accepts example-owned shader source and uniforms from JS, with native time and below/above-symbol placement. Waves/radar/checkerboard programs and the native host build compile; 71-test package checks pass. Mac Metal pipeline compilation is separate from simulator/device runtime evidence. No Android backend, TypeGPU integration, stable shader API or performance claim. [Scope and evidence](docs/custom-gpu-prototype.md).
+- [ ] **GPU-17 · Prototype** — RN WebGPU shared-output spike renders one WGSL program inside MapLibre on iOS (IOSurface/Metal) and Android (AHardwareBuffer/EGLImage/GLES). Both native builds, 72-test checks and production bundles pass; simulator waves/radar, placement controls, tilt/rotation, style reload and remount smoke checks pass. Android uses explicit software-GPU diagnostics, not hardware/performance acceptance. The original main-JS loop has since moved into ShaderLayer (GPU-18); native-fence handoff and physical-device budgets remain open. [Evidence and limits](docs/webgpu-shared-output-prototype.md), [investigation](docs/react-native-webgpu-investigation.md), [proposed API](docs/shader-layer-api.md).
 
-Historical static display evidence: [shader scenario](docs/shader-raster-scenario.md), [verification](docs/verification.md). Current helper code: [TypeGPU exports](packages/typegpu/src/index.ts).
+- [ ] **GPU-18 · Experimental component** — ShaderLayer accepts one WGSL program set on both platforms, optional layer-wide compute/storage state, packed uniforms and style insertion. A dedicated worklet runtime publishes bounded world tile atlases via native JSI handles. Tile borders use continuous world coordinates; wind particles/tail endpoints persist across tile selection changes. Device budgets, LOD transition quality, automatic recovery and full projection/lifecycle acceptance remain open. [Contract](docs/shader-layer.md).
+
+Historical static display evidence: [shader scenario](docs/shader-raster-scenario.md), [verification](docs/verification.md). The obsolete TypeGPU raster code has been removed.
 Live GPU integration remains required v1 scope. Its layer contract and rendering
 path need separate design and measured verification.
 **Portability requirement (2026-10-21):** programmers author each shader once and
@@ -270,7 +273,7 @@ items are outside the current v1 focus unless the user changes that decision.
 
 All gates remain open. Individual completed prototypes above do not close a gate.
 
-- [ ] **GATE-01 · Open** — Feasibility: MapLibre on both platforms, required layers and TypeGPU have measured projection/composition/threading/lifetime paths.
+- [ ] **GATE-01 · Open** — Feasibility: MapLibre on both platforms, required layers and custom GPU shaders have measured projection/composition/threading/lifetime paths.
 - [ ] **GATE-02 · Open** — Contracts: camera ownership, source/layer/cluster semantics, capabilities, errors and compatibility inventory approved.
 - [ ] **GATE-03 · Open** — Features: required v1 functionality implemented with per-provider acceptance coverage.
 - [ ] **GATE-04 · Open** — Quality: physical-device release performance, stability, accessibility and size budgets pass.
