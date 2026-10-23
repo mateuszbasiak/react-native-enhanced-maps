@@ -32,9 +32,9 @@ const points = (count, properties = null) => ({
   ],
 });
 test('combined scene positions cannot bypass independently valid source limits', async () => {
-  const { compileScene, GeoJSONSource } = await load();
+  const { compileScene, InternalSource } = await load();
   const source = (id, count) =>
-    React.createElement(GeoJSONSource, { id, data: points(count) });
+    React.createElement(InternalSource, { id, data: points(count) });
   assert.doesNotThrow(() =>
     compileScene([source('a', 25000), source('b', 25000)]),
   );
@@ -44,29 +44,29 @@ test('combined scene positions cannot bypass independently valid source limits',
   );
 });
 test('referencing one source many times remains bounded by rendered positions', async () => {
-  const { compileScene, GeoJSONSource, Layer } = await load();
+  const { compileScene, InternalSource, InternalLayer } = await load();
   const scene = (count) =>
     React.createElement(
-      GeoJSONSource,
+      InternalSource,
       { id: 'points', data: points(count) },
       ...Array.from({ length: 4 }, (_, i) =>
-        React.createElement(Layer, { id: `l${i}`, type: 'circle' }),
+        React.createElement(InternalLayer, { id: `l${i}`, type: 'circle' }),
       ),
     );
   assert.doesNotThrow(() => compileScene(scene(25000)));
   assert.throws(() => compileScene(scene(25001)), /rendered.*position limit/i);
 });
 test('combined scene payload is bounded in UTF-8 bytes rather than UTF-16 code units', async () => {
-  const { compileScene, GeoJSONSource } = await load();
+  const { compileScene, InternalSource } = await load();
   const data = points(1, { description: '水'.repeat(750000) });
   assert.doesNotThrow(() =>
-    compileScene(React.createElement(GeoJSONSource, { id: 'one', data })),
+    compileScene(React.createElement(InternalSource, { id: 'one', data })),
   );
   assert.throws(
     () =>
       compileScene([
-        React.createElement(GeoJSONSource, { id: 'one', data }),
-        React.createElement(GeoJSONSource, { id: 'two', data }),
+        React.createElement(InternalSource, { id: 'one', data }),
+        React.createElement(InternalSource, { id: 'two', data }),
       ]),
     /4 MiB|byte limit/i,
   );
@@ -131,12 +131,12 @@ test('scene counts include all geometry kinds and generated shapes', async () =>
       ),
     /rendered.*position limit/i,
   );
-  const { compileScene, GeoJSONSource } = await load();
+  const { compileScene, InternalSource } = await load();
   const { Circle } = await import('../packages/maps/lib/mapContent.js');
   assert.throws(
     () =>
       compileScene([
-        React.createElement(GeoJSONSource, {
+        React.createElement(InternalSource, {
           id: 'points',
           data: points(49900),
         }),

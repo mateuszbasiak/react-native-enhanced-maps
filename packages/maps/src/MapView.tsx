@@ -8,9 +8,19 @@ import React, {
 } from 'react';
 import type { ElementRef } from 'react';
 import { Platform } from 'react-native';
+import { Marker } from './Marker';
+import { DefaultCluster } from './DefaultCluster';
+import {
+  collectMarkers,
+  markerSourceID,
+  markerLayerID,
+  parseMarkerLayout,
+  resolveClusterMembers,
+} from './markerClustering';
+import type { MarkerLayout } from './markerClustering';
 import NativeMap, { Commands } from './specs/MapLibreViewNativeComponent';
 import { MapContext } from './maplibreContext';
-import { compileScene } from './maplibreContent';
+import { compileScene, InternalSource, InternalLayer } from './maplibreContent';
 import { validateCamera, classifyMapError } from './contracts';
 import { createMapReadiness } from './capabilities';
 import { normalizeCameraOrigin } from './cameraOrigin';
@@ -36,6 +46,7 @@ import type {
   Coordinate,
   MapPoint,
   MapBounds,
+  ClusterComponentProps,
 } from './types';
 const defaultCamera: Camera = {
   center: { latitude: 0, longitude: 0 },
@@ -100,42 +111,150 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
     const [initial] = useState(() =>
       validateCamera(props.initialCamera ?? defaultCamera),
     );
-    const scene = useMemo(() => compileScene(props.children), [props.children]);
+    const markerContent = useMemo(
+      () => collectMarkers(props.children, Marker),
+      [props.children],
+    );
+    const [markerVersion, setMarkerVersion] = useState({
+      signature: markerContent.signature,
+      revision: 0,
+    });
+    if (markerVersion.signature !== markerContent.signature)
+      setMarkerVersion({
+        signature: markerContent.signature,
+        revision: markerVersion.revision + 1,
+      });
+    const scene = useMemo(
+      () =>
+        compileScene([
+          ...markerContent.content,
+          ...(markerContent.markers.size
+            ? [
+                <InternalSource
+                  key="em-clusters"
+                  id={markerSourceID}
+                  data={markerContent.data}
+                  revision={markerVersion.revision}
+                  cluster
+                >
+                  <InternalLayer
+                    id={markerLayerID}
+                    type="circle"
+                    style={{ circleRadius: 1, circleOpacity: 0 }}
+                  />
+                </InternalSource>,
+              ]
+            : []),
+        ]),
+      [markerContent, markerVersion.revision],
+    );
+    const [markerLayout, setMarkerLayout] = useState<{
+      styleRevision: number;
+      layout: MarkerLayout;
+    }>();
+    const activeMarkers = useRef(markerContent);
+    const activeLayout = useRef(markerLayout);
+    const activeStyle = useRef(styleRequest.revision);
+    useLayoutEffect(() => {
+      activeMarkers.current = markerContent;
+      activeLayout.current = markerLayout;
+      activeStyle.current = styleRequest.revision;
+    }, [markerContent, markerLayout, styleRequest.revision]);
+    const ClusterComponent = props.clusterComponent ?? DefaultCluster;
+    const clusterChildren =
+      markerLayout?.styleRevision === styleRequest.revision &&
+      markerLayout.layout.sourceRevision === markerVersion.revision
+        ? markerLayout.layout.features.map((feature) => {
+            if (feature.clusterId === undefined)
+              return markerContent.markers.get(feature.id);
+            const coordinate = {
+              latitude: feature.latitude,
+              longitude: feature.longitude,
+            };
+            const layout = markerLayout.layout;
+            const handle = clusterHandles.capture(
+              markerSourceID,
+              `cluster:${feature.clusterId}`,
+              {
+                cluster: true,
+                cluster_id: feature.clusterId,
+                point_count: feature.count!,
+              },
+              layout.indexRevision,
+              styleRequest.revision,
+            )!;
+            const current = () =>
+              readiness.getCapabilities() !== null &&
+              activeMarkers.current === markerContent &&
+              activeLayout.current?.layout === layout &&
+              activeStyle.current === styleRequest.revision;
+            const clusterProps: ClusterComponentProps = {
+              count: feature.count!,
+              coordinate,
+              getMembers: () =>
+                resolveClusterMembers(
+                  feature.count!,
+                  markerContent.markers,
+                  async (offset) => {
+                    const page = (await queries.request(
+                      'clusterLeaves',
+                      clusterHandles.request(handle, styleRequest.revision, {
+                        offset,
+                        limit: 100,
+                      }),
+                      styleRequest.revision,
+                    )) as NativeClusterPage;
+                    return page.features.map((member) => member.featureId);
+                  },
+                  current,
+                ),
+              expand: async () => {
+                try {
+                  if (!current()) throw new Error('Cluster is obsolete');
+                  const zoom = (await queries.request(
+                    'clusterExpansion',
+                    clusterHandles.request(handle, styleRequest.revision),
+                    styleRequest.revision,
+                  )) as number;
+                  if (!current() || !nativeRef.current)
+                    throw new Error('Cluster is obsolete');
+                  Commands.animateCamera(
+                    nativeRef.current,
+                    coordinate.latitude,
+                    coordinate.longitude,
+                    zoom,
+                    0,
+                    0,
+                    300,
+                  );
+                } catch (error) {
+                  props.onError?.({
+                    code: 'marker-cluster',
+                    message:
+                      error instanceof Error
+                        ? error.message
+                        : 'Cluster expansion failed',
+                    fatal: false,
+                  });
+                  throw error;
+                }
+              },
+            };
+            return (
+              <Marker
+                key={feature.id}
+                id={feature.id}
+                coordinate={coordinate}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <ClusterComponent {...clusterProps} />
+              </Marker>
+            );
+          })
+        : [];
     useImperativeHandle(
       ref,
       () => ({
-        async getClusterChildren(cluster, page) {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          const result = await queries.request(
-            'clusterChildren',
-            clusterHandles.request(cluster, styleRequest.revision, page),
-            styleRequest.revision,
-          );
-          return clusterHandles.page(
-            result as NativeClusterPage,
-            styleRequest.revision,
-          );
-        },
-        async getClusterLeaves(cluster, page) {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          const result = await queries.request(
-            'clusterLeaves',
-            clusterHandles.request(cluster, styleRequest.revision, page),
-            styleRequest.revision,
-          );
-          return clusterHandles.page(
-            result as NativeClusterPage,
-            styleRequest.revision,
-          );
-        },
-        async getClusterExpansionZoom(cluster) {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          return (await queries.request(
-            'clusterExpansion',
-            clusterHandles.request(cluster, styleRequest.revision),
-            styleRequest.revision,
-          )) as number;
-        },
         async fitCoordinates(coordinates, options) {
           if (!readiness.getCapabilities()) throw new Error('Map is not ready');
           await queries.request(
@@ -200,7 +319,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           );
         },
       }),
-      [readiness, queries, styleRequest.revision, clusterHandles],
+      [readiness, queries, styleRequest.revision],
     );
     return (
       <MapContext.Provider value={true}>
@@ -211,6 +330,34 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           styleURL={props.styleURL}
           styleRevision={styleRequest.revision}
           sceneJSON={scene.json}
+          onMarkerClusters={({ nativeEvent: e }) => {
+            if (
+              e.styleRevision !== styleRequest.revision ||
+              !readiness.getCapabilities()
+            )
+              return;
+            const layout = parseMarkerLayout(
+              e.layoutJSON,
+              markerVersion.revision,
+            );
+            if (
+              !layout ||
+              layout.features.some(
+                (feature) =>
+                  feature.clusterId === undefined &&
+                  !markerContent.markers.has(feature.id),
+              )
+            )
+              return;
+            if (
+              layout.features.reduce(
+                (sum, feature) => sum + (feature.count ?? 1),
+                0,
+              ) > markerContent.markers.size
+            )
+              return;
+            setMarkerLayout({ styleRevision: e.styleRevision, layout });
+          }}
           onMapQueryResult={({ nativeEvent: e }) => {
             if (
               e.styleRevision !== styleRequest.revision ||
@@ -313,6 +460,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           }}
         >
           {scene.live}
+          {clusterChildren}
         </NativeMap>
       </MapContext.Provider>
     );
