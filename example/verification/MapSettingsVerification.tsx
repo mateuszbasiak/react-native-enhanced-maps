@@ -6,6 +6,10 @@ import type {
   CameraEvent,
   MapSettings,
   MapBounds,
+  MapPadding,
+  Coordinate,
+  MapPoint,
+  FitOptions,
   MapViewRef,
 } from 'react-native-enhanced-maps';
 
@@ -24,27 +28,49 @@ const initial = {
   minZoomLevel: 0,
   maxZoomLevel: 24,
 };
-type Evidence = { ready: number; camera: CameraEvent | null; errors: string[] };
+type Evidence = {
+  ready: number;
+  camera: CameraEvent | null;
+  errors: string[];
+  size: { width: number; height: number };
+};
 type DebugGlobal = typeof globalThis & {
   __enhancedMapsSettings?: {
     snapshot(): Evidence;
     configure(settings: MapSettings): void;
+    resize(height: number | null): void;
     animate(zoom: number): void;
     bounds(): Promise<MapBounds> | undefined;
+    project(coordinate: Coordinate): Promise<MapPoint> | undefined;
+    fit(
+      coordinates: readonly Coordinate[],
+      options?: FitOptions,
+    ): Promise<void> | undefined;
   };
 };
 export default function MapSettingsVerification() {
   const map = useRef<MapViewRef>(null);
-  const evidence = useRef<Evidence>({ ready: 0, camera: null, errors: [] });
+  const evidence = useRef<Evidence>({
+    ready: 0,
+    camera: null,
+    errors: [],
+    size: { width: 0, height: 0 },
+  });
   const [settings, setSettings] = useState<MapSettings>(initial);
   const [status, setStatus] = useState('Waiting for map');
+  const [height, setHeight] = useState<number | null>(null);
   useEffect(() => {
     if (!__DEV__) return;
     const target = globalThis as DebugGlobal;
     const api = {
       snapshot: () => evidence.current,
       configure: setSettings,
+      resize: setHeight,
       bounds: () => map.current?.getVisibleBounds(),
+      project: (coordinate: Coordinate) =>
+        map.current?.pointForCoordinate(coordinate),
+      fit: (coordinates: readonly Coordinate[], options?: FitOptions) =>
+        map.current?.fitCoordinates(coordinates, options),
       animate: (zoom: number) =>
         map.current?.animateCamera({ ...camera, zoom }, 0),
     };
@@ -98,28 +124,60 @@ export default function MapSettingsVerification() {
           title="Request zoom 1"
           onPress={() => map.current?.animateCamera({ ...camera, zoom: 1 }, 0)}
         />
+        <Button
+          title="Asymmetric padding"
+          onPress={() =>
+            setSettings((v) => ({
+              ...v,
+              mapPadding: {
+                top: 40,
+                right: 20,
+                bottom: 30,
+                left: 60,
+              } satisfies MapPadding,
+            }))
+          }
+        />
+        <Button
+          title="Clear padding"
+          onPress={() => setSettings((v) => ({ ...v, mapPadding: 0 }))}
+        />
+        <Button
+          title="Invalid viewport padding"
+          onPress={() => setSettings((v) => ({ ...v, mapPadding: 10000 }))}
+        />
         <Button title="Reset settings" onPress={() => setSettings(initial)} />
       </View>
-      <MapView
-        ref={map}
-        {...settings}
-        style={{ flex: 1 }}
-        initialCamera={camera}
-        styleURL="https://tiles.openfreemap.org/styles/liberty"
-        onMapReady={() => {
-          evidence.current.ready++;
-          setStatus('Ready');
+      <View
+        style={height === null ? { flex: 1 } : { height }}
+        onLayout={({ nativeEvent }) => {
+          evidence.current.size = {
+            width: nativeEvent.layout.width,
+            height: nativeEvent.layout.height,
+          };
         }}
-        onCameraIdle={(event) => {
-          evidence.current.camera = event;
-          setStatus(`Zoom ${event.camera.zoom.toFixed(3)} · ${event.origin}`);
-        }}
-        onError={(error) => {
-          evidence.current.errors.push(error.message);
-          evidence.current.errors = evidence.current.errors.slice(-32);
-          setStatus(error.message);
-        }}
-      />
+      >
+        <MapView
+          ref={map}
+          {...settings}
+          style={{ flex: 1 }}
+          initialCamera={camera}
+          styleURL="https://tiles.openfreemap.org/styles/liberty"
+          onMapReady={() => {
+            evidence.current.ready++;
+            setStatus('Ready');
+          }}
+          onCameraIdle={(event) => {
+            evidence.current.camera = event;
+            setStatus(`Zoom ${event.camera.zoom.toFixed(3)} · ${event.origin}`);
+          }}
+          onError={(error) => {
+            evidence.current.errors.push(error.message);
+            evidence.current.errors = evidence.current.errors.slice(-32);
+            setStatus(error.message);
+          }}
+        />
+      </View>
     </View>
   );
 }

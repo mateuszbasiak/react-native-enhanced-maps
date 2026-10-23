@@ -79,3 +79,15 @@ test('recoverable tile loading errors do not invalidate map command readiness', 
     true,
   );
 });
+
+test('invalid viewport padding remains recoverable for map commands', async () => {
+  const { classifyMapError } =
+    await import('../packages/maps/lib/contracts.js');
+  assert.equal(
+    classifyMapError({
+      code: 'invalid-map-padding',
+      message: 'viewport too small',
+    }).fatal,
+    false,
+  );
+});

@@ -209,3 +209,20 @@ const invalidSetting = (
   <MapView styleURL="https://example.com/style.json" zoomEnabled="false" />
 );
 void invalidSetting;
+
+const paddedMap = (
+  <MapView
+    styleURL="https://example.com/style.json"
+    mapPadding={{ top: 20, right: 30, bottom: 40, left: 50 }}
+  />
+);
+const uniformPaddedMap = (
+  <MapView styleURL="https://example.com/style.json" mapPadding={12} />
+);
+void paddedMap;
+void uniformPaddedMap;
+const incompletePadding = (
+  // @ts-expect-error persistent map padding requires all four edges
+  <MapView styleURL="https://example.com/style.json" mapPadding={{ top: 20 }} />
+);
+void incompletePadding;

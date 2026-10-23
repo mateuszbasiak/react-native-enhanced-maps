@@ -33,15 +33,14 @@ export interface MapBounds {
   readonly east: number;
   readonly west: number;
 }
+export interface MapPadding {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
 export interface FitOptions {
-  readonly padding?:
-    | number
-    | {
-        readonly top: number;
-        readonly right: number;
-        readonly bottom: number;
-        readonly left: number;
-      };
+  readonly padding?: number | MapPadding;
   readonly durationMs?: number;
 }
 export interface Camera {
@@ -70,6 +69,8 @@ export interface MapError {
   readonly fatal: boolean;
 }
 export interface MapSettings {
+  /** Persistent logical-point viewport insets. Default zero. */
+  readonly mapPadding?: number | MapPadding;
   readonly scrollEnabled?: boolean;
   readonly zoomEnabled?: boolean;
   readonly rotateEnabled?: boolean;

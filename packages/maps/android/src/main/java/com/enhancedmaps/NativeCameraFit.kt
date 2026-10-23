@@ -8,7 +8,7 @@ import org.maplibre.android.maps.MapLibreMap
 
 internal object NativeCameraFit {
   data class Target(val bounds:LatLngBounds,val corners:List<LatLng>,val edges:List<Double>,val padding:IntArray)
-  fun camera(map:MapLibreMap, request:JSONObject, acceptedScene:String?, markers:List<EnhancedMarkerView>, density:Float):Target {
+  fun camera(map:MapLibreMap, request:JSONObject, acceptedScene:String?, markers:List<EnhancedMarkerView>, density:Float,persistent:IntArray):Target {
     val points=mutableListOf<LatLng>()
     fun add(latitude:Double,longitude:Double) {
       require(latitude.isFinite() && longitude.isFinite() && kotlin.math.abs(latitude)<=90 && kotlin.math.abs(longitude)<=180) { "Invalid fit coordinate" }
@@ -39,7 +39,9 @@ internal object NativeCameraFit {
     }
     require(points.isNotEmpty()) { "No map elements to fit" }
     // Leave two physical pixels for the SDK's projection/fit raster rounding.
-    val edges=arrayOf("left","top","right","bottom").map { request.getDouble(it).also { v -> require(v.isFinite() && v>=0 && v<=100000) }*density+2.0 }
+    val edges=arrayOf("left","top","right","bottom").mapIndexed { index,name ->
+      request.getDouble(name).also { v -> require(v.isFinite() && v>=0 && v<=100000) }*density+persistent[index]+2.0
+    }
     require(edges[0]+edges[2]<map.width && edges[1]+edges[3]<map.height) { "Fit padding leaves no viewport" }
     val longitudes=points.map { (it.longitude+360)%360 }.sorted()
     var gap=-1.0; var start=0

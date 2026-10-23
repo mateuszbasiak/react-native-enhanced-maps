@@ -47,6 +47,9 @@ export function classifyMapError(error: {
 }): MapError {
   return {
     ...error,
-    fatal: error.code !== 'map-load' && error.code !== 'layer-scene',
+    fatal:
+      error.code !== 'map-load' &&
+      error.code !== 'layer-scene' &&
+      error.code !== 'invalid-map-padding',
   };
 }

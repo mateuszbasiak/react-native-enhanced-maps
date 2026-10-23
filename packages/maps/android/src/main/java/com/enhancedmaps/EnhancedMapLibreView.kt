@@ -30,6 +30,9 @@ private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLi
 
 class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapView(initialized(reactContext), MapLibreMapOptions.createFromAttributes(reactContext)), LifecycleEventListener {
   private val shaderLayerOwners=mutableMapOf<String,String>()
+  var mapPaddingTop=0.0;var mapPaddingRight=0.0;var mapPaddingBottom=0.0;var mapPaddingLeft=0.0
+  private var appliedMapPadding:IntArray?=null
+  private var lastPaddingError:String?=null
   var scrollEnabled = true
   var zoomEnabled = true
   var rotateEnabled = true
@@ -217,6 +220,22 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     gestureEvents.cancelAll(android.os.SystemClock.uptimeMillis().toDouble()).forEach { emitGesture(it) }
   }
   fun configureTextureMode(value: Boolean) { if(value) error("unsupported-configuration", "textureMode is not supported by this native host") }
+  private fun applyMapPadding(nativeMap:MapLibreMap) {
+    if(disposed || width<=0 || height<=0)return
+    val logical=doubleArrayOf(mapPaddingLeft,mapPaddingTop,mapPaddingRight,mapPaddingBottom)
+    val valid=logical.all { it.isFinite() && it>=0 && it<=100000 }
+    val requested=if(valid)logical.map { kotlin.math.ceil(it*resources.displayMetrics.density).toInt() }.toIntArray() else intArrayOf(0,0,0,0)
+    val fits=valid && requested[0].toLong()+requested[2]<width && requested[1].toLong()+requested[3]<height
+    val errorKey=if(fits)null else "${logical.joinToString()}/$width/$height"
+    if(errorKey!=null && errorKey!=lastPaddingError)error("invalid-map-padding","Map padding leaves no valid viewport; using zero padding")
+    lastPaddingError=errorKey
+    val effective=if(fits)requested else intArrayOf(0,0,0,0)
+    if(appliedMapPadding?.contentEquals(effective)==true)return
+    val camera=CameraPosition.Builder(nativeMap.cameraPosition).padding(effective.map { it.toDouble() }.toDoubleArray()).build()
+    nativeMap.setPadding(effective[0],effective[1],effective[2],effective[3])
+    submitCamera(camera,0.0,true)
+    appliedMapPadding=effective
+  }
   private fun applyMapSettings(nativeMap:MapLibreMap) {
     if(!minZoomLevel.isFinite() || !maxZoomLevel.isFinite() || minZoomLevel<0 || maxZoomLevel>24 || minZoomLevel>maxZoomLevel) {
       error("invalid-settings","Map zoom limits must be ordered within [0,24]");return
@@ -234,6 +253,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       nativeMap.setMinZoomPreference(0.0);nativeMap.setMaxZoomPreference(24.0)
       nativeMap.setMinZoomPreference(minZoomLevel);nativeMap.setMaxZoomPreference(maxZoomLevel)
     }
+    applyMapPadding(nativeMap)
   }
   fun configure() {
     val nativeMap = map ?: return
@@ -373,6 +393,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       if(child !is EnhancedMarkerView) measureChildWithMargins(child,widthSpec,0,heightSpec,0)
     }
     super.onLayout(changed,left,top,right,bottom)
+    map?.let { applyMapPadding(it) }
     // FrameLayout owns SDK ornaments, but Yoga owns every marker subtree's size.
     markers.forEach { marker -> val (w,h)=marker.getContentSize(); marker.layout(0,0,w.toInt(),h.toInt()) }
     updatePositions()
@@ -444,7 +465,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         "clusterChildren", "clusterLeaves", "clusterExpansion" -> NativeClusterQueries.execute(nativeMap,request,clusterIndexRevision,clusteredSources)
         "fit" -> {
           val duration=request.getDouble("durationMs"); require(duration.isFinite() && duration in 0.0..60000.0)
-          val fit=NativeCameraFit.camera(nativeMap,request,acceptedScene,markers,resources.displayMetrics.density)
+          val fit=NativeCameraFit.camera(nativeMap,request,acceptedScene,markers,resources.displayMetrics.density,appliedMapPadding ?: intArrayOf(0,0,0,0))
           val initial=nativeMap.cameraPosition
           try {
             // SDK fitting projects from the current transform. Recenter the
@@ -523,13 +544,13 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   fun animateCamera(latitude:Double,longitude:Double,zoom:Double,heading:Double,pitch:Double,durationMs:Double) {
     val nativeMap=map ?: return
     if(disposed) return
-    submitCamera(CameraPosition.Builder(nativeMap.cameraPosition).target(LatLng(latitude,longitude)).zoom(zoom).bearing(heading).tilt(pitch).build(),durationMs)
+    submitCamera(CameraPosition.Builder(nativeMap.cameraPosition).padding((appliedMapPadding ?: intArrayOf(0,0,0,0)).map { it.toDouble() }.toDoubleArray()).target(LatLng(latitude,longitude)).zoom(zoom).bearing(heading).tilt(pitch).build(),durationMs)
   }
-  private fun submitCamera(camera:CameraPosition,durationMs:Double) {
+  private fun submitCamera(camera:CameraPosition,durationMs:Double,force:Boolean=false) {
     val nativeMap=map ?: return
     val update=CameraUpdateFactory.newCameraPosition(camera)
     // Match Transform's exact no-op check before taking ownership of an existing movement.
-    if(update.getCameraPosition(nativeMap) == nativeMap.cameraPosition) return
+    if(!force && update.getCameraPosition(nativeMap) == nativeMap.cameraPosition) return
     val command=cameraOrigins.beginApplicationCommand()
     val callback=object : MapLibreMap.CancelableCallback {
       override fun onFinish() { cameraOrigins.finishApplicationCommand(command) }

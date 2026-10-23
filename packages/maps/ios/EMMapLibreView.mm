@@ -58,6 +58,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 }
 @implementation EMMapLibreView {
   EMNativeMap *_map;
+  NSString *_lastPaddingError;
 #if DEBUG && MLN_RENDER_BACKEND_METAL
   EMShaderPrototype *_shaderPrototype;
 #endif
@@ -94,6 +95,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   NSURL *url=p.styleURL.empty()?nil:[NSURL URLWithString:@(p.styleURL.c_str())];
   _loadingStyleRevision=p.styleRevision;
   _map=[[EMNativeMap alloc] initWithFrame:self.bounds styleURL:url]; _map.delegate=self; self.contentView=_map;
+  _map.automaticallyAdjustsContentInset=NO;
   __weak EMMapLibreView *weakSelf=self;
   [self applyMapSettings];
   _map.sdkCameraOperation=^{ EMMapLibreView *owner=weakSelf; if(owner)owner->_cameraOrigins.sdkBegan(); };
@@ -128,6 +130,21 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   for(EMMarkerView *marker in _markers)[_map addAnnotation:marker.annotation];
   [self animateCamera:p.initialLatitude longitude:p.initialLongitude zoom:p.initialZoom heading:p.initialHeading pitch:p.initialPitch durationMs:0];
 }
+- (void)layoutSubviews { [super layoutSubviews];[self applyMapPadding]; }
+- (void)applyMapPadding {
+  if(!_map || _map.bounds.size.width<=0 || _map.bounds.size.height<=0)return;
+  const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
+  UIEdgeInsets desired=UIEdgeInsetsMake(p.mapPaddingTop,p.mapPaddingLeft,p.mapPaddingBottom,p.mapPaddingRight);
+  BOOL valid=YES;for(double edge:{p.mapPaddingTop,p.mapPaddingLeft,p.mapPaddingBottom,p.mapPaddingRight})if(!std::isfinite(edge) || edge<0 || edge>100000)valid=NO;
+  BOOL fits=valid && desired.left+desired.right<_map.bounds.size.width && desired.top+desired.bottom<_map.bounds.size.height;
+  NSString *errorKey=fits?nil:[NSString stringWithFormat:@"%@/%g/%g",NSStringFromUIEdgeInsets(desired),_map.bounds.size.width,_map.bounds.size.height];
+  if(errorKey && ![errorKey isEqual:_lastPaddingError])[self emitError:@"Map padding leaves no valid viewport; using zero padding" code:@"invalid-map-padding"];
+  _lastPaddingError=errorKey;
+  if(!fits)desired=UIEdgeInsetsZero;
+  if(UIEdgeInsetsEqualToEdgeInsets(desired,_map.contentInset))return;
+  _cameraOrigins.applicationCallBegan();
+  @try { _map.contentInset=desired; } @finally { _cameraOrigins.applicationCallEnded(); }
+}
 - (void)applyMapSettings {
   if(!_map)return;
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
@@ -144,6 +161,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
     _map.minimumZoomLevel=0;_map.maximumZoomLevel=24;
     _map.minimumZoomLevel=p.minZoomLevel;_map.maximumZoomLevel=p.maxZoomLevel;
   }
+  [self applyMapPadding];
 }
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps {
   const auto &old=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props); const auto &next=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(props);
@@ -224,7 +242,8 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   for(const auto &sample:_gestureEvents.cancelAll(CACurrentMediaTime()*1000))[self emitGesture:sample];
 }
 - (void)onApplicationResignActive:(NSNotification *)notification { [self cancelNativeGestures]; }
-- (void)emitError:(NSString *)message { if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"maplibre",std::string(message.UTF8String ?: "Map error")}); }
+- (void)emitError:(NSString *)message { [self emitError:message code:@"maplibre"]; }
+- (void)emitError:(NSString *)message code:(NSString *)code { if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error")}); }
 - (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { [self emitError:error.localizedDescription]; }
 - (void)mapView:(MLNMapView *)map regionDidChangeWithReason:(MLNCameraChangeReason)reason animated:(BOOL)animated {
   if(_fitPreflight)return;
@@ -240,8 +259,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   [self submitCamera:camera durationMs:durationMs];
 }
 - (void)submitCamera:(MLNMapCamera *)camera durationMs:(double)durationMs {
-  UIEdgeInsets current=_map.cameraEdgeInsets,content=_map.contentInset;
-  [self submitCamera:camera durationMs:durationMs edgePadding:UIEdgeInsetsMake(current.top-content.top,current.left-content.left,current.bottom-content.bottom,current.right-content.right)];
+  [self submitCamera:camera durationMs:durationMs edgePadding:UIEdgeInsetsZero];
 }
 - (void)submitCamera:(MLNMapCamera *)camera durationMs:(double)durationMs edgePadding:(UIEdgeInsets)padding {
   UIEdgeInsets content=_map.contentInset;
@@ -463,6 +481,7 @@ static UIColor *EMColor(id value) {
       CLLocationCoordinate2D corners[]={bounds.sw,CLLocationCoordinate2DMake(bounds.ne.latitude,bounds.sw.longitude),bounds.ne,CLLocationCoordinate2DMake(bounds.sw.latitude,bounds.ne.longitude)};
       UIEdgeInsets padding=UIEdgeInsetsMake(number(@"top"),number(@"left"),number(@"bottom"),number(@"right"));
       MLNMapCamera *initial=[_map.camera copy];UIEdgeInsets oldInsets=_map.cameraEdgeInsets,content=_map.contentInset;
+      UIEdgeInsets effectivePadding=UIEdgeInsetsMake(padding.top+content.top,padding.left+content.left,padding.bottom+content.bottom,padding.right+content.right);
       UIEdgeInsets oldPadding=UIEdgeInsetsMake(oldInsets.top-content.top,oldInsets.left-content.left,oldInsets.bottom-content.bottom,oldInsets.right-content.right);
       _cameraOrigins.applicationCallBegan();
       _fitPreflight=YES;
@@ -485,8 +504,8 @@ static UIColor *EMColor(id value) {
             coordinate.longitude=std::remainder(coordinate.longitude,360.);
             CGPoint point=[_map convertCoordinate:coordinate toPointToView:_map];
             if(!std::isfinite(point.x) || !std::isfinite(point.y)) { contained=NO;ratio=16;break; }
-            if(point.x<padding.left-1e-6 || point.x>_map.bounds.size.width-padding.right+1e-6 || point.y<padding.top-1e-6 || point.y>_map.bounds.size.height-padding.bottom+1e-6)contained=NO;
-            ratio=std::max({ratio,(pivot.x-point.x)/std::max(1.,pivot.x-padding.left),(point.x-pivot.x)/std::max(1.,_map.bounds.size.width-padding.right-pivot.x),(pivot.y-point.y)/std::max(1.,pivot.y-padding.top),(point.y-pivot.y)/std::max(1.,_map.bounds.size.height-padding.bottom-pivot.y)});
+            if(point.x<effectivePadding.left-1e-6 || point.x>_map.bounds.size.width-effectivePadding.right+1e-6 || point.y<effectivePadding.top-1e-6 || point.y>_map.bounds.size.height-effectivePadding.bottom+1e-6)contained=NO;
+            ratio=std::max({ratio,(pivot.x-point.x)/std::max(1.,pivot.x-effectivePadding.left),(point.x-pivot.x)/std::max(1.,_map.bounds.size.width-effectivePadding.right-pivot.x),(pivot.y-point.y)/std::max(1.,pivot.y-effectivePadding.top),(point.y-pivot.y)/std::max(1.,_map.bounds.size.height-effectivePadding.bottom-pivot.y)});
           }
           if(contained || attempt==32)break;
           double zoom=_map.zoomLevel,next=std::max(_map.minimumZoomLevel,zoom-std::clamp(std::log2(ratio),.25,4.));
@@ -508,7 +527,7 @@ static UIColor *EMColor(id value) {
           for(CLLocationCoordinate2D coordinate:corners) {
             coordinate.longitude=std::remainder(coordinate.longitude,360.);
             CGPoint point=[_map convertCoordinate:coordinate toPointToView:_map];
-            if(!std::isfinite(point.x) || !std::isfinite(point.y) || point.x<padding.left+1 || point.x>_map.bounds.size.width-padding.right-1 || point.y<padding.top+1 || point.y>_map.bounds.size.height-padding.bottom-1) { fits=NO;break; }
+            if(!std::isfinite(point.x) || !std::isfinite(point.y) || point.x<effectivePadding.left+1 || point.x>_map.bounds.size.width-effectivePadding.right-1 || point.y<effectivePadding.top+1 || point.y>_map.bounds.size.height-effectivePadding.bottom-1) { fits=NO;break; }
           }
           if(fits) { low=zoom;target=[_map.camera copy]; } else high=zoom;
         }
