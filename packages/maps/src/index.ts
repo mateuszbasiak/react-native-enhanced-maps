@@ -18,6 +18,7 @@ export type {
   MapBounds,
   FitOptions,
   MapViewProps,
+  MapSettings,
   MapViewRef,
   MapPlatform,
   MapPressEvent,

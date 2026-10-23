@@ -95,6 +95,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   _loadingStyleRevision=p.styleRevision;
   _map=[[EMNativeMap alloc] initWithFrame:self.bounds styleURL:url]; _map.delegate=self; self.contentView=_map;
   __weak EMMapLibreView *weakSelf=self;
+  [self applyMapSettings];
   _map.sdkCameraOperation=^{ EMMapLibreView *owner=weakSelf; if(owner)owner->_cameraOrigins.sdkBegan(); };
   _observedGestures=[_map.gestureRecognizers copy];
   for(UIGestureRecognizer *recognizer in _observedGestures) {
@@ -127,11 +128,28 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   for(EMMarkerView *marker in _markers)[_map addAnnotation:marker.annotation];
   [self animateCamera:p.initialLatitude longitude:p.initialLongitude zoom:p.initialZoom heading:p.initialHeading pitch:p.initialPitch durationMs:0];
 }
+- (void)applyMapSettings {
+  if(!_map)return;
+  const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
+  if(!std::isfinite(p.minZoomLevel) || !std::isfinite(p.maxZoomLevel) || p.minZoomLevel<0 || p.maxZoomLevel>24 || p.minZoomLevel>p.maxZoomLevel) {
+    [self emitError:@"Map zoom limits must be ordered within [0,24]"];return;
+  }
+  if(_map.scrollEnabled!=p.scrollEnabled)_map.scrollEnabled=p.scrollEnabled;
+  if(_map.zoomEnabled!=p.zoomEnabled)_map.zoomEnabled=p.zoomEnabled;
+  if(_map.rotateEnabled!=p.rotateEnabled)_map.rotateEnabled=p.rotateEnabled;
+  if(_map.pitchEnabled!=p.pitchEnabled)_map.pitchEnabled=p.pitchEnabled;
+  if(_map.showsCompassView!=p.showsCompass)_map.showsCompassView=p.showsCompass;
+  if(_map.minimumZoomLevel!=p.minZoomLevel || _map.maximumZoomLevel!=p.maxZoomLevel) {
+    // Widen first so disjoint interval replacements remain valid at every setter.
+    _map.minimumZoomLevel=0;_map.maximumZoomLevel=24;
+    _map.minimumZoomLevel=p.minZoomLevel;_map.maximumZoomLevel=p.maxZoomLevel;
+  }
+}
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps {
   const auto &old=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props); const auto &next=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(props);
   BOOL styleChanged=old.styleURL!=next.styleURL || old.styleRevision!=next.styleRevision; BOOL sceneChanged=old.sceneJSON!=next.sceneJSON;
   if(old.gestureEventsEnabled!=next.gestureEventsEnabled || old.gestureSubscriptionRevision!=next.gestureSubscriptionRevision)_gestureEvents.reset();
-  [super updateProps:props oldProps:oldProps]; [self configure];
+  [super updateProps:props oldProps:oldProps]; [self configure]; [self applyMapSettings];
   if(styleChanged && _map) {
 #if DEBUG && MLN_RENDER_BACKEND_METAL
     [_shaderPrototype stop];_shaderPrototype=nil;

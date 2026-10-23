@@ -30,6 +30,13 @@ private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLi
 
 class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapView(initialized(reactContext), MapLibreMapOptions.createFromAttributes(reactContext)), LifecycleEventListener {
   private val shaderLayerOwners=mutableMapOf<String,String>()
+  var scrollEnabled = true
+  var zoomEnabled = true
+  var rotateEnabled = true
+  var pitchEnabled = true
+  var showsCompass = true
+  var minZoomLevel = 0.0
+  var maxZoomLevel = 24.0
   var styleURL = ""
   var styleRevision = 0.0
   private var loadedStyleRevision: Double? = null
@@ -210,9 +217,28 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     gestureEvents.cancelAll(android.os.SystemClock.uptimeMillis().toDouble()).forEach { emitGesture(it) }
   }
   fun configureTextureMode(value: Boolean) { if(value) error("unsupported-configuration", "textureMode is not supported by this native host") }
+  private fun applyMapSettings(nativeMap:MapLibreMap) {
+    if(!minZoomLevel.isFinite() || !maxZoomLevel.isFinite() || minZoomLevel<0 || maxZoomLevel>24 || minZoomLevel>maxZoomLevel) {
+      error("invalid-settings","Map zoom limits must be ordered within [0,24]");return
+    }
+    nativeMap.uiSettings.apply {
+      if(isScrollGesturesEnabled!=scrollEnabled)isScrollGesturesEnabled=scrollEnabled
+      if(isZoomGesturesEnabled!=zoomEnabled)isZoomGesturesEnabled=zoomEnabled
+      if(isQuickZoomGesturesEnabled!=zoomEnabled)isQuickZoomGesturesEnabled=zoomEnabled
+      if(isRotateGesturesEnabled!=rotateEnabled)isRotateGesturesEnabled=rotateEnabled
+      if(isTiltGesturesEnabled!=pitchEnabled)isTiltGesturesEnabled=pitchEnabled
+      if(isCompassEnabled!=showsCompass)isCompassEnabled=showsCompass
+    }
+    if(nativeMap.minZoomLevel!=minZoomLevel || nativeMap.maxZoomLevel!=maxZoomLevel) {
+      // Widen first so replacing disjoint intervals never crosses SDK limits.
+      nativeMap.setMinZoomPreference(0.0);nativeMap.setMaxZoomPreference(24.0)
+      nativeMap.setMinZoomPreference(minZoomLevel);nativeMap.setMaxZoomPreference(maxZoomLevel)
+    }
+  }
   fun configure() {
     val nativeMap = map ?: return
     if (disposed) return
+    applyMapSettings(nativeMap)
     if (!configured) {
       configured = true
       animateCamera(latitude,longitude,zoom,heading,pitch,0.0)

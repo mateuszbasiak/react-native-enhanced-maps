@@ -19,6 +19,13 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   override fun getChildCount(parent:EnhancedMapLibreView)=parent.markers.size
   override fun getChildAt(parent:EnhancedMapLibreView,index:Int):View=parent.markers[index]
   override fun removeViewAt(parent:EnhancedMapLibreView,index:Int) { parent.removeMarker(index) }
+  @ReactProp(name="scrollEnabled",defaultBoolean=true) override fun setScrollEnabled(view:EnhancedMapLibreView,value:Boolean) { view.scrollEnabled=value }
+  @ReactProp(name="zoomEnabled",defaultBoolean=true) override fun setZoomEnabled(view:EnhancedMapLibreView,value:Boolean) { view.zoomEnabled=value }
+  @ReactProp(name="rotateEnabled",defaultBoolean=true) override fun setRotateEnabled(view:EnhancedMapLibreView,value:Boolean) { view.rotateEnabled=value }
+  @ReactProp(name="pitchEnabled",defaultBoolean=true) override fun setPitchEnabled(view:EnhancedMapLibreView,value:Boolean) { view.pitchEnabled=value }
+  @ReactProp(name="showsCompass",defaultBoolean=true) override fun setShowsCompass(view:EnhancedMapLibreView,value:Boolean) { view.showsCompass=value }
+  @ReactProp(name="minZoomLevel",defaultDouble=0.0) override fun setMinZoomLevel(view:EnhancedMapLibreView,value:Double) { view.minZoomLevel=value }
+  @ReactProp(name="maxZoomLevel",defaultDouble=24.0) override fun setMaxZoomLevel(view:EnhancedMapLibreView,value:Double) { view.maxZoomLevel=value }
   @ReactProp(name="styleURL") override fun setStyleURL(view:EnhancedMapLibreView,value:String?) { view.styleURL=value ?: "" }
   @ReactProp(name="styleRevision") override fun setStyleRevision(view:EnhancedMapLibreView,value:Double) { view.styleRevision=value }
   @ReactProp(name="mapPressEventsEnabled") override fun setMapPressEventsEnabled(view:EnhancedMapLibreView,value:Boolean) { view.mapPressEventsEnabled=value }

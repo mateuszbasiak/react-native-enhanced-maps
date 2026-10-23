@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MapSettingsVerification from './verification/MapSettingsVerification';
 import { Button, Platform, SafeAreaView, StatusBar } from 'react-native';
 import CustomMarkers from './markers/CustomMarkersPrototype';
 import MapDemo from './maplibre/MapLibrePrototype';
@@ -7,6 +8,7 @@ import ClusterVerification from './verification/ClusterVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 export default function App() {
+  const [settings, setSettings] = useState(false);
   const [webgpu, setWebgpu] = useState(false);
   const [shader, setShader] = useState(false);
   const [markers, setMarkers] = useState(true);
@@ -23,6 +25,12 @@ export default function App() {
         title={markers ? 'Show native layers' : 'Show custom markers'}
         onPress={() => setMarkers((v) => !v)}
       />
+      {__DEV__ && (
+        <Button
+          title={settings ? 'Close settings' : 'Open settings'}
+          onPress={() => setSettings((v) => !v)}
+        />
+      )}
       {__DEV__ && (
         <Button
           title={verification ? 'Close verification' : 'Open verification'}
@@ -50,7 +58,9 @@ export default function App() {
           onPress={() => setWebgpu((v) => !v)}
         />
       )}
-      {webgpu && __DEV__ ? (
+      {settings && __DEV__ ? (
+        <MapSettingsVerification />
+      ) : webgpu && __DEV__ ? (
         <WebGPUPrototype />
       ) : shader && __DEV__ ? (
         <ShaderPrototype />
