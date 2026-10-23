@@ -59,9 +59,9 @@ their old fixtures describe internal/historical behavior, not the current public
 [Plan](docs/plans/2026-10-21-marker-clustering.md), [implementation](packages/maps/src/markerClustering.ts),
 [regressions](tests/marker-clustering.test.mjs).
 
-- [ ] **CLUSTER-01–05** — Verify the component flow end to end on both hosts: custom/default cluster rendering, count/coordinate, lazy metadata membership, expansion, opt-out markers, updates and rejected/stale layouts or queries after style reload/remount. Prior source-index smoke evidence does not establish component acceptance.
+- [ ] **CLUSTER-01–05** — Verify the component flow end to end on both hosts: custom/default cluster rendering, count/coordinate, lazy metadata membership, expansion, opt-out markers, updates and rejected/stale layouts or queries after style reload/remount. Both simulators now have bounded [component acceptance](docs/component-cluster-acceptance.md) for custom/default children, lazy membership, expansion, updates and stale handles. Complete in-flight/overlap and lifecycle stress coverage.
 - [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
-- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Prior internal query fixtures passed complete 1k/10k coincident-point audits; spatial parity remains open.
+- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits; spatial parity remains open.
 - [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
 
 ## Portable custom GPU shaders
