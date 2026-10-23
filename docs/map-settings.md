@@ -32,8 +32,7 @@ promise an unclamped target or animation completion.
 Reset an optional prop to undefined to restore its package default. These settings
 survive style replacement because they belong to the map host. They do not provide
 a controlled camera, provider switching, user tracking, location permissions,
-attribution hiding or every react-native-maps control. Persistent map padding is
-separate remaining work; per-fit padding is already available. Changes during an
+attribution hiding or every react-native-maps control. Persistent [map padding](map-padding.md) composes with per-fit margins. Changes during an
 active multi-touch sequence and accessibility actions need additional acceptance.
 
 The example's Debug-only “Open settings” screen exercises toggles, disjoint zoom
@@ -65,4 +64,4 @@ for iOS testing was restored in source. Local observations are saved in
 
 Changing flags during an active gesture, style/lifecycle stress, multiple maps and
 physical-device acceptance remain open. Physical-device testing is deferred to
-the maintainer. Persistent map padding is separate remaining work.
+the maintainer. Persistent padding has its own [contract and acceptance](map-padding.md).

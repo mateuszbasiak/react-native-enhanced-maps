@@ -46,7 +46,8 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   EMFitRequire(points.count>0,@"No map elements to fit");
   double edges[4]; NSArray *names=@[@"top",@"right",@"bottom",@"left"];
   for(int i=0;i<4;++i) { id v=request[names[i]]; EMFitRequire([v isKindOfClass:NSNumber.class],@"Invalid fit padding");edges[i]=[v doubleValue];EMFitRequire(std::isfinite(edges[i]) && edges[i]>=0 && edges[i]<=100000,@"Invalid fit padding"); }
-  EMFitRequire(edges[1]+edges[3]<map.bounds.size.width && edges[0]+edges[2]<map.bounds.size.height,@"Fit padding leaves no viewport");
+  UIEdgeInsets content=map.contentInset;
+  EMFitRequire(edges[1]+edges[3]+content.right+content.left<map.bounds.size.width && edges[0]+edges[2]+content.top+content.bottom<map.bounds.size.height,@"Fit padding leaves no viewport");
   double north=-90,south=90; std::vector<double> longitudes;
   for(NSArray *point in points) { double latitude=[point[0] doubleValue],longitude=[point[1] doubleValue];north=std::max(north,latitude);south=std::min(south,latitude);longitudes.push_back(std::fmod(longitude+360,360)); }
   std::sort(longitudes.begin(),longitudes.end());double gap=-1;size_t start=0;

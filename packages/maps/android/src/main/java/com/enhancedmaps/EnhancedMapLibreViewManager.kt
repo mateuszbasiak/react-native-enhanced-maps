@@ -19,6 +19,10 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   override fun getChildCount(parent:EnhancedMapLibreView)=parent.markers.size
   override fun getChildAt(parent:EnhancedMapLibreView,index:Int):View=parent.markers[index]
   override fun removeViewAt(parent:EnhancedMapLibreView,index:Int) { parent.removeMarker(index) }
+  @ReactProp(name="mapPaddingTop") override fun setMapPaddingTop(view:EnhancedMapLibreView,value:Double) { view.mapPaddingTop=value }
+  @ReactProp(name="mapPaddingRight") override fun setMapPaddingRight(view:EnhancedMapLibreView,value:Double) { view.mapPaddingRight=value }
+  @ReactProp(name="mapPaddingBottom") override fun setMapPaddingBottom(view:EnhancedMapLibreView,value:Double) { view.mapPaddingBottom=value }
+  @ReactProp(name="mapPaddingLeft") override fun setMapPaddingLeft(view:EnhancedMapLibreView,value:Double) { view.mapPaddingLeft=value }
   @ReactProp(name="scrollEnabled",defaultBoolean=true) override fun setScrollEnabled(view:EnhancedMapLibreView,value:Boolean) { view.scrollEnabled=value }
   @ReactProp(name="zoomEnabled",defaultBoolean=true) override fun setZoomEnabled(view:EnhancedMapLibreView,value:Boolean) { view.zoomEnabled=value }
   @ReactProp(name="rotateEnabled",defaultBoolean=true) override fun setRotateEnabled(view:EnhancedMapLibreView,value:Boolean) { view.rotateEnabled=value }

@@ -7,6 +7,10 @@ import type {
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 import codegenNativeCommands from 'react-native/Libraries/Utilities/codegenNativeCommands';
 export interface NativeProps extends ViewProps {
+  mapPaddingTop?: WithDefault<Double, 0>;
+  mapPaddingRight?: WithDefault<Double, 0>;
+  mapPaddingBottom?: WithDefault<Double, 0>;
+  mapPaddingLeft?: WithDefault<Double, 0>;
   scrollEnabled?: WithDefault<boolean, true>;
   zoomEnabled?: WithDefault<boolean, true>;
   rotateEnabled?: WithDefault<boolean, true>;
