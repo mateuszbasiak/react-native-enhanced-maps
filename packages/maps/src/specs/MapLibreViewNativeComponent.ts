@@ -10,6 +10,9 @@ export interface NativeProps extends ViewProps {
   styleURL?: WithDefault<string, ''>;
   styleRevision?: WithDefault<Double, 0>;
   sceneJSON?: WithDefault<string, ''>;
+  onMarkerClusters?: DirectEventHandler<
+    Readonly<{ layoutJSON: string; styleRevision: Double }>
+  >;
   onMapQueryResult?: DirectEventHandler<
     Readonly<{
       requestId: Double;

@@ -45,15 +45,15 @@ test('scene transport preserves normalized clustering and independent cluster/po
       /from '(\.\/[^']+)'/g,
       (_, path) => `from '${new URL(path + '.js', url).href}'`,
     );
-  const { compileScene, GeoJSONSource, Layer } = await import(
+  const { compileScene, InternalSource, InternalLayer } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
   );
   const data = { type: 'FeatureCollection', features: [] };
   const content = (cluster, filter = 'clusters') =>
     React.createElement(
-      GeoJSONSource,
+      InternalSource,
       { id: 'points', revision: 3, data, cluster },
-      React.createElement(Layer, {
+      React.createElement(InternalLayer, {
         id: 'dots',
         type: 'circle',
         clusterFilter: filter,

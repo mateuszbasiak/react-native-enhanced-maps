@@ -16,13 +16,13 @@ test('scene transport retains explicit safe-integer revisions without versioning
       /from '(\.\/[^']+)'/g,
       (_, path) => `from '${new URL(path + '.js', moduleURL).href}'`,
     );
-  const { compileScene, GeoJSONSource } = await import(
+  const { compileScene, InternalSource } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
   );
   const { Polyline } = await import('../packages/maps/lib/mapContent.js');
   const data = { type: 'FeatureCollection', features: [] };
   const source = (id, revision) =>
-    React.createElement(GeoJSONSource, {
+    React.createElement(InternalSource, {
       id,
       data,
       ...(revision === undefined ? {} : { revision }),
