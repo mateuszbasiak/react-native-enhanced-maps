@@ -46,11 +46,11 @@ background/resume. Record any remaining input arbitration or performance limits.
 
 ## Repository automation
 
-GitHub runs lint/Prettier, package checks, production bundles, and separate Android
-ARM64 Debug and iOS simulator Debug builds on pushes and pull requests. Native build
-logs are retained for seven days. iOS CI uses Xcode 16.4 on macOS 15 and the runner's
-CocoaPods installation, with `pod install --deployment` to enforce `Podfile.lock`.
-These compilation checks do not replace device smoke tests or release builds.
+GitHub runs lint/Prettier, package checks and production bundles on pull requests,
+pushes to main and manual dispatch. Native CI build jobs were intentionally removed
+in PR #13. Run the native build commands above locally and record their actual
+results; a green package workflow does not establish native compilation or runtime
+acceptance. Physical-device Release checks remain separate release gates.
 
 `npm run check:packages` runs the types, contracts, Codegen, and packaging checks.
 CI uses this command so lint and Prettier run only in their dedicated job;
