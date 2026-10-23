@@ -190,3 +190,22 @@ const invalidShader = (
 );
 void shaders;
 void invalidShader;
+
+const configuredMap = (
+  <MapView
+    styleURL="https://example.com/style.json"
+    scrollEnabled={false}
+    zoomEnabled={false}
+    rotateEnabled={false}
+    pitchEnabled={false}
+    showsCompass={false}
+    minZoomLevel={4}
+    maxZoomLevel={12}
+  />
+);
+void configuredMap;
+const invalidSetting = (
+  // @ts-expect-error gesture toggles require booleans
+  <MapView styleURL="https://example.com/style.json" zoomEnabled="false" />
+);
+void invalidSetting;

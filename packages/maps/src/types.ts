@@ -69,7 +69,18 @@ export interface MapError {
   readonly message: string;
   readonly fatal: boolean;
 }
-export interface MapViewProps {
+export interface MapSettings {
+  readonly scrollEnabled?: boolean;
+  readonly zoomEnabled?: boolean;
+  readonly rotateEnabled?: boolean;
+  readonly pitchEnabled?: boolean;
+  readonly showsCompass?: boolean;
+  /** Portable zoom interval, inclusive, within [0,24]. Defaults to 0. */
+  readonly minZoomLevel?: number;
+  /** Defaults to 24. SDK geometry and viewport constraints may clamp further. */
+  readonly maxZoomLevel?: number;
+}
+export interface MapViewProps extends MapSettings {
   /** Custom cluster contents; omitted uses a count bubble that expands on press. */
   readonly clusterComponent?: ComponentType<ClusterComponentProps>;
   readonly styleURL: string;

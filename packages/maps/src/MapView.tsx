@@ -31,6 +31,7 @@ import {
   parseClusterQueryResult,
 } from './clusterQueries';
 import type { NativeClusterPage } from './clusterQueries';
+import { normalizeMapSettings } from './mapSettings';
 import { parseNativeGesture, validateGestureInterval } from './gestures';
 import { parseNativeFeatureHit } from './featureHits';
 import { parseNativeMapPress } from './mapPressEvents';
@@ -61,6 +62,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       throw new Error('MapView supports iOS and Android only');
     if (typeof props.styleURL !== 'string' || !props.styleURL.trim())
       throw new Error('MapView requires styleURL');
+    const settings = normalizeMapSettings(props);
     const gestureInterval = validateGestureInterval(
       props.gestureEventIntervalMs,
     );
@@ -341,6 +343,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       <MapContext.Provider value={true}>
         <ShaderMapContext.Provider value={shaderHost}>
           <NativeMap
+            {...settings}
             ref={nativeRef}
             style={props.style}
             testID={props.testID}

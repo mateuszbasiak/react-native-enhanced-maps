@@ -7,6 +7,13 @@ import type {
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 import codegenNativeCommands from 'react-native/Libraries/Utilities/codegenNativeCommands';
 export interface NativeProps extends ViewProps {
+  scrollEnabled?: WithDefault<boolean, true>;
+  zoomEnabled?: WithDefault<boolean, true>;
+  rotateEnabled?: WithDefault<boolean, true>;
+  pitchEnabled?: WithDefault<boolean, true>;
+  showsCompass?: WithDefault<boolean, true>;
+  minZoomLevel?: WithDefault<Double, 0>;
+  maxZoomLevel?: WithDefault<Double, 24>;
   styleURL?: WithDefault<string, ''>;
   styleRevision?: WithDefault<Double, 0>;
   sceneJSON?: WithDefault<string, ''>;
