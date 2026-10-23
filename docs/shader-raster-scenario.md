@@ -1,5 +1,8 @@
 # Shader raster scenario
 
+Historical record: this Apple/Google experiment and its TypeGPU readback package
+have been removed. For the current example, see [WebGPU prototype](webgpu-shared-output-prototype.md).
+
 Build/install both example apps as in development.md, including Google iOS.
 Start Metro on 8088. Enable Shader on. The GPU status must become ready and a
 transparent blue triangle must be visible over central Warsaw. Turn Live off,
