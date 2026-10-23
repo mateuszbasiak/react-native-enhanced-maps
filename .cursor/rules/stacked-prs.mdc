@@ -1,0 +1,26 @@
+---
+description: Require gh stack for dependent pull requests and make merge order visible
+alwaysApply: true
+---
+
+# Stacked pull requests
+
+- Use `gh stack` whenever a PR depends on another unmerged PR. Do not manage a
+  dependency chain solely through ordinary `gh pr create --base` calls.
+- Check `gh stack --help` and relevant subcommand help before using the installed
+  CLI. Register dependent branches with `gh stack init` / `gh stack add`, then
+  create or update their PRs through `gh stack submit`.
+- For existing dependent PRs, use the supported `gh stack link` or adoption flow
+  so GitHub displays their relationship before presenting them for merging.
+- Verify the stack with `gh stack view`. Tell the user it is a stack, identify
+  each PR's dependency, and state the bottom-to-top merge order with PR links.
+- Keep stack relationships and PR bases current after merges or rebases using
+  `gh stack sync` and the applicable stack commands. Verify main actually contains
+  prerequisite changes; a PR merged into a feature branch has not reached main.
+- Prefer `gh stack merge` for merging a stack when merging is authorized. Creating
+  a stack does not itself authorize merging.
+- Independent PRs should target main directly. Do not create accidental stacks by
+  branching unrelated work from an unmerged feature branch.
+- If `gh stack` is unavailable or cannot represent the dependency, stop before
+  publishing dependent PRs and explain the issue; do not silently fall back to an
+  unmanaged stack.
