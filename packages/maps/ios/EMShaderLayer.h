@@ -43,11 +43,13 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
 - (void)invalidate {
   @synchronized(EMWebGPUPools()) { for(EMWebGPUOutputPool *pool in EMWebGPUPools().allValues)pool->state->close();[EMWebGPUPools() removeAllObjects]; }
 }
+#if DEBUG
 RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(diagnostics) {
   unsigned produced=0,sampled=0;NSUInteger pools=0;
   @synchronized(EMWebGPUPools()) { pools=EMWebGPUPools().count;for(EMWebGPUOutputPool *pool in EMWebGPUPools().allValues){std::lock_guard<std::mutex> lock(pool->state->mutex);produced+=pool->state->produced;sampled+=pool->state->sampled;} }
   return @{@"produced":@(produced),@"sampled":@(sampled),@"pools":@(pools)};
 }
+#endif
 RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   if(dimension!=1024) { reject(@"size",@"Shader atlas is fixed at 1024 pixels",nil);return; }
   EMWebGPUOutputPool *pool=[EMWebGPUOutputPool new];
@@ -66,11 +68,13 @@ RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)reso
   }
   resolve(@{@"id":key,@"handles":handles,@"format":@"bgra8unorm",@"size":@1024});
 }
+#if DEBUG
 RCT_EXPORT_METHOD(stats:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   EMWebGPUOutputPool *pool=EMWebGPUPool(key);if(!pool){reject(@"closed",@"Unknown output pool",nil);return;}
   std::lock_guard<std::mutex> lock(pool->state->mutex);
   resolve(@{@"produced":@(pool->state->produced),@"sampled":@(pool->state->sampled),@"bytes":@(3*1024*1024*4)});
 }
+#endif
 RCT_EXPORT_METHOD(release:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   EMWebGPUOutputPool *pool;
   @synchronized(EMWebGPUPools()) { pool=EMWebGPUPools()[key];[EMWebGPUPools() removeObjectForKey:key]; }

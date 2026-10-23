@@ -67,3 +67,23 @@ Codex uses `.codex/hooks.json`. In Codex, review and trust the project hook thro
 `/hooks` before expecting automatic execution. The script can also be tested with
 `printf '{}' | bash scripts/check-quality.sh`. A direct script test does not prove
 that the editor has loaded and trusted the lifecycle hook.
+
+## Release shader diagnostics
+
+Development shader counters (`EMShaderLayer.diagnostics` and bridge `stats`) are
+Debug-only exports. Android uses separate Debug/Release module classes; iOS gates
+these exports with `DEBUG`. The worklet transport retains its private error check
+in both configurations so rendering failures still propagate.
+
+After building both Android Kotlin variants, run `npm run verify:android:bridge`.
+The command inspects annotated methods declared on the concrete compiled module class and rejects
+Release counter exports or missing runtime transport methods. Build the variants
+from `example/android` with
+`./gradlew :react-native-enhanced-maps:compileDebugKotlin :react-native-enhanced-maps:compileReleaseKotlin`.
+Use JDK 17 or the configured Android Studio JDK. This bounded check does not close
+the wider Release-consumer privacy and diagnostics acceptance gate.
+
+After iOS Debug and Release simulator builds in the default DerivedData directory,
+run `npm run verify:ios:bridge` (append `-- x86_64` on an Intel Mac). It inspects
+compiled module selectors and React Native export metadata, requiring Debug
+counters, absent Release counters and retained runtime transport in both variants.
