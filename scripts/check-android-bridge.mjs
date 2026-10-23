@@ -4,6 +4,7 @@ import path from 'node:path';
 
 // RN discovers declared methods on the concrete module class, not a plain base.
 // Build both Kotlin variants before running this native verification command.
+const packageRoot = process.argv[2] ?? 'packages/maps';
 const javap = process.env.JAVA_HOME
   ? path.join(process.env.JAVA_HOME, 'bin/javap')
   : 'javap';
@@ -13,7 +14,7 @@ for (const variant of ['debug', 'release']) {
     [
       '-v',
       '-classpath',
-      `packages/maps/android/build/tmp/kotlin-classes/${variant}`,
+      path.join(packageRoot, `android/build/tmp/kotlin-classes/${variant}`),
       'com.enhancedmaps.ShaderLayerModule',
     ],
     { encoding: 'utf8' },

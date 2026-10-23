@@ -33,7 +33,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Include repeated cycles with memory/resource counts.
 - [ ] **MAP-10** — Gesture toggles, compass visibility and zoom limits now have a [component contract](docs/map-settings.md) and native implementation with partial simulator evidence. Persistent [map padding](docs/map-padding.md) is implemented; finish remaining control decisions and active-gesture, lifecycle and accessibility acceptance.
-- [ ] **MAP-11** — Native Release builds and physical-device smoke checks on both platforms.
+- [ ] **MAP-11** — Packed core Release builds and simulator smoke now pass on both hosts. Complete physical-device smoke and the remaining Release matrix. [Consumers](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
 - [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.
 - [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
@@ -97,7 +97,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **COMPAT-07, A11Y-04** — Define user-location/tracking, permission ownership, denial and privacy behavior.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
-- [ ] **REL-02, REL-05** — Packed bare consumers build Debug/Release on iOS/Android; verify exports, autolinking, declarations and optional GPU peers outside the workspace.
+- [ ] **REL-02, REL-05** — Core packed bare consumers pass Debug/Release builds, declarations, autolinking and bounded Release simulator smoke outside the workspace. Complete optional GPU peer combinations and signed/physical-device acceptance. [Results and resolver workaround](docs/native-consumers.md).
 - [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
 - [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
 - [ ] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy.

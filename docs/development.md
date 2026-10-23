@@ -87,3 +87,9 @@ After iOS Debug and Release simulator builds in the default DerivedData director
 run `npm run verify:ios:bridge` (append `-- x86_64` on an Intel Mac). It inspects
 compiled module selectors and React Native export metadata, requiring Debug
 counters, absent Release counters and retained runtime transport in both variants.
+
+## Packed native consumers
+
+Use `npm run consumer:prepare` to create an isolated core-only consumer outside
+the workspace. [Commands, bounded results and the optional-peer resolver constraint](native-consumers.md)
+are documented separately; publication and physical-device acceptance remain open.
