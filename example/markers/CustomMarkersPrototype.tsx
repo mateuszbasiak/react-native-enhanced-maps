@@ -14,8 +14,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { GeoJSONSource, Layer, MapView } from 'react-native-enhanced-maps';
-import type { MapViewRef, GeoJSONData } from 'react-native-enhanced-maps';
+import { MapView } from 'react-native-enhanced-maps';
+import type { MapViewRef } from 'react-native-enhanced-maps';
 import { Marker } from 'react-native-enhanced-maps';
 import { MarkerStackingDemo } from './MarkerStackingDemo';
 
@@ -193,29 +193,6 @@ export default function CustomMarkersPrototype() {
   const camera = useRef<MapViewRef>(null);
   const cameraStep = useRef(0);
   const [generation, setGeneration] = useState(0);
-  const anchors = useMemo<GeoJSONData>(
-    () => ({
-      type: 'FeatureCollection' as const,
-      features: [
-        {
-          type: 'Feature' as const,
-          id: 'anchor-counter',
-          properties: {},
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [moved ? 18.661 : 18.655, 54.373],
-          },
-        },
-        {
-          type: 'Feature' as const,
-          id: 'anchor-slider',
-          properties: {},
-          geometry: { type: 'Point' as const, coordinates: [18.666, 54.365] },
-        },
-      ],
-    }),
-    [moved],
-  );
   if (stacking) return <MarkerStackingDemo onBack={() => setStacking(false)} />;
   return (
     <View style={styles.root}>
@@ -297,13 +274,32 @@ export default function CustomMarkersPrototype() {
       >
         {mounted && status === 'Ready' && (
           <>
-            <GeoJSONSource id="marker-reference-anchors" data={anchors}>
-              <Layer
-                id="marker-reference-dots"
-                type="circle"
-                style={{ circleRadius: 6, circleColor: '#ff2626' }}
-              />
-            </GeoJSONSource>
+            {[
+              {
+                id: 'anchor-counter',
+                latitude: 54.373,
+                longitude: moved ? 18.661 : 18.655,
+              },
+              { id: 'anchor-slider', latitude: 54.365, longitude: 18.666 },
+            ].map(({ id, ...coordinate }) => (
+              <Marker
+                key={id}
+                id={id}
+                coordinate={coordinate}
+                anchor={{ x: 0.5, y: 0.5 }}
+                zIndex={-1}
+              >
+                <View
+                  pointerEvents="none"
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: '#ff2626',
+                  }}
+                />
+              </Marker>
+            ))}
             <Marker
               offset={{ x: 0, y: 6 }}
               id="live-counter"

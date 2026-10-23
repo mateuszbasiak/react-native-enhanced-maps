@@ -7,6 +7,7 @@
 #import "GestureEventGate.h"
 #import "NativeClustering.h"
 #import "NativeClusterQueries.h"
+#import "MarkerClusterLayout.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
@@ -73,6 +74,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   uint64_t _clusterIndexRevision;
   NSSet<NSString *> *_clusteredSources;
   NSString *_acceptedSceneJSON;
+  NSString *_lastMarkerLayout;
   enhancedmaps::GestureEventGate _gestureEvents;
   enhancedmaps::CameraOperationOrigin _cameraOrigins;
   BOOL _fitPreflight;
@@ -148,9 +150,23 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 - (void)mapView:(MLNMapView *)map didSelectAnnotationView:(MLNAnnotationView *)view { if([view isKindOfClass:EMMarkerAnnotation.class])[(EMMarkerAnnotation *)view sortSiblings]; }
 - (void)mapView:(MLNMapView *)map didFinishLoadingStyle:(MLNStyle *)style {
   if(map!=_map || style!=_map.style)return;
+  _lastMarkerLayout=nil;
   [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; _ready=YES; _readyStyleRevision=_loadingStyleRevision;
   if(![self applyScene] && _acceptedSceneJSON)[self applySceneJSON:_acceptedSceneJSON];
   if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapReady({true, enhancedmaps::nativeMapCapabilitiesJSON(), _readyStyleRevision});
+}
+- (void)mapViewDidFinishRenderingFrame:(MLNMapView *)map fullyRendered:(BOOL)fullyRendered {
+  if(!fullyRendered || map!=_map || !_ready || !_eventEmitter || !self.window)return;
+  const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
+  if(p.styleRevision!=_readyStyleRevision)return;
+  @try {
+    NSString *layout=EMMarkerClusterLayout(map,_acceptedSceneJSON,_clusterIndexRevision);
+    if(!layout || [layout isEqual:_lastMarkerLayout])return;
+    _lastMarkerLayout=[layout copy];
+    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMarkerClusters({std::string(layout.UTF8String),_readyStyleRevision});
+  } @catch(NSException *exception) {
+    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"marker-cluster",std::string(exception.reason.UTF8String ?: "Marker cluster layout failed")});
+  }
 }
 - (void)emitGesture:(const enhancedmaps::GestureSample &)sample {
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);

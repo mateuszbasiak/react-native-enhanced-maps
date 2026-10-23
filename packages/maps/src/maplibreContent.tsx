@@ -29,7 +29,7 @@ export interface LayerStyle {
   readonly fillColor?: string;
   readonly fillOpacity?: number;
 }
-export interface LayerProps {
+export interface InternalLayerProps {
   readonly id: string;
   readonly source?: string;
   readonly type: 'circle' | 'line' | 'fill';
@@ -38,11 +38,11 @@ export interface LayerProps {
   readonly style?: LayerStyle;
   readonly clusterFilter?: 'clusters' | 'points';
 }
-export function GeoJSONSource(_props: SourceProps): ReactNode {
-  throw new Error('GeoJSONSource must be a direct MapView child');
+export function InternalSource(_props: SourceProps): ReactNode {
+  throw new Error('InternalSource must be a direct MapView child');
 }
-export function Layer(_props: LayerProps): ReactNode {
-  throw new Error('Layer must be inside MapView or GeoJSONSource');
+export function InternalLayer(_props: InternalLayerProps): ReactNode {
+  throw new Error('Layer must be inside MapView or InternalSource');
 }
 const identifier = (value: unknown) => {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_.:-]{1,128}$/.test(value))
@@ -85,7 +85,7 @@ export function compileScene(children: ReactNode) {
         );
         return;
       }
-      if (node.type === GeoJSONSource) {
+      if (node.type === InternalSource) {
         const p = node.props as SourceProps;
         identifier(p.id);
         // Reuse the bounded GeoJSON validation and immutable normalization contract.
@@ -109,8 +109,8 @@ export function compileScene(children: ReactNode) {
         visit(p.children, p.id, depth + 1);
         return;
       }
-      if (node.type === Layer) {
-        const p = node.props as LayerProps;
+      if (node.type === InternalLayer) {
+        const p = node.props as InternalLayerProps;
         identifier(p.id);
         const sid = p.source ?? source;
         identifier(sid);
@@ -168,7 +168,7 @@ export function compileScene(children: ReactNode) {
         return;
       }
       if (source)
-        throw new Error('Only Layer elements may be nested in GeoJSONSource');
+        throw new Error('Only Layer elements may be nested in InternalSource');
       live.push(node);
     });
   };

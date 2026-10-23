@@ -2,7 +2,7 @@ import type {
   GeoJSONData,
   GeoJSONFeature,
   GeoJSONPosition,
-} from 'react-native-enhanced-maps';
+} from '../../packages/maps/src/layers';
 
 export const center: [number, number] = [18.66, 54.37];
 export const route: GeoJSONFeature & {

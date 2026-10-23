@@ -1,377 +1,214 @@
-// @refresh reset
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Platform, Text, View } from 'react-native';
-import { GeoJSONSource, Layer, MapView } from 'react-native-enhanced-maps';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Button, Pressable, Text, View } from 'react-native';
+import { MapView, Marker } from 'react-native-enhanced-maps';
 import type {
-  CameraEvent,
-  GeoJSONData,
-  MapError,
-  MapFeaturePressEvent,
-  MapPoint,
+  ClusterComponentProps,
+  ClusterMember,
   MapViewRef,
-  ClusterHandle,
-  ClusterPage,
 } from 'react-native-enhanced-maps';
 
-const data: GeoJSONData = {
-  type: 'FeatureCollection',
-  features: [
-    ['duplicate-a', 18.66],
-    ['duplicate-b', 18.66],
-    ['near-c', 18.662],
-    ['isolated-d', 18.674],
-  ].map(([id, longitude]) => ({
-    type: 'Feature',
-    id: id as string,
-    properties: { name: id },
-    geometry: { type: 'Point', coordinates: [longitude as number, 54.37] },
-  })),
+const Inspection = createContext<(members: readonly ClusterMember[]) => void>(
+  () => {},
+);
+function VesselCluster({ count, getMembers, expand }: ClusterComponentProps) {
+  const inspect = useContext(Inspection);
+  const [error, setError] = useState('');
+  return (
+    <View style={{ backgroundColor: '#145e99', borderRadius: 12, padding: 8 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Inspect ${count} markers`}
+        onPress={() => {
+          void getMembers()
+            .then(inspect)
+            .catch((reason) => setError(String(reason)));
+        }}
+      >
+        <Text style={{ color: 'white' }}>Inspect {count} markers</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Expand cluster"
+        onPress={() => {
+          void expand().catch((reason) => setError(String(reason)));
+        }}
+      >
+        <Text style={{ color: 'white' }}>Expand cluster</Text>
+      </Pressable>
+      {!!error && <Text>{error}</Text>}
+    </View>
+  );
+}
+const initialCamera = {
+  center: { latitude: 54.37, longitude: 18.66 },
+  zoom: 13,
+  heading: 0,
+  pitch: 0,
 };
 type Evidence = {
-  platform: string;
-  readyCount: number;
-  hits: MapFeaturePressEvent[];
-  errors: MapError[];
-  camera: CameraEvent[];
-  locations: { name: string; point: MapPoint }[];
-  queryErrors: string[];
-  inspections: {
-    leaves: ClusterPage[];
-    children: ClusterPage;
-    zoom: number;
-    empty: ClusterPage;
-    childLeaves?: ClusterPage;
-    childZoom?: number;
-  }[];
-  audits: {
-    expected: number;
-    total: number;
-    unique: number;
-    pages: number;
-    emptyTerminal: boolean;
-    immutable: boolean;
-    matched: boolean;
-  }[];
+  memberIDs: string[];
+  metadata: unknown[];
+  errors: string[];
+  ready: number;
 };
-const append = <T,>(array: T[], value: T) => {
-  array.push(value);
-  if (array.length > 32) array.shift();
+type DebugGlobal = typeof globalThis & {
+  __enhancedMapsClusters?: { snapshot(): Evidence };
 };
-const center = { latitude: 54.37, longitude: 18.661 };
-
-/** Deterministic, development-only native clustering fixture. */
 export default function ClusterVerification() {
   const map = useRef<MapViewRef>(null);
-  const selected = useRef<ClusterHandle | null>(null);
-  const [purple, setPurple] = useState(false);
-  const [clustering, setClustering] = useState(true);
-  const [revision, setRevision] = useState(1);
-  const [minimum, setMinimum] = useState(2);
-  const [styleEpoch, setStyleEpoch] = useState(0);
-  const [generation, setGeneration] = useState(0);
-  const [summary, setSummary] = useState('Waiting for clusters');
-  const [denseCount, setDenseCount] = useState(0);
-  const fixtureData = useMemo<GeoJSONData>(
-    () =>
-      denseCount
-        ? {
-            type: 'FeatureCollection',
-            features: Array.from({ length: denseCount }, (_, index) => ({
-              type: 'Feature',
-              id: `dense-${index}`,
-              geometry: { type: 'Point', coordinates: [18.66, 54.37] },
-              properties: { ordinal: index },
-            })),
-          }
-        : data,
-    [denseCount],
-  );
   const evidence = useRef<Evidence>({
-    platform: Platform.OS,
-    readyCount: 0,
-    hits: [],
+    memberIDs: [],
+    metadata: [],
     errors: [],
-    camera: [],
-    locations: [],
-    queryErrors: [],
-    inspections: [],
-    audits: [],
+    ready: 0,
   });
+  const [count, setCount] = useState(3);
+  const [cluster, setCluster] = useState(true);
+  const [custom, setCustom] = useState(true);
+  const [present, setPresent] = useState(true);
+  const [generation, setGeneration] = useState(0);
+  const [styleEpoch, setStyleEpoch] = useState(0);
+  const [moved, setMoved] = useState(false);
+  const [summary, setSummary] = useState('Waiting for map');
+  const markers = useMemo(
+    () =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `vessel-${index}`,
+        coordinate: { latitude: 54.37, longitude: 18.66 + (moved ? 0.02 : 0) },
+        data: {
+          name: `Vessel ${index}`,
+          status: index % 2 ? 'moving' : 'moored',
+        },
+      })),
+    [count, moved],
+  );
   useEffect(() => {
-    const target = globalThis as typeof globalThis & {
-      __enhancedMapsClusters?: {
-        snapshot: () => Evidence & { revision: number; minimum: number };
-      };
-    };
-    const api = {
-      snapshot: () => ({ ...evidence.current, revision, minimum }),
-    };
+    if (!__DEV__) return;
+    const target = globalThis as DebugGlobal;
+    const api = { snapshot: () => evidence.current };
     target.__enhancedMapsClusters = api;
     return () => {
       if (target.__enhancedMapsClusters === api)
         delete target.__enhancedMapsClusters;
     };
-  }, [revision, minimum]);
+  }, []);
   return (
-    <View style={{ flex: 1 }}>
-      <Text numberOfLines={1}>{summary}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button
-          title="Locate cluster fixture"
-          onPress={async () => {
-            try {
-              const current = map.current;
-              if (!current) throw new Error('No map');
-              const positions = [
-                ['cluster', (18.66 * 2 + 18.662) / 3],
-                ['duplicate', 18.66],
-                ['near', 18.662],
-                ['isolated', 18.674],
-              ] as const;
-              const locations = await Promise.all(
-                positions.map(async ([name, longitude]) => ({
-                  name,
-                  point: await current.pointForCoordinate({
-                    latitude: 54.37,
-                    longitude,
-                  }),
-                })),
-              );
-              evidence.current.locations = locations;
-              setSummary('Fixture located');
-            } catch (error) {
-              append(evidence.current.queryErrors, String(error));
-              setSummary(String(error));
-            }
-          }}
-        />
-        <Button
-          title="Low zoom"
-          onPress={() =>
-            map.current?.animateCamera(
-              { center, zoom: 13, heading: 0, pitch: 0 },
-              0,
-            )
-          }
-        />
-        <Button
-          title="High zoom"
-          onPress={() =>
-            map.current?.animateCamera(
-              { center, zoom: 16, heading: 0, pitch: 0 },
-              0,
-            )
-          }
-        />
-        <Button title="Stale min 4" onPress={() => setMinimum(4)} />
-        <Button
-          title="Accept min 4"
-          onPress={() => {
-            setRevision((value) => value + 1);
-            setMinimum(4);
-          }}
-        />
-        <Button
-          title="Restore clustering"
-          onPress={() => {
-            setClustering(true);
-            setRevision((value) => value + 1);
-            setMinimum(2);
-          }}
-        />
-        <Button
-          title="Reload cluster style"
-          onPress={() => setStyleEpoch((value) => value + 1)}
-        />
-        <Button
-          title="Remount clusters"
-          onPress={() => setGeneration((value) => value + 1)}
-        />
-        <Button
-          title="Inspect held cluster"
-          onPress={async () => {
-            try {
-              const current = map.current,
-                cluster = selected.current;
-              if (!current || !cluster) throw new Error('Tap a cluster first');
-              const [first, second, children, zoom] = await Promise.all([
-                current.getClusterLeaves(cluster, { limit: 2 }),
-                current.getClusterLeaves(cluster, { limit: 2, offset: 2 }),
-                current.getClusterChildren(cluster),
-                current.getClusterExpansionZoom(cluster),
-              ]);
-              const child = children.features.find(
-                (feature) => feature.cluster,
-              )?.cluster;
-              const empty = await current.getClusterLeaves(cluster, {
-                limit: 2,
-                offset: first.total,
-              });
-              const childLeaves = child
-                ? await current.getClusterLeaves(child)
-                : undefined;
-              const childZoom = child
-                ? await current.getClusterExpansionZoom(child)
-                : undefined;
-              append(evidence.current.inspections, {
-                leaves: [first, second],
-                children,
-                zoom,
-                empty,
-                childLeaves,
-                childZoom,
-              });
-              setSummary(`Inspected ${first.total} leaves, expansion ${zoom}`);
-            } catch (error) {
-              append(evidence.current.queryErrors, String(error));
-              setSummary(String(error));
-            }
-          }}
-        />
-        <Button
-          title="Query copied handle"
-          onPress={async () => {
-            try {
-              if (!selected.current || !map.current)
-                throw new Error('Tap a cluster first');
-              await map.current.getClusterLeaves({ ...selected.current });
-              throw new Error('Copied handle unexpectedly accepted');
-            } catch (error) {
-              append(evidence.current.queryErrors, String(error));
-              setSummary(String(error));
-            }
-          }}
-        />
-        <Button
-          title="Recolor clusters"
-          onPress={() => setPurple((value) => !value)}
-        />
-        <Button title="Stale disable" onPress={() => setClustering(false)} />
-        {[0, 1000, 10000].map((count) => (
+    <Inspection.Provider
+      value={(members) => {
+        evidence.current.memberIDs = members.map((member) => member.id);
+        evidence.current.metadata = members.map((member) => member.data);
+        setSummary(
+          `${members.length} members · ${members
+            .slice(0, 3)
+            .map((member) => member.id)
+            .join(', ')}`,
+        );
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text testID="cluster-status">{summary}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {[3, 1000, 10000].map((value) => (
+            <Button
+              key={value}
+              title={`${value} markers`}
+              onPress={() => setCount(value)}
+            />
+          ))}
           <Button
-            key={count}
-            title={count ? `Dense ${count}` : 'Four points'}
-            onPress={() => {
-              selected.current = null;
-              setClustering(true);
-              setMinimum(2);
-              setDenseCount(count);
-              setRevision((value) => value + 1);
-            }}
+            title={cluster ? 'Disable clustering' : 'Enable clustering'}
+            onPress={() => setCluster((value) => !value)}
           />
-        ))}
-        <Button
-          title="Audit all leaves"
-          onPress={async () => {
-            try {
-              const current = map.current,
-                cluster = selected.current;
-              if (!current || !cluster) throw new Error('Tap a cluster first');
-              const expected = denseCount
-                ? Array.from({ length: denseCount }, (_, i) => `dense-${i}`)
-                : ['duplicate-a', 'duplicate-b', 'near-c'];
-              const ids: string[] = [];
-              let pages = 0,
-                total = 0,
-                immutable = true;
-              for (let offset = 0; offset < 10000; offset += 100) {
-                const page = await current.getClusterLeaves(cluster, {
-                  limit: 100,
-                  offset,
-                });
-                total = page.total;
-                pages++;
-                immutable &&=
-                  Object.isFrozen(page) &&
-                  Object.isFrozen(page.features) &&
-                  page.features.every(
-                    (feature) =>
-                      Object.isFrozen(feature) &&
-                      Object.isFrozen(feature.coordinate) &&
-                      Object.isFrozen(feature.properties),
-                  );
-                ids.push(...page.features.map((feature) => feature.featureId));
-                if (offset + 100 >= total) break;
-              }
-              const terminal = await current.getClusterLeaves(cluster, {
-                offset: total,
-              });
-              const actual = new Set(ids);
-              const result = {
-                expected: expected.length,
-                total,
-                unique: actual.size,
-                pages,
-                emptyTerminal: terminal.features.length === 0,
-                immutable,
-                matched:
-                  total === expected.length &&
-                  ids.length === expected.length &&
-                  actual.size === expected.length &&
-                  expected.every((id) => actual.has(id)),
-              };
-              append(evidence.current.audits, result);
-              if (!result.matched || !result.immutable || !result.emptyTerminal)
-                throw new Error(`Leaf audit failed: ${JSON.stringify(result)}`);
-              setSummary(
-                `Audited ${actual.size} unique leaves in ${pages} pages`,
-              );
-            } catch (error) {
-              append(evidence.current.queryErrors, String(error));
-              setSummary(String(error));
+          <Button
+            title={custom ? 'Default bubble' : 'Custom bubble'}
+            onPress={() => setCustom((value) => !value)}
+          />
+          <Button
+            title="Zoom 13"
+            onPress={() => map.current?.animateCamera(initialCamera, 0)}
+          />
+          <Button
+            title="Zoom 16"
+            onPress={() =>
+              map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
             }
+          />
+          <Button
+            title="Move markers"
+            onPress={() => setMoved((value) => !value)}
+          />
+          <Button
+            title={present ? 'Remove markers' : 'Restore markers'}
+            onPress={() => setPresent((value) => !value)}
+          />
+          <Button
+            title="Reload style"
+            onPress={() => setStyleEpoch((value) => value + 1)}
+          />
+          <Button
+            title="Remount"
+            onPress={() => setGeneration((value) => value + 1)}
+          />
+        </View>
+        <MapView
+          key={generation}
+          ref={map}
+          style={{ flex: 1 }}
+          initialCamera={initialCamera}
+          styleURL={`https://tiles.openfreemap.org/styles/liberty?cluster=${styleEpoch}`}
+          clusterComponent={custom ? VesselCluster : undefined}
+          onMapReady={() => {
+            evidence.current.ready++;
+            setSummary('Ready');
           }}
-        />
-      </View>
-      <MapView
-        key={generation}
-        ref={map}
-        style={{ flex: 1 }}
-        testID="cluster-verification-map"
-        styleURL={`https://tiles.openfreemap.org/styles/liberty?clusterVerification=${styleEpoch}`}
-        initialCamera={{ center, zoom: 13, heading: 0, pitch: 0 }}
-        onMapReady={() => {
-          evidence.current.readyCount++;
-          setSummary('Clusters ready');
-        }}
-        onCameraIdle={(event) => append(evidence.current.camera, event)}
-        onError={(error) => {
-          append(evidence.current.errors, error);
-          setSummary(error.message);
-        }}
-      >
-        <GeoJSONSource
-          id="cluster-fixture"
-          data={fixtureData}
-          revision={revision}
-          cluster={
-            clustering ? { radius: 50, maxZoom: 14, minPoints: minimum } : false
-          }
-          onFeaturePress={(event) => {
-            if (event.cluster) selected.current = event.cluster;
-            append(evidence.current.hits, event);
-            setSummary(
-              `${event.featureId} · ${JSON.stringify(event.properties)}`,
-            );
+          onError={(error) => {
+            evidence.current.errors.push(error.message);
+            evidence.current.errors = evidence.current.errors.slice(-32);
+            setSummary(error.message);
           }}
         >
-          <Layer
-            id="fixture-clusters"
-            type="circle"
-            clusterFilter={clustering ? 'clusters' : undefined}
-            style={{
-              circleColor: purple ? '#8800ff' : '#0055ff',
-              circleRadius: 18,
-            }}
-          />
-          <Layer
-            id="fixture-points"
-            type="circle"
-            clusterFilter={clustering ? 'points' : undefined}
-            style={{ circleColor: '#ff6600', circleRadius: 8 }}
-          />
-        </GeoJSONSource>
-      </MapView>
-    </View>
+          {present &&
+            markers.map((marker) => (
+              <Marker
+                key={marker.id}
+                {...marker}
+                cluster={cluster}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <Pressable
+                  accessibilityLabel={marker.id}
+                  onPress={() => setSummary(marker.data.name)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: '#e07020',
+                  }}
+                >
+                  <Text>●</Text>
+                </Pressable>
+              </Marker>
+            ))}
+          <Marker
+            id="independent"
+            coordinate={{ latitude: 54.37, longitude: 18.674 }}
+          >
+            <Pressable
+              accessibilityLabel="Independent marker"
+              onPress={() => setSummary('Independent marker selected')}
+            >
+              <Text>⚓</Text>
+            </Pressable>
+          </Marker>
+        </MapView>
+      </View>
+    </Inspection.Provider>
   );
 }

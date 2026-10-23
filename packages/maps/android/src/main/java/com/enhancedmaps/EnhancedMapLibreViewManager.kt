@@ -37,6 +37,7 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   override fun getExportedCustomDirectEventTypeConstants():MutableMap<String,Any> = mutableMapOf(
     "topMapReady" to mapOf("registrationName" to "onMapReady"), "topMapError" to mapOf("registrationName" to "onMapError"),
     "topMapQueryResult" to mapOf("registrationName" to "onMapQueryResult"),
+    "topMarkerClusters" to mapOf("registrationName" to "onMarkerClusters"),
     "topMapPress" to mapOf("registrationName" to "onMapPress"),
     "topGesture" to mapOf("registrationName" to "onGesture"),
     "topCameraIdle" to mapOf("registrationName" to "onCameraIdle"), "topFeaturePress" to mapOf("registrationName" to "onFeaturePress")

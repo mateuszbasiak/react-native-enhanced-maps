@@ -57,6 +57,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var styleGeneration = 0L
   private var sceneSources = listOf<String>()
   private var clusteredSources = setOf<String>()
+  private var lastMarkerLayout: String? = null
   private var clusterIndexRevision = 0L
   private var sceneLayers = listOf<String>()
   private val interactiveLayers = mutableSetOf<String>()
@@ -161,7 +162,20 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       markers.forEach { textures[it] = EMMarkerTexture(nativeMap, it) }
       configure()
     }
+    addOnDidFinishRenderingFrameListener { fully, _, _ ->
+      if(fully) post { publishMarkerClusters() }
+    }
     addOnDidFailLoadingMapListener { message -> error("style-load", message) }
+  }
+  private fun publishMarkerClusters() {
+    if(disposed || !isAttachedToWindow || readyStyleRevision!=styleRevision) return
+    val nativeMap=map ?: return
+    try {
+      val layout=MarkerClusterLayout.read(nativeMap,acceptedScene,clusterIndexRevision,width,height) ?: return
+      if(layout==lastMarkerLayout) return
+      lastMarkerLayout=layout
+      emit("topMarkerClusters",Arguments.createMap().apply { putString("layoutJSON",layout);putDouble("styleRevision",readyStyleRevision) })
+    } catch(exception:Exception) { error("marker-cluster",exception.message ?: "Marker cluster layout failed") }
   }
   private fun emitMapPress(action: String, coordinate: LatLng) {
     if(disposed || !mapPressEventsEnabled || readyStyleRevision != styleRevision) return
@@ -211,6 +225,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       nativeMap.setStyle(Style.Builder().fromUri(requestedURL)) {
         if (!disposed && generation == styleGeneration && loadedURL == requestedURL && styleURL == requestedURL && styleRevision == requestedRevision) {
           readyStyleRevision = requestedRevision
+          lastMarkerLayout = null
           appliedScene = null; sceneSources = emptyList(); sceneLayers = emptyList(); orderStyle = null
           if (!applyScene()) acceptedScene?.let { applyScene(it) }
           orderDirty = true; scheduleFrame()
