@@ -33,3 +33,5 @@ Historical prototype documents describe earlier experiments and are not the curr
 API. Packages remain private and UNLICENSED; this is not a production release.
 
 Shape props and compatibility limits: [shape components](docs/shapes.md).
+
+Experimental world shader layers: [ShaderLayer contract](docs/shader-layer.md).

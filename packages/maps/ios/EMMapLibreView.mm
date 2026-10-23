@@ -11,6 +11,7 @@
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
+#import "EMShaderLayer.h"
 #import <react/renderer/components/EnhancedMapsSpec/ComponentDescriptors.h>
 #import <react/renderer/components/EnhancedMapsSpec/EventEmitters.h>
 #import <react/renderer/components/EnhancedMapsSpec/Props.h>
@@ -59,6 +60,9 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   EMNativeMap *_map;
 #if DEBUG && MLN_RENDER_BACKEND_METAL
   EMShaderPrototype *_shaderPrototype;
+#endif
+#if MLN_RENDER_BACKEND_METAL
+  NSMutableDictionary<NSString *,EMWebGPUTextureLayer *> *_shaderLayers;
 #endif
   NSMutableArray<EMMarkerView *> *_markers;
   NSMutableArray<NSString *> *_sourceIDs;
@@ -131,6 +135,9 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   if(styleChanged && _map) {
 #if DEBUG && MLN_RENDER_BACKEND_METAL
     [_shaderPrototype stop];_shaderPrototype=nil;
+#endif
+#if MLN_RENDER_BACKEND_METAL
+    [_shaderLayers removeAllObjects];
 #endif
     _ready=NO; _loadingStyleRevision=next.styleRevision;
     _map.styleURL=next.styleURL.empty()?nil:[NSURL URLWithString:@(next.styleURL.c_str())];
@@ -361,6 +368,39 @@ static UIColor *EMColor(id value) {
     if(!_ready || !_map || !self.window || revision!=_readyStyleRevision || revision!=p.styleRevision)
       @throw [NSException exceptionWithName:@"MapQuery" reason:@"Map is not ready" userInfo:nil];
     NSDictionary *response=nil;
+#if MLN_RENDER_BACKEND_METAL
+    if([request[@"kind"] isEqual:@"shaderLayer"]) {
+      NSString *identifier=request[@"id"],*poolID=request[@"poolId"],*action=request[@"action"];
+      NSRegularExpression *pattern=[NSRegularExpression regularExpressionWithPattern:@"^[a-zA-Z0-9_.:-]{1,128}$" options:0 error:nil];
+      if(![identifier isKindOfClass:NSString.class] || [pattern numberOfMatchesInString:identifier options:0 range:NSMakeRange(0,identifier.length)]!=1)
+        @throw [NSException exceptionWithName:@"ShaderLayer" reason:@"Invalid layer id" userInfo:nil];
+      if(!_shaderLayers)_shaderLayers=[NSMutableDictionary new];
+      EMWebGPUTextureLayer *existing=_shaderLayers[identifier];
+      EMWebGPUOutputPool *pool=EMWebGPUPool(poolID);
+      if([action isEqual:@"remove"]) {
+        if(existing && existing.pool==pool) { if([_map.style layerWithIdentifier:identifier]==existing)[_map.style removeLayer:existing];[_shaderLayers removeObjectForKey:identifier]; }
+      } else if([action isEqual:@"redraw"]) {
+        if(!existing || !pool || existing.pool!=pool)@throw [NSException exceptionWithName:@"ShaderLayer" reason:@"Shader layer owner mismatch" userInfo:nil];
+        [existing setNeedsDisplay];
+      } else if([action isEqual:@"attach"]) {
+        if(!pool || (existing && existing.pool!=pool) || ([_map.style layerWithIdentifier:identifier] && [_map.style layerWithIdentifier:identifier]!=existing))
+          @throw [NSException exceptionWithName:@"ShaderLayer" reason:@"Unknown pool or duplicate layer id" userInfo:nil];
+        MLNStyleLayer *before=nil;
+        if(request[@"beforeId"]) {
+          if(![request[@"beforeId"] isKindOfClass:NSString.class] || [request[@"beforeId"] isEqual:identifier] || !(before=[_map.style layerWithIdentifier:request[@"beforeId"]]))
+            @throw [NSException exceptionWithName:@"ShaderLayer" reason:@"beforeId layer is missing" userInfo:nil];
+        } else if(![request[@"placement"] isEqual:@"above-labels"])for(MLNStyleLayer *layer in _map.style.layers)if([layer isKindOfClass:MLNSymbolStyleLayer.class]) { before=layer;break; }
+        EMWebGPUTextureLayer *layer=[[EMWebGPUTextureLayer alloc] initWithIdentifier:identifier];
+        layer.pool=pool;
+        __weak EMWebGPUTextureLayer *weakLayer=layer;
+        {std::lock_guard<std::mutex> lock(pool->state->mutex);pool->state->repaint=[weakLayer]{dispatch_async(dispatch_get_main_queue(),^{[weakLayer setNeedsDisplay];});};}
+        if(existing && [_map.style layerWithIdentifier:identifier]==existing)[_map.style removeLayer:existing];
+        if(before)[_map.style insertLayer:layer belowLayer:before];else [_map.style addLayer:layer];
+        _shaderLayers[identifier]=layer;
+      } else @throw [NSException exceptionWithName:@"ShaderLayer" reason:@"Invalid shader action" userInfo:nil];
+      response=@{@"accepted":@YES};
+    } else
+#endif
 #if DEBUG && MLN_RENDER_BACKEND_METAL
     // Internal Debug-only feasibility command; deliberately absent from MapViewRef.
     if([request[@"kind"] isEqual:@"shaderPrototype"]) {

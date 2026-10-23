@@ -102,3 +102,11 @@ Do not infer compute/particle-simulation support from a fragment-effect success.
 The current Android OpenGL backend's supported stages/resources remain a separate
 acceptance question. No shader authoring/compiler choice is finalized by this
 recommendation.
+
+## Follow-up: React Native WebGPU runtime investigation
+
+The subsequent [runtime investigation](react-native-webgpu-investigation.md)
+found documented shared-output and worklet primitives. React Native WebGPU is
+now the candidate to test before investing in a custom cross-compilation tool.
+Its MapLibre bridge and performance are not yet verified. A [proposed API
+contract](shader-layer-api.md) describes this conditional runtime direction.

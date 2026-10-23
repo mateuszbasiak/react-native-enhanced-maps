@@ -37,7 +37,7 @@ Minimum iOS 16 and Android 24. Rebuild after native setup.
 
 No Google/Apple map provider adapters, API keys, patched dependencies or React
 Native MapLibre wrapper are used. A style URL and suitable tile hosting are required.
-The optional TypeGPU companion is separate; live custom GPU layers remain future work.
+Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute state and uniforms. World-anchored tile output is submitted on a dedicated worklet runtime. See [contract and limits](../../docs/shader-layer.md). TypeGPU may later be an optional typed authoring tool.
 
 Shape props and compatibility limits: [shape components](../../docs/shapes.md).
 

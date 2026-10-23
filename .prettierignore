@@ -9,3 +9,5 @@ vendor/
 package-lock.json
 *.xcworkspacedata
 .env*
+
+packages/maps/android/src/main/cpp/maplibre-prototype/

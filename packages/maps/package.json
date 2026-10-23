@@ -12,6 +12,11 @@
       "types": "./lib/index.d.ts",
       "react-native": "./src/index.ts",
       "default": "./lib/index.js"
+    },
+    "./shaders": {
+      "types": "./lib/shaders.d.ts",
+      "react-native": "./src/shaders.ts",
+      "default": "./lib/shaders.js"
     }
   },
   "files": [
@@ -23,11 +28,14 @@
     "android/src",
     "*.podspec",
     "react-native.config.cjs",
-    "*.rb"
+    "*.rb",
+    "cpp"
   ],
   "peerDependencies": {
     "react": "^19.2.3",
-    "react-native": "0.85.x"
+    "react-native": "0.85.x",
+    "react-native-webgpu": "0.17.x",
+    "react-native-worklets": "0.12.2"
   },
   "sideEffects": false,
   "codegenConfig": {
@@ -42,6 +50,14 @@
         "EnhancedMapLibreView": "EMMapLibreView",
         "EnhancedMarkerView": "EMMarkerView"
       }
+    }
+  },
+  "peerDependenciesMeta": {
+    "react-native-webgpu": {
+      "optional": true
+    },
+    "react-native-worklets": {
+      "optional": true
     }
   }
 }

@@ -4,8 +4,11 @@ apply plugin: 'com.facebook.react'
 
 android {
   namespace 'com.enhancedmaps'
+  buildFeatures { buildConfig true; prefab true }
   compileSdk rootProject.ext.compileSdkVersion
   defaultConfig { minSdk 24 }
+  externalNativeBuild { cmake { path 'src/main/cpp/CMakeLists.txt' } }
+  defaultConfig { externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_shared' } } }
   sourceSets.main.java.srcDirs += 'build/generated/source/codegen/java'
 }
 react {
