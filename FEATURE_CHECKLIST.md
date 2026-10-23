@@ -32,7 +32,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 ## Map lifetime, camera and gestures
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Include repeated cycles with memory/resource counts.
-- [ ] **MAP-10** — Gesture toggles, compass visibility and zoom limits now have a [component contract](docs/map-settings.md) and native implementation with partial simulator evidence. Finish persistent padding and remaining control decisions; complete gesture/compass restoration and active-gesture acceptance.
+- [ ] **MAP-10** — Gesture toggles, compass visibility and zoom limits now have a [component contract](docs/map-settings.md) and native implementation with partial simulator evidence. Finish persistent padding and remaining control decisions; complete active-gesture, lifecycle and accessibility acceptance.
 - [ ] **MAP-11** — Native Release builds and physical-device smoke checks on both platforms.
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
 - [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.

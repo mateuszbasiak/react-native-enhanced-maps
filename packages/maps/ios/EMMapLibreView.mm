@@ -139,8 +139,6 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   if(_map.rotateEnabled!=p.rotateEnabled)_map.rotateEnabled=p.rotateEnabled;
   if(_map.pitchEnabled!=p.pitchEnabled)_map.pitchEnabled=p.pitchEnabled;
   if(_map.showsCompassView!=p.showsCompass)_map.showsCompassView=p.showsCompass;
-  _map.compassView.isAccessibilityElement=p.showsCompass;
-  _map.compassView.accessibilityElementsHidden=!p.showsCompass;
   if(_map.minimumZoomLevel!=p.minZoomLevel || _map.maximumZoomLevel!=p.maxZoomLevel) {
     // Widen first so disjoint interval replacements remain valid at every setter.
     _map.minimumZoomLevel=0;_map.maximumZoomLevel=24;

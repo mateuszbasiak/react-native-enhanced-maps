@@ -45,16 +45,24 @@ native builds and simulator results must be recorded separately.
 Both native Debug app builds passed; package CI passed 80 tests, types, quality,
 Codegen, packed declarations and both production bundles. On Android API 36 and
 iPhone 17 Pro/iOS 26.1 simulators, a zoom-20 request under [10,12] yielded 12;
-a zoom-1 request after switching to [2,4] yielded 2. Android disabled pan, pinch,
-rotation and two-finger tilt preserved queried native bounds to 1e-7 degrees;
-restoring defaults re-enabled pan with gesture-origin idle. Camera commands still
-worked with gestures disabled.
+a zoom-1 request after switching to [2,4] yielded 2. An equal [8,8] interval clamps
+a zoom-12 command to 8 on both hosts, with no reported errors.
 
-The first iOS compass-hide check removed the visual compass but left its AX entry.
-An explicit accessibility hide adjustment was added and rebuilt successfully. Its
-runtime retest, full iOS disabled-gesture checks, equal-endpoint native behavior
-and remaining gesture-restoration cases are pending: the simulator approval
-service hit its usage limit before those actions ran. Do not infer those passes
-from the compiled code or earlier observations. Local bounded observations are in
+Disabled pan, pinch, rotation and two-finger tilt preserved queried native bounds
+to 1e-7 degrees on both simulators. Camera commands still worked with gestures
+disabled. Re-enabling each gesture individually restored pan, pinch, rotation and
+tilt, with gesture-origin idle events and zero recorded errors. Final isolated
+pinches changed zoom from 10 to 11.222 (iOS) and 10.516 (Android); isolated rotations
+changed heading from 45 to 351.513 and 348.828; isolated tilt changed pitch from 40
+to 0 and 13.345 respectively. These are bounded semantic checks, not parity budgets.
+
+The compass hides visually and the iOS native hierarchy reports `hidden: true`.
+The accessibility inspector still lists that hidden view; this does not establish
+actual VoiceOver reachability. Keep SDK accessibility behavior intact and leave
+VoiceOver/TalkBack acceptance open. The temporary local Metro-port override used
+for iOS testing was restored in source. Local observations are saved in
 `artifacts/verification/map-settings-2026-10-23.json` (generated, not packaged).
-Physical-device testing remains deferred to the maintainer.
+
+Changing flags during an active gesture, style/lifecycle stress, multiple maps and
+physical-device acceptance remain open. Physical-device testing is deferred to
+the maintainer. Persistent map padding is separate remaining work.
