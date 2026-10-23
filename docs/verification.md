@@ -833,3 +833,12 @@ performed. Later shader-source/uniform builds were not installed by this agent.
 The user described the initial prototype as looking nice. Device, lifecycle,
 JS-contention and performance verification remain open. See
 [prototype scope and authoring alternatives](custom-gpu-prototype.md).
+
+## TypeGPU cleanup (2026-10-21)
+
+Removed the unused TypeGPU workspace, triangle/readback helpers, provisional raster
+type and validator, obsolete tests, example dependencies and Babel transforms.
+The react-native-webgpu prototype remains; TypeGPU is only a possible future typed
+authoring adapter. Current checks pass 67 tests after retiring the five obsolete
+tests. Both production example JS bundles pass with the standard React Native
+Babel preset. No native code changed during this cleanup.
