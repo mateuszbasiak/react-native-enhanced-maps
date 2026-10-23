@@ -58,21 +58,10 @@ Geometry is immutable and stable references avoid repeat source serialization.
 See [native-components.md](native-components.md). Heatmap/particles and shape
 picking remain planned. The shared custom renderer was removed.
 
-## TypeGPU
+## Retired shader snapshot experiment
 
-The optional companion now includes an experimental one-shot TypeGPU triangle
-renderer with typed RGBA uniforms and bounded RGBA8 readback. Core accepts
-`experimentalRasterOverlay`: one immutable image, dimensions 1–256, ordered bounds
-within ±85 latitude, at most 180 longitude span without antimeridian crossing.
-Google uses native ground overlays; Apple uses MKOverlayRenderer above roads.
-Transparency and camera projection are SDK-owned; overlay touches pass through.
-Replacing/removing the prop replaces/removes the native image. Invalid raster
-errors are recoverable and do not invalidate map readiness.
-
-This proves a static shader-to-geographic-raster path only. It does not implement
-live GPU shader animation, a native WebGPU render hook, portable projection
-matrices, shared depth, arbitrary style-layer insertion, or picking. The exported
-frame/lifetime interfaces remain provisional contracts for future live rendering.
+The TypeGPU companion package, raster snapshot types and readback helpers have
+been removed. They are not part of the current MapLibre API.
 
 ## Capabilities and compatibility
 

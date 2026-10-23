@@ -87,7 +87,7 @@ build-time compiler such as Naga to emit Metal and GLSL ES compatible with the
 installed MapLibre backends, and render those outputs inside each native custom
 layer. Generated backend sources are build artifacts, not application-authored
 programs. This uses WGSL as a portable shader language without requiring a WebGPU
-renderer. TypeGPU could later be an optional authoring frontend that emits WGSL.
+renderer. The former TypeGPU companion has been removed.
 Naga is a candidate supported by its documented WGSL input and Metal/GLSL ES
 outputs; it is not installed or verified in this repository yet.
 

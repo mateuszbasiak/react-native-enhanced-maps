@@ -25,8 +25,7 @@ The report identifies `engine: 'maplibre'` and the native `platform`, and includ
 Both current hosts report circle/line/fill and detailed gesture lifecycle events
 as `unvalidated`, and symbol/raster/heatmap and live shaders as `unsupported`.
 This deliberately does not advertise every capability of the underlying MapLibre
-SDK. Installing the optional TypeGPU snapshot helper does not add a native shader
-layer to MapView and therefore does not change the shader capability.
+SDK. The retired snapshot experiment does not add a native shader layer to MapView.
 
 Reports originate in the native readiness events and are bounded, schema-checked
 and frozen by JavaScript. A missing, malformed or platform-mismatched report emits

@@ -69,18 +69,6 @@ export interface MapError {
   readonly message: string;
   readonly fatal: boolean;
 }
-/** Experimental shader snapshot, not a live GPU layer. Immutable; max 256 × 256. */
-export interface ExperimentalRasterOverlay {
-  readonly width: number;
-  readonly height: number;
-  readonly rgbaBase64: string;
-  readonly bounds: {
-    readonly north: number;
-    readonly south: number;
-    readonly east: number;
-    readonly west: number;
-  };
-}
 export interface MapViewProps {
   readonly styleURL: string;
   readonly children?: ReactNode;

@@ -1,8 +1,8 @@
 # Development workflow
 
-Install with `npm ci --ignore-scripts`. The workspace contains the core maps package,
-optional TypeGPU companion and bare React Native example. Native integration belongs
-to the core package; do not patch third-party React Native map wrappers.
+Install with `npm ci --ignore-scripts`. The workspace contains the core maps package
+and bare React Native example. Native integration belongs to the core package;
+do not patch third-party React Native map wrappers.
 
 ```sh
 npm run example:pods        # macOS: install React Native Pods + MapLibre SPM setup
