@@ -39,3 +39,7 @@ Cluster components receive count, coordinate, lazy `getMembers()` and `expand()`
 Sources and style layers are private implementation details.
 
 Experimental world shader layers (`react-native-enhanced-maps/shaders`): [ShaderLayer contract](docs/shader-layer.md).
+
+Development changes are tracked in [CHANGELOG.md](CHANGELOG.md). See
+[contributing](CONTRIBUTING.md), [private security reporting](SECURITY.md) and
+[prerelease policy](docs/release-policy.md).

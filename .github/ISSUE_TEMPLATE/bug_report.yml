@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible behavior or build failure.
+body:
+  - type: markdown
+    attributes:
+      value: 'Security issues must use the private reporting link in SECURITY.md. Omit credentials and private coordinates or user metadata.'
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Source commit/package version, RN/MapLibre/WebGPU versions, platform, OS/device and Debug/Release mode.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal sanitized fixture and exact steps, including whether this occurs on a simulator or physical device.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Sanitized logs, screenshots, traces, reproduction frequency and checks already run.
