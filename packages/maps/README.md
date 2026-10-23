@@ -1,7 +1,7 @@
 # React Native Enhanced Maps
 
 Private package-owned MapLibre Native integration. Not ready for production.
-Exports `MapView`, `Marker`, `GeoJSONSource`, `Layer`, `Polyline`, `Polygon` and `Circle`.
+Exports `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`.
 
 ```tsx
 import { MapView, Marker } from 'react-native-enhanced-maps';
@@ -25,8 +25,8 @@ import { MapView, Marker } from 'react-native-enhanced-maps';
 ```
 
 Use ordinary React Native children and input handlers inside `Marker`. Higher
-`zIndex` wins; equal values use marker creation order. Circle, line and fill layers
-use GeoJSON sources and camelCase style properties. See the example for usage.
+`zIndex` wins; equal values use marker creation order. `Polyline`, `Polygon` and
+`Circle` compile to private MapLibre sources and layers. See the example for usage.
 
 Android links MapLibre Native OpenGL 13.6.1 directly. iOS links MapLibre 6.31.0 via
 Swift Package Manager alongside React Native Pods. In the consumer Podfile require
@@ -41,10 +41,6 @@ Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute st
 
 Shape props and compatibility limits: [shape components](../../docs/shapes.md).
 
-`GeoJSONSource` accepts optional producer revisions for stale-update rejection.
-See [source revision semantics](../../docs/source-revisions.md) for replacement,
-style reload and source-removal behavior.
-
 Use `ref.getCapabilities()` or `onCapabilitiesChange` to read the current native
 feature evidence states. See [capability reports](../../docs/capabilities.md).
 
@@ -54,9 +50,30 @@ Map refs provide asynchronous projection, visible bounds, `fitCoordinates` and
 `fitElements`. See [map geometry and fitting](../../docs/map-geometry.md) for input
 limits, padding, acceptance semantics and prototype constraints.
 
-`GeoJSONSource.cluster` enables prototype native point clustering. Use
-`Layer.clusterFilter="clusters"` or `"points"` for separate styles; structured
-hits expose cluster IDs, point counts and opaque inspection handles. Map refs
-provide bounded `getClusterChildren`, `getClusterLeaves` and
-`getClusterExpansionZoom` queries. See [clustering](../../docs/clustering.md)
-for revision rules, handle lifetime, reserved properties and prototype limits.
+Set `cluster` on participating `Marker` children. Nonparticipating markers remain
+independent. `MapView.clusterComponent` optionally supplies custom React cluster
+contents; the default count bubble expands on press. Custom components receive
+`count`, `coordinate`, lazy `getMembers()` and `expand()`. Membership includes
+marker IDs, coordinates and application-owned `Marker.data`; metadata stays in JS.
+Obsolete cluster operations reject after index, style or map replacement.
+
+```tsx
+<Marker
+  id="place"
+  coordinate={{ latitude: 52.2, longitude: 21 }}
+  cluster
+  data={{ title: 'Place' }}
+>
+  <Text>Place</Text>
+</Marker>
+```
+
+The current input limit is 10,000 clustered markers. End-to-end component acceptance,
+spatial parity and physical-device performance remain open. Source-oriented query
+APIs in older documents describe internal or historical infrastructure.
+
+Import experimental `ShaderLayer` separately from
+`react-native-enhanced-maps/shaders`. Its optional peers are
+`react-native-webgpu@0.17.x` and `react-native-worklets@0.12.2`; configure the
+Worklets Babel plugin as in the example and rebuild native projects. Core-only
+consumers do not need these peers. See [ShaderLayer](../../docs/shader-layer.md).
