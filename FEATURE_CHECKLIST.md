@@ -37,7 +37,7 @@ identify further differences as we investigate them.
 
 ## 1. Architecture and package foundation
 
-- [x] **ARCH-01 · Done** — npm workspace with core, optional TypeGPU companion and native example.
+- [x] **ARCH-01 · Done** — npm workspace with core and native example. The obsolete TypeGPU raster companion was removed.
 - [x] **ARCH-02 · Done** — Fabric map host and native Codegen boundary on iOS and Android.
 - [x] **ARCH-03 · Done** — New Architecture only; baseline RN/React and native SDK versions locked.
 - [x] **ARCH-04 · Done** — Core has no runtime npm dependencies; GPU runtime dependencies remain companion peers.
@@ -139,7 +139,7 @@ These items are compatibility workstreams, not a promise to implement every upst
 - [ ] **LAYER-09 · Prototype** — Visibility and literal style replacement implemented. Filters, zoom ranges and incremental native style mutation remain open; hosts rebuild scene resources.
 - [ ] **LAYER-10 · Prototype** — Layer beforeId supports insertion relative to existing MapLibre style layers; shapes sort by zIndex/declaration order and markers have separate native ordering. Complete cross-content draw/hit-order coverage remains open.
 - [ ] **LAYER-11 · Unverified** — Identical semantic fixtures and capability evidence on MapLibre iOS and Android; historical three-provider results do not apply.
-- [ ] **LAYER-12 · Superseded** — Apple/Google single-image overlay removed. ExperimentalRasterOverlay types/helpers remain, but current MapView has no raster overlay prop or native transport.
+- [ ] **LAYER-12 · Superseded** — Apple/Google single-image overlay removed. The unused ExperimentalRasterOverlay types/helpers and TypeGPU readback companion are also removed.
 
 Current source/layer API: [scene compiler](packages/maps/src/maplibreContent.tsx),
 [MapLibre scenarios](docs/maplibre-prototype.md), [fixture tests](tests/maplibre-fixtures.test.mjs).
@@ -161,10 +161,10 @@ Historical LAYER-12 evidence: [shader raster scenario](docs/shader-raster-scenar
 
 ## 9. TypeGPU and custom shaders — required v1 scope
 
-- [x] **GPU-01 · Done** — Optional TypeGPU package with typed contracts and separate peer dependencies.
-- [ ] **GPU-02 · Prototype** — TypeGPU triangle execution and bounded RGBA readback helper remain; geographic Apple/Google display path was removed. Current MapLibre map integration remains open.
-- [ ] **GPU-03 · Prototype** — Typed triangle color uniform remains; raster replacement/removal and map display are not wired into current MapView.
-- [ ] **GPU-04 · Prototype** — Raster payload/row-padding/GPU validation tests and example Babel workaround remain; they do not verify a current native raster display path.
+- [x] **GPU-01 · Superseded** — Removed the obsolete TypeGPU raster companion and dependencies. react-native-webgpu is the current runtime direction; optional typed authoring remains a future adapter.
+- [ ] **GPU-02 · Superseded** — Removed the triangle/readback experiment; shared-output MapLibre integration is tracked in GPU-17.
+- [ ] **GPU-03 · Superseded** — Removed the old typed triangle uniform API. The WebGPU prototype accepts JS uniforms; public typed resource contracts remain GPU-09.
+- [ ] **GPU-04 · Superseded** — Removed obsolete raster tests and TypeGPU-specific Babel transforms with their implementation. Current shared-output checks are tracked in GPU-17.
 - [ ] **GPU-05 · Planned** — Live GPU renderer integration; the sibling Canvas particle prototype was dropped in favor of designing the general layer API first.
 - [ ] **GPU-06 · Planned** — Provider rendering/projection contract; the prototype JS projection feed was removed and is not the general layer abstraction.
 - [ ] **GPU-07 · Unverified** — Quantified alignment under pan, zoom, rotation, tilt, resize, padding and camera animations on MapLibre iOS/Android, after restoring a GPU integration path.

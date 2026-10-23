@@ -2,7 +2,6 @@ import path from 'node:path';
 
 export const cleanTargets = [
   'packages/maps/lib',
-  'packages/typegpu/lib',
   'artifacts/codegen',
   'artifacts/bundles',
   'artifacts/packages',
