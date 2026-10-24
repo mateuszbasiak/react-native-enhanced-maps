@@ -29,6 +29,7 @@ for (const directory of ['maps']) {
     'lib/index.d.ts',
     'src/index.ts',
     'README.md',
+    'docs/api.md',
   ])
     assert(files.includes(required), `${directory}: missing ${required}`);
   assert(

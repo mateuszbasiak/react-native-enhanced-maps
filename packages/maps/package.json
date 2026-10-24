@@ -23,6 +23,7 @@
     "lib",
     "src",
     "README.md",
+    "docs",
     "ios/**/*.{h,m,mm}",
     "android/build.gradle",
     "android/src",
