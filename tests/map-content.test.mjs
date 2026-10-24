@@ -134,7 +134,15 @@ test('maximum public IDs produce bounded native identifiers', async () => {
     { sources: [], layers: [] },
   );
   assert.equal(scene.sources[0].id, id);
-  assert.ok(scene.layers.every((layer) => layer.id.length <= 128));
+  // Private kind-prefixed IDs preserve the full 128-character public shape ID.
+  assert.ok(scene.layers.every((layer) => layer.id.length <= 135));
+  assert.throws(
+    () =>
+      compileMapContent(
+        React.createElement(Polyline, { id: id + 'a', coordinates: line }),
+      ),
+    /128/,
+  );
 });
 test('Circle produces a closed geographic ring at the requested meter radius', async () => {
   const { Circle, compileMapContent } = await load();
@@ -334,5 +342,42 @@ test('shape color strings normalize to one native RGBA representation', async ()
       }),
     ).items[0].strokeColor,
     '#AABBCC',
+  );
+});
+
+test('shape layer IDs retain their source identity when siblings are removed or inserted', async () => {
+  const { compileMapContent, Polygon } = await load();
+  const { nativeShapes } = await import('../packages/maps/lib/nativeShapes.js');
+  const points = [...line, { latitude: 52, longitude: 21.01 }];
+  const shape = (id) =>
+    React.createElement(Polygon, { id, coordinates: points });
+  const before = nativeShapes(
+    compileMapContent([shape('lower'), shape('top')]),
+    { sources: [], layers: [] },
+  );
+  const after = nativeShapes(compileMapContent([shape('top')]), before);
+  assert.deepEqual(
+    after.layers.map((layer) => layer.id),
+    before.layers
+      .filter((layer) => layer.source === 'top')
+      .map((layer) => layer.id),
+  );
+  for (const layer of after.layers) {
+    const old = before.layers.find((candidate) => candidate.id === layer.id);
+    assert.equal(
+      old.source,
+      layer.source,
+      'an SDK layer ID must never be repurposed for another source',
+    );
+  }
+  const inserted = nativeShapes(
+    compileMapContent([shape('earlier'), shape('top')]),
+    after,
+  );
+  assert.deepEqual(
+    inserted.layers
+      .filter((layer) => layer.source === 'top')
+      .map((layer) => layer.id),
+    after.layers.map((layer) => layer.id),
   );
 });
