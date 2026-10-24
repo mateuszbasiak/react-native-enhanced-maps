@@ -34,7 +34,14 @@ All three accept `strokeColor`, `strokeWidth`, `opacity`, `visible`, `zIndex`,
 Dash arrays contain an even number of positive lengths, measured in logical screen
 points; the bridge converts them to MapLibre stroke-width units. Caps/joins default
 to round, miter limit to 10. Existing blue stroke/fill and 2-point width defaults
-are preserved. Colors currently require #RRGGBB or #RRGGBBAA.
+are preserved. Colors accept the pinned React Native color-string forms, including named colors,
+short/long hex, `rgb`/`rgba`, `hsl`/`hsla` and `transparent`. Existing #RRGGBB and
+#RRGGBBAA strings stay unchanged; other accepted strings normalize to #RRGGBBAA
+before native transport. Inputs are limited to 256 characters. Numeric colors,
+dynamic/native color objects, `currentColor` and CSS variables are unsupported.
+The exact MIT-licensed `@react-native/normalize-colors@0.85.3` helper is an explicit
+runtime dependency; it is already part of the pinned RN baseline. This does not
+change shader uniform colors or imply full browser CSS Color compatibility.
 
 Higher zIndex draws later within the shape collection; ties retain declaration
 order. Explicit `id` is optional; omitted IDs use shape declaration order. Give
@@ -48,14 +55,33 @@ interactive layer wins; noninteractive layers let picks reach layers below them.
 Polygon holes are excluded by the native rendered-feature query. Marker views
 remain a separate input/ordering system.
 
-This is a compatibility subset, not drop-in react-native-maps parity. Named/CSS
-colors, geodesic polylines/polygons, per-vertex strokeColors and lineDashPhase are
-unsupported and rejected rather than silently ignored. Native geographic edge
-behavior and press semantics require device coverage; build/contract checks do
-not establish visual parity or production performance.
+This is a compatibility subset, not drop-in react-native-maps parity. Geodesic
+polylines/polygons, per-vertex strokeColors and lineDashPhase remain unsupported
+and rejected rather than silently ignored. Native geographic edge behavior and
+press semantics have separate validation coverage; physical-device checks are
+maintainer-owned follow-up. Build/contract checks do not establish visual parity
+or production performance.
 
 The example's “Show native layers” screen includes all three shapes and displays
 the selected shape identifier after a press.
 
 Shapes also contribute to the shared [scene input budgets](scene-budgets.md),
 including generated circle points and repeated fill/stroke references.
+
+## Color-string verification, 2026-10-24
+
+The shared compiler contracts cover named colors, short hex, rgba/hsl,
+transparent, invalid inputs and preservation of existing long-hex signatures
+across Polyline/Polygon/Circle. Full local CI passes 84 contracts, declarations,
+Codegen, packed-package checks and both production bundles.
+
+Debug smoke on iPhone 17 Pro / iOS 26.1 and a temporary Pixel 9a ARM64 / API 36
+emulator rendered the example's RGB route, translucent RGBA circle and named-color
+stroke. Pressing the circle reported `selected harbor-circle` on both hosts.
+These used the existing main-based native Debug binaries because color parsing
+changes only JavaScript and the native scene representation stays unchanged.
+
+The original Android AVD could not install the APK because storage was full.
+A new session-owned AVD with fresh storage passed installation and runtime checks;
+no existing application data was deleted. This is simulator evidence, with
+physical-device testing deferred to the maintainer.

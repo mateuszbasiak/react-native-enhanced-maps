@@ -73,7 +73,7 @@ export default function MapDemo() {
           coordinates={route.geometry.coordinates.map(
             ([longitude, latitude]) => ({ latitude, longitude }),
           )}
-          strokeColor="#ef4274"
+          strokeColor="rgb(239, 66, 116)"
           strokeWidth={12}
           opacity={0.85}
         />
@@ -109,8 +109,8 @@ export default function MapDemo() {
           id="harbor-circle"
           center={{ latitude: 54.37, longitude: 18.66 }}
           radius={450}
-          fillColor="#16a08540"
-          strokeColor="#16a085"
+          fillColor="rgba(22, 160, 133, 0.25)"
+          strokeColor="teal"
           strokeWidth={3}
           lineDashPattern={[9, 6]}
           tappable

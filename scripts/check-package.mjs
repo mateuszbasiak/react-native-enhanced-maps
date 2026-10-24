@@ -56,16 +56,35 @@ for (const directory of ['maps']) {
       'utf8',
     ),
   );
-  assert.equal(
-    Object.keys(manifest.dependencies ?? {}).length,
-    0,
-    `${directory}: runtime dependency needs review`,
+  assert.deepEqual(
+    manifest.dependencies,
+    { '@react-native/normalize-colors': '0.85.3' },
+    `${directory}: unexpected runtime dependency or unreviewed version`,
   );
   tarballs.push(path.join(output, result.filename));
   console.log(
     `${manifest.name}: ${result.size} bytes packed; ${result.unpackedSize} bytes unpacked`,
   );
 }
+// Supply the already locked runtime helper as a tarball too, keeping this
+// declaration check offline without relying on a registry packument cache.
+const colorRoot = path.join(
+  root,
+  'node_modules/@react-native/normalize-colors',
+);
+assert.equal(
+  JSON.parse(readFileSync(path.join(colorRoot, 'package.json'), 'utf8'))
+    .version,
+  '0.85.3',
+);
+const colorPack = JSON.parse(
+  execFileSync(
+    'npm',
+    ['pack', '--json', '--ignore-scripts', '--pack-destination', output],
+    { cwd: colorRoot, encoding: 'utf8', env: npmEnv },
+  ),
+)[0];
+tarballs.push(path.join(output, colorPack.filename));
 // Consumer is independent of workspace package symlinks. Peer types resolve from the
 // development toolchain; this is a declaration test, not a clean native installation.
 const consumer = mkdtempSync(path.join(output, 'consumer-'));

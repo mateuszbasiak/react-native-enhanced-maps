@@ -1,4 +1,5 @@
 import { Children, Fragment, isValidElement } from 'react';
+import normalizeColor from '@react-native/normalize-colors';
 import type { ReactNode } from 'react';
 import type { Coordinate } from './types';
 
@@ -105,13 +106,20 @@ function boolean(value: unknown, fallback: boolean): boolean {
 }
 function color(value: unknown, fallback: string): string {
   if (value === undefined) return fallback;
-  if (
-    typeof value !== 'string' ||
-    !/^#[a-fA-F0-9]{6}([a-fA-F0-9]{2})?$/.test(value)
-  )
-    throw new Error('Colors must be #RRGGBB or #RRGGBBAA');
-  return value;
+  if (typeof value !== 'string' || value.length > 256)
+    throw new Error(
+      'Shape colors must be supported React Native color strings',
+    );
+  // Preserve existing long hex strings and their scene signatures.
+  if (/^#[a-fA-F0-9]{6}([a-fA-F0-9]{2})?$/.test(value)) return value;
+  const rgba = normalizeColor(value);
+  if (rgba === null)
+    throw new Error(
+      'Shape colors must be supported React Native color strings',
+    );
+  return '#' + rgba.toString(16).padStart(8, '0');
 }
+
 function coordinate(value: Coordinate): Coordinate {
   if (!value || typeof value !== 'object')
     throw new Error('Expected a coordinate');
