@@ -93,3 +93,10 @@ counters, absent Release counters and retained runtime transport in both variant
 Use `npm run consumer:prepare` to create an isolated core-only consumer outside
 the workspace. [Commands, bounded results and the optional-peer resolver constraint](native-consumers.md)
 are documented separately; publication and physical-device acceptance remain open.
+
+## Repeated lifecycle checks
+
+Use the Debug example's “Open lifecycle” screen for bounded remount/readiness/query
+checks. See [acceptance and debugger limitations](map-lifecycle-acceptance.md). The
+pinned Hermes debugger can crash while resolving source locations during busy JS;
+use UI-driven runs with scoped native logs when isolating that reported issue.

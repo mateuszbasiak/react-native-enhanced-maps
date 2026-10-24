@@ -29,9 +29,11 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **GEST-04, PICK-01** — Confirmed map tap/long-press and structured native feature routing; component callbacks remain public. [Map presses](docs/map-presses.md), [picking internals](docs/feature-picking.md).
 - [x] **TEST-01–02, TEST-04** — Contract/native-helper tests, production bundle and package checks, and development/build commands exist. These do not replace native runtime acceptance.
 
+- [x] Repeated lifecycle verification harness — Both simulators pass 100 strict remount/readiness/stale-ref/native-bounds cycles, with bounded results and cancellation checks. [Results and debugger limitation](docs/map-lifecycle-acceptance.md). Broader lifecycle/resource coverage remains below; physical-device validation is maintainer-owned follow-up.
+
 ## Map lifetime, camera and gestures
 
-- [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Include repeated cycles with memory/resource counts.
+- [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Complete memory/resource counts and the remaining lifecycle/failure matrix.
 - [ ] **MAP-10** — Gesture toggles, compass visibility and zoom limits now have a [component contract](docs/map-settings.md) and native implementation with partial simulator evidence. Persistent [map padding](docs/map-padding.md) is implemented; finish remaining control decisions and active-gesture, lifecycle and accessibility acceptance.
 - [ ] **MAP-11** — Packed core Release builds and simulator smoke now pass on both hosts. Complete physical-device smoke and the remaining Release matrix. [Consumers](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
@@ -59,9 +61,9 @@ their old fixtures describe internal/historical behavior, not the current public
 [Plan](docs/plans/2026-10-21-marker-clustering.md), [implementation](packages/maps/src/markerClustering.ts),
 [regressions](tests/marker-clustering.test.mjs).
 
-- [ ] **CLUSTER-01–05** — Verify the component flow end to end on both hosts: custom/default cluster rendering, count/coordinate, lazy metadata membership, expansion, opt-out markers, updates and rejected/stale layouts or queries after style reload/remount. Prior source-index smoke evidence does not establish component acceptance.
+- [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
 - [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
-- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Prior internal query fixtures passed complete 1k/10k coincident-point audits; spatial parity remains open.
+- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits; spatial parity remains open.
 - [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
 
 ## Portable custom GPU shaders
