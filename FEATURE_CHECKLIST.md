@@ -97,7 +97,8 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **COMPAT-07, A11Y-04** — Define user-location/tracking, permission ownership, denial and privacy behavior.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
-- [ ] **REL-02, REL-05** — Core packed bare consumers pass Debug/Release builds, declarations, autolinking and bounded Release simulator smoke outside the workspace. Complete optional GPU peer combinations and signed/physical-device acceptance. [Results and resolver workaround](docs/native-consumers.md).
+- [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.
+- [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
 - [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
 - [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
 - [ ] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy.

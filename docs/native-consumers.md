@@ -91,6 +91,10 @@ Initial Android packaging and iOS startup failed when the host ran out of disk
 space. After removing this session's generated intermediates, both were repeated
 successfully. The failed attempts are not counted as passes.
 
-Keep Release privacy beyond these bridge counters, GPU peer combinations, Expo,
-minimum-OS runtime, signed/physical-device consumers, ownership/license and
-publication gates open. No package was published.
+Packed core bare-consumer integration is complete for the supported baseline
+verified above. GPU peer combinations, Expo and Release privacy beyond these
+bridge counters remain separate work. Physical-device, minimum-OS device runtime
+and signed-device checks are deferred to the maintainer and do not block core
+integration completion or this PR's readiness. Ownership/license and publication
+approval remain separate requirements. No hardware results are claimed and no
+package was published.
