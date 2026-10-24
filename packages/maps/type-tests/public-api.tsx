@@ -226,3 +226,17 @@ const incompletePadding = (
   <MapView styleURL="https://example.com/style.json" mapPadding={{ top: 20 }} />
 );
 void incompletePadding;
+
+<Polyline coordinates={[camera.center, camera.center]} geodesic />;
+<Polygon
+  coordinates={[
+    camera.center,
+    { latitude: 53, longitude: 22 },
+    { latitude: 52, longitude: 22 },
+  ]}
+  geodesic={false}
+/>;
+// @ts-expect-error geodesic is strictly boolean
+<Polyline coordinates={[camera.center, camera.center]} geodesic="yes" />;
+// @ts-expect-error Circle already uses geographic radius and has no geodesic flag
+<Circle center={camera.center} radius={500} geodesic />;
