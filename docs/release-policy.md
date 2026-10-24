@@ -16,7 +16,10 @@ replace a published version or silently move its tag.
 A release candidate must name its source commit and include package checks,
 production bundles, native build evidence, clean consumer results and known
 limitations. Keep unverified and skipped checks explicit. Physical-device Release
-testing is deferred to the maintainer; simulator results cannot substitute for it.
+testing is deferred to the maintainer and does not block feature completion or
+feature PR readiness. The maintainer will test devices and make any needed tweaks.
+Report simulator evidence accurately without claiming physical-device results.
+Feature status, further validation coverage and publishing approval are separate.
 
 ## Publishing
 

@@ -1,0 +1,18 @@
+---
+description: Complete features from implementation and relevant automated or simulator checks; defer physical-device validation to the maintainer
+alwaysApply: true
+---
+
+# Feature completion
+
+- Mark an implemented feature complete after appropriate automated checks and
+  feasible build/simulator verification pass. Physical-device validation is not
+  a prerequisite for feature completion or a merge-ready feature PR.
+- The maintainer owns physical-device testing and any resulting tweaks. Track
+  those checks separately as deferred follow-up; do not leave working features
+  incomplete solely for that reason.
+- Keep implementation gaps and observed failures actionable. Do not invent
+  measured performance, accessibility or hardware results for deferred tests.
+- Separate feature status, additional validation coverage, and distribution or
+  publishing approval. This policy does not authorize publication or merging.
+- Apply the same distinction in FEATURE_CHECKLIST.md, documentation and PR bodies.
