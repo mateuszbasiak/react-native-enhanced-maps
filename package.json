@@ -34,7 +34,8 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "consumer:prepare": "npm run build && node scripts/prepare-native-consumer.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -38,7 +38,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Complete memory/resource counts and the remaining lifecycle/failure matrix.
 - [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
-- [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](https://github.com/mateuszbasiak/react-native-enhanced-maps/pull/27).
+- [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
 - [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.
 - [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
@@ -99,7 +99,8 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **COMPAT-07, A11Y-04** — Define user-location/tracking, permission ownership, denial and privacy behavior.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
-- [ ] **REL-02, REL-05** — Packed bare consumers build Debug/Release on iOS/Android; verify exports, autolinking, declarations and optional GPU peers outside the workspace.
+- [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.
+- [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
 - [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
 - [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
 - [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
