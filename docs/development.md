@@ -50,7 +50,8 @@ GitHub runs lint/Prettier, package checks and production bundles on pull request
 pushes to main and manual dispatch. Native CI build jobs were intentionally removed
 in PR #13. Run the native build commands above locally and record their actual
 results; a green package workflow does not establish native compilation or runtime
-acceptance. Physical-device Release checks remain separate release gates.
+acceptance. Physical-device Release checks are maintainer-owned deferred follow-up
+and do not block feature completion.
 
 `npm run check:packages` runs the types, contracts, Codegen, and packaging checks.
 CI uses this command so lint and Prettier run only in their dedicated job;
@@ -100,3 +101,17 @@ Use the Debug example's “Open lifecycle” screen for bounded remount/readines
 checks. See [acceptance and debugger limitations](map-lifecycle-acceptance.md). The
 pinned Hermes debugger can crash while resolving source locations during busy JS;
 use UI-driven runs with scoped native logs when isolating that reported issue.
+
+## Production example globals
+
+`npm run example:bundle` checks each actual Metro production bundle for the
+reserved `__enhancedMaps` global namespace. Only `__enhancedMapsShader` is allowed:
+that private handle supplies runtime shader transport and error checks. Example
+verification, lifecycle, settings, cluster and shape globals must remain gated by
+`__DEV__` and disappear from production output. New example globals must use this
+namespace so the guard also covers future fixtures.
+
+The guard fails without printing bundle excerpts. It verifies literal namespace
+exclusion in production JavaScript; it is not a general secret scanner, native
+export audit or proof of all Release-consumer privacy requirements. Native bridge
+checks above remain separate, and the broader TEST-12 audit remains open.
