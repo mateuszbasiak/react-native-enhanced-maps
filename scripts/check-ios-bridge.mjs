@@ -3,10 +3,12 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 const arch = process.argv[2] ?? 'arm64';
+const iosRoot = process.argv[3] ?? 'example/ios';
 assert(['arm64', 'x86_64'].includes(arch), 'Expected arm64 or x86_64');
 for (const variant of ['Debug', 'Release']) {
   const object = path.join(
-    'example/ios/build/DerivedData/Build/Intermediates.noindex/Pods.build',
+    iosRoot,
+    'build/DerivedData/Build/Intermediates.noindex/Pods.build',
     `${variant}-iphonesimulator/EnhancedMaps.build/Objects-normal`,
     arch,
     'EMMapLibreView.o',
