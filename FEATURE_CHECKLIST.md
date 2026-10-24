@@ -29,6 +29,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **CAM-01–02** — Validated mount-only initial camera and imperative `animateCamera`, with rejection before readiness.
 - [x] **SRC-03** — Internal source revisions reject stale replacements and preserve accepted scenes. [Contract](docs/source-revisions.md).
 - [x] **SHAPE-01** — Polygon, Polyline and geographic Circle with stroke styling and typed presses. [Shapes](docs/shapes.md).
+- [x] Polygon-hole fill picking — Native filtering preserves lower-layer/map fall-through and outline presses on both simulators. [Results and limits](docs/polygon-hole-picking.md). Broader shape/picking coverage remains below.
 - [x] **GEST-04, PICK-01** — Confirmed map tap/long-press and structured native feature routing; component callbacks remain public. [Map presses](docs/map-presses.md), [picking internals](docs/feature-picking.md).
 - [x] **TEST-01–02, TEST-04** — Contract/native-helper tests, production bundle and package checks, and development/build commands exist. These do not replace native runtime acceptance.
 
