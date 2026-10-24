@@ -10,9 +10,11 @@ in `__enhancedMapsLifecycle.snapshot()` and per-cycle Debug logs.
 
 On 2026-10-23, iPhone 17 Pro / iOS 26.1 Debug passed 100 strict cycles with no map
 errors. The iOS binary included the settings/padding work from PRs #22/#23;
-this harness changes only example JavaScript. These results do not establish
-memory/resource drift, background/navigation, multiple-map or physical-device
-Release acceptance.
+this harness changes only example JavaScript. Those settings/padding PRs are now
+merged. The remount verification harness is complete. Memory/resource drift,
+background/navigation and multiple-map scenarios remain separate coverage work.
+Physical-device Release checks are maintainer-owned follow-up and do not block
+the harness's completion or this PR's readiness. No device results are claimed.
 
 Android Pixel 9a ARM64 / API 36 Debug passed all 100 cycles with no map errors
 on the main-based native build, started through the UI without the JS debugger.

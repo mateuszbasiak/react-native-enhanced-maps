@@ -29,6 +29,8 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **GEST-04, PICK-01** — Confirmed map tap/long-press and structured native feature routing; component callbacks remain public. [Map presses](docs/map-presses.md), [picking internals](docs/feature-picking.md).
 - [x] **TEST-01–02, TEST-04** — Contract/native-helper tests, production bundle and package checks, and development/build commands exist. These do not replace native runtime acceptance.
 
+- [x] Repeated lifecycle verification harness — Both simulators pass 100 strict remount/readiness/stale-ref/native-bounds cycles, with bounded results and cancellation checks. [Results and debugger limitation](docs/map-lifecycle-acceptance.md). Broader lifecycle/resource coverage remains below; physical-device validation is maintainer-owned follow-up.
+
 ## Map lifetime, camera and gestures
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Complete memory/resource counts and the remaining lifecycle/failure matrix.
