@@ -134,7 +134,8 @@ projection queries for geographic press targets, and is removed on fixture dispo
 **Known native picking defect:** Exact geographic taps near 44°N, 0°E, inside the
 visible hole, selected `geodesic-area` on both hosts. This matches
 [MapLibre Native #4783](https://github.com/maplibre/maplibre-native/issues/4783)
-on the pinned Android 13.7.1 / iOS 6.31.0 SDKs. It also affects ordinary polygons;
+on the pinned Android 13.6.1 / iOS 6.31.0 SDKs (the upstream report uses
+Android 13.7.1). It also affects ordinary polygons;
 this is not recorded as a passing hole-picking check. A separate native picking
 fix remains actionable under SHAPE-02/PICK-02–03. Physical-device testing remains
 maintainer-owned follow-up.
