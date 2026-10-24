@@ -8,6 +8,7 @@
 #import "NativeClustering.h"
 #import "NativeClusterQueries.h"
 #import "MarkerClusterLayout.h"
+#import "PolygonHitTest.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
@@ -23,6 +24,34 @@ static BOOL EMIsOverlayTouch(UITouch *touch) {
   for(UIView *view=touch.view; view; view=view.superview)
     if([view isKindOfClass:EMMarkerAnnotation.class] || [view isKindOfClass:UIControl.class] || [view isKindOfClass:MLNCompassButton.class])return YES;
   return NO;
+}
+static enhancedmaps::HitPolygon EMHitPolygon(MLNPolygon *polygon) {
+  enhancedmaps::HitPolygon rings;
+  NSMutableArray<MLNPolygon *> *parts=[NSMutableArray arrayWithObject:polygon];
+  [parts addObjectsFromArray:polygon.interiorPolygons?:@[]];
+  for(MLNPolygon *part in parts) {
+    enhancedmaps::HitRing ring;
+    ring.reserve(part.pointCount);
+    for(NSUInteger i=0;i<part.pointCount;i++)ring.push_back({part.coordinates[i].longitude,part.coordinates[i].latitude});
+    rings.push_back(std::move(ring));
+  }
+  return rings;
+}
+static BOOL EMAcceptsFillHit(id<MLNFeature> feature,CLLocationCoordinate2D coordinate) {
+  id shape=feature;
+  if([shape isKindOfClass:MLNPolygon.class]) {
+    MLNPolygon *polygon=shape;
+    return !polygon.interiorPolygons.count || enhancedmaps::containsFilledPolygon(coordinate.longitude,coordinate.latitude,EMHitPolygon(polygon));
+  }
+  if([shape isKindOfClass:MLNMultiPolygon.class]) {
+    NSArray<MLNPolygon *> *polygons=((MLNMultiPolygon *)shape).polygons;
+    BOOL hasHoles=NO;
+    for(MLNPolygon *polygon in polygons)if(polygon.interiorPolygons.count){hasHoles=YES;break;}
+    if(!hasHoles)return YES;
+    for(MLNPolygon *polygon in polygons)if(enhancedmaps::containsFilledPolygon(coordinate.longitude,coordinate.latitude,EMHitPolygon(polygon)))return YES;
+    return NO;
+  }
+  return YES;
 }
 @interface MLNMapView (EMGestureSuperclass)
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)recognizer;
@@ -356,7 +385,10 @@ static UIColor *EMColor(id value) {
   for(MLNStyleLayer *styleLayer in [_map.style.layers reverseObjectEnumerator]) {
     NSString *layer=styleLayer.identifier;
     if(![_interactiveLayers containsObject:layer])continue;
-    id<MLNFeature> feature=[_map visibleFeaturesAtPoint:point inStyleLayersWithIdentifiers:[NSSet setWithObject:layer]].firstObject;
+    id<MLNFeature> feature=nil;
+    for(id<MLNFeature> candidate in [_map visibleFeaturesAtPoint:point inStyleLayersWithIdentifiers:[NSSet setWithObject:layer]]) {
+      if(![styleLayer isKindOfClass:MLNFillStyleLayer.class] || EMAcceptsFillHit(candidate,coordinate)){feature=candidate;break;}
+    }
     if(!feature)continue;
     NSString *identifier=[feature.identifier description]?:@"";
     NSMutableDictionary *properties=[feature.attributes mutableCopy]?:[NSMutableDictionary new];
