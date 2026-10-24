@@ -1,6 +1,6 @@
 # Project checklist
 
-Last reviewed: **2026-10-23**, against the current working tree.
+Last reviewed: **2026-10-24**, against the current working tree.
 
 Package-owned MapLibre Native on iOS/Android, React Native New Architecture only.
 The public API is component-based: `MapView`, `Marker`, `Polyline`, `Polygon`,
@@ -14,9 +14,12 @@ required v1 work. Removing a retired API does not close its underlying quality g
 The exact remaining layer surface needs reconciliation with the component direction.
 
 Use this file for remaining work. Keep detailed contracts in `docs/` and results in
-[verification](docs/verification.md). Checked items describe bounded implementations,
-not production acceptance. Unchecked items state the remaining requirement; simulator
-smoke checks do not establish physical-device performance. Existing IDs are retained
+[verification](docs/verification.md). A feature is complete when its agreed behavior
+is implemented and relevant automated checks plus feasible build/simulator checks
+pass. Physical-device validation is not required to mark a feature complete; the
+maintainer will test devices and make any needed tweaks later. Track additional
+validation separately from implementation gaps. Never claim unmeasured hardware
+results. Distribution/publishing approval remains separate. Existing IDs are retained
 where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Implemented foundation
@@ -34,8 +37,8 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 ## Map lifetime, camera and gestures
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Complete memory/resource counts and the remaining lifecycle/failure matrix.
-- [ ] **MAP-10** — Gesture toggles, compass visibility and zoom limits now have a [component contract](docs/map-settings.md) and native implementation with partial simulator evidence. Persistent [map padding](docs/map-padding.md) is implemented; finish remaining control decisions and active-gesture, lifecycle and accessibility acceptance.
-- [ ] **MAP-11** — Packed core Release builds and simulator smoke now pass on both hosts. Complete physical-device smoke and the remaining Release matrix. [Consumers](docs/native-consumers.md).
+- [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
+- [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
 - [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.
 - [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
@@ -64,7 +67,6 @@ their old fixtures describe internal/historical behavior, not the current public
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
 - [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
 - [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits; spatial parity remains open.
-- [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
 
 ## Portable custom GPU shaders
 
@@ -76,16 +78,14 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 
 - [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and atlas resolution transitions. Planar Mercator/polar limits must remain explicit.
 - [ ] **GPU-09** — Stabilize the experimental WGSL/input/resource contract. Decide schema-typed authoring and streamed texture requirements separately from current packed uniforms/storage.
-- [ ] **GPU-10–11** — Measure physical-device scheduling, frame age, backpressure, allocation and energy costs; evaluate native-fence handoff beyond current GPU-queue completion waits.
+- [ ] **GPU-10–11** — Evaluate native-fence handoff beyond current GPU-queue completion waits as a separate optimization. Physical-device scheduling, frame-age, backpressure, allocation and energy measurements are maintainer-owned deferred follow-up.
 - [ ] **GPU-12** — Stress initialization interruption, failed shader edits, pause/background/resume, style replacement, multiple maps/layers and idempotent disposal. Automatic device-loss recovery remains unimplemented.
 - [ ] **GPU-13–14** — Validate capability/error degradation and composition limits, including label placement, controls/attribution and native marker ordering. Capability reports currently mark shaders unvalidated.
-- [ ] **GPU-15** — Physical-device Release frame time, alignment, memory, dependency-size and build-cost budgets.
 - [ ] **PICK-04** — Decide GPU picking and ordering relative to ordinary content; supply interaction alternatives for visual-only effects.
 
 ## Reliability, performance and verification
 
 - [ ] **ARCH-08** — Consistent recoverable/fatal errors across map, source, command and GPU failures.
-- [ ] **PERF-02–05, PERF-09** — Choose physical reference devices and numeric budgets; compare equivalent native-only/pinned RN Maps scenarios. Measure frame-time percentiles, dropped frames, UI responsiveness and busy-JS behavior with repeatable artifacts.
 - [ ] **PERF-06–07, PERF-10** — At least 100 lifecycle cycles, memory drift/resource bounds, large-content update/cancellation cost, poor-network/offline behavior, memory pressure and GPU failure resilience.
 - [ ] **PERF-08** — Core versus GPU npm/app binary sizes and clean/incremental build cost.
 - [ ] **TEST-03, TEST-10** — Verify current remote CI results. The [quality/bundle workflow](.github/workflows/check.yml) runs package checks. Native CI builds were intentionally removed in PR #13; record local native build evidence separately. Workflow presence alone is not a successful run.
@@ -103,7 +103,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
 - [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
 - [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
-- [ ] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy.
+- [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
 - [ ] **REL-11** — Validate npm prerelease and obtain explicit publishing approval.
 
 ## Future discovery (outside accepted v1 scope)
@@ -118,14 +118,26 @@ TurboModules should be added only when a concrete non-view operation needs one
 
 ## Release gates
 
-All remain open. Implementation and simulator evidence alone do not close them.
+These distribution/acceptance checks are separate from feature completion.
+Deferred physical-device checks are owned by the maintainer, below.
 
 - [ ] **GATE-01** — Measured projection, composition, threading and lifetime paths for MapLibre, required layers and portable shaders on both platforms.
 - [ ] **GATE-02** — Approved camera, component/rendering, cluster, capability, error and compatibility contracts.
 - [ ] **GATE-03** — Required v1 functionality with acceptance coverage on both platforms.
-- [ ] **GATE-04** — Physical-device Release performance, stability, accessibility and size budgets pass.
 - [ ] **GATE-05** — Clean bare/Expo consumers, public documentation, SDK integration, licenses and package ownership resolved.
 - [ ] **GATE-06** — Remaining limitations accepted and publishing explicitly authorized.
+
+## Maintainer physical-device follow-up (deferred)
+
+These checks do not block feature completion or feature PR readiness. The maintainer
+will perform them later and make any resulting tweaks. They are not recorded as passes.
+
+- [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
+- [ ] **GPU-15** — Physical-device Release frame time, alignment, memory, dependency-size and build-cost budgets.
+- [ ] **PERF-02–05, PERF-09** — Choose physical reference devices and numeric budgets; compare equivalent native-only/pinned RN Maps scenarios. Measure frame-time percentiles, dropped frames, UI responsiveness and busy-JS behavior with repeatable artifacts.
+- [ ] **GATE-04** — Physical-device Release performance, stability, accessibility and size budgets pass.
+- [ ] **GPU-10–11 measurements** — Physical-device scheduling, frame age, backpressure, allocation and energy observations; separate from any implementation optimization above.
+- [ ] Device-only smoke, accessibility, minimum-OS and signed-consumer checks referenced by other items are likewise deferred to the maintainer.
 
 ## Review notes
 
@@ -135,3 +147,8 @@ Consolidated duplicate compatibility, rendering, lifecycle and benchmark tasks;
 updated marker clustering, world shaders and native CI to the current working tree.
 Historical implementation/build counts remain in [verification](docs/verification.md)
 and Git history. This review does not claim new native builds or runtime results.
+
+2026-10-24: Applied the maintainer's completion policy: implemented features can be
+complete after appropriate automated/build/simulator checks. Physical-device tests
+and resulting tweaks are maintainer-owned follow-up, not feature blockers. No
+hardware measurements or publication approval are implied.
