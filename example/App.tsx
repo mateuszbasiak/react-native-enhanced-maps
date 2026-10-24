@@ -5,6 +5,7 @@ import CustomMarkers from './markers/CustomMarkersPrototype';
 import MapDemo from './maplibre/MapLibrePrototype';
 import RuntimeVerification from './verification/RuntimeVerification';
 import ClusterVerification from './verification/ClusterVerification';
+import LifecycleVerification from './verification/LifecycleVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
   const [markers, setMarkers] = useState(true);
   const [verification, setVerification] = useState(false);
   const [clustering, setClustering] = useState(false);
+  const [lifecycle, setLifecycle] = useState(false);
   return (
     <SafeAreaView
       style={{
@@ -48,6 +50,12 @@ export default function App() {
       )}
       {__DEV__ && (
         <Button
+          title={lifecycle ? 'Close lifecycle' : 'Open lifecycle'}
+          onPress={() => setLifecycle((v) => !v)}
+        />
+      )}
+      {__DEV__ && (
+        <Button
           title={shader ? 'Close GPU prototype' : 'Open GPU prototype'}
           onPress={() => setShader((v) => !v)}
         />
@@ -58,7 +66,9 @@ export default function App() {
           onPress={() => setWebgpu((v) => !v)}
         />
       )}
-      {settings && __DEV__ ? (
+      {lifecycle && __DEV__ ? (
+        <LifecycleVerification />
+      ) : settings && __DEV__ ? (
         <MapSettingsVerification />
       ) : webgpu && __DEV__ ? (
         <WebGPUPrototype />

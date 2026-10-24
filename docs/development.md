@@ -87,3 +87,10 @@ After iOS Debug and Release simulator builds in the default DerivedData director
 run `npm run verify:ios:bridge` (append `-- x86_64` on an Intel Mac). It inspects
 compiled module selectors and React Native export metadata, requiring Debug
 counters, absent Release counters and retained runtime transport in both variants.
+
+## Repeated lifecycle checks
+
+Use the Debug example's “Open lifecycle” screen for bounded remount/readiness/query
+checks. See [acceptance and debugger limitations](map-lifecycle-acceptance.md). The
+pinned Hermes debugger can crash while resolving source locations during busy JS;
+use UI-driven runs with scoped native logs when isolating that reported issue.
