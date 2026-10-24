@@ -9,6 +9,7 @@ import React, {
 import { Button, Pressable, Text, View } from 'react-native';
 import { MapView, Marker } from 'react-native-enhanced-maps';
 import type {
+  CameraEvent,
   ClusterComponentProps,
   ClusterMember,
   MapViewRef,
@@ -17,7 +18,13 @@ import type {
 const Inspection = createContext<(members: readonly ClusterMember[]) => void>(
   () => {},
 );
-function VesselCluster({ count, getMembers, expand }: ClusterComponentProps) {
+const ClusterRegistry = createContext<
+  (props: ClusterComponentProps) => () => void
+>(() => () => {});
+function VesselCluster(props: ClusterComponentProps) {
+  const { count, getMembers, expand } = props;
+  const register = useContext(ClusterRegistry);
+  useEffect(() => register(props), [register, props]);
   const inspect = useContext(Inspection);
   const [error, setError] = useState('');
   return (
@@ -57,9 +64,29 @@ type Evidence = {
   metadata: unknown[];
   errors: string[];
   ready: number;
+  camera: CameraEvent | null;
 };
 type DebugGlobal = typeof globalThis & {
-  __enhancedMapsClusters?: { snapshot(): Evidence };
+  __enhancedMapsClusters?: {
+    snapshot(): Evidence & {
+      clusters: {
+        count: number;
+        coordinate: ClusterComponentProps['coordinate'];
+      }[];
+    };
+    configure(options: {
+      count?: number;
+      custom?: boolean;
+      present?: boolean;
+      clustered?: boolean;
+      moved?: boolean;
+    }): void;
+    remount(): void;
+    reloadStyle(): void;
+    animate(zoom: number): void;
+    capture(): ClusterComponentProps | undefined;
+    inspect(expectedCount?: number): Promise<readonly ClusterMember[]>;
+  };
 };
 export default function ClusterVerification() {
   const map = useRef<MapViewRef>(null);
@@ -68,7 +95,18 @@ export default function ClusterVerification() {
     metadata: [],
     errors: [],
     ready: 0,
+    camera: null,
   });
+  const handles = useRef(new Set<ClusterComponentProps>());
+  const register = useMemo(
+    () => (props: ClusterComponentProps) => {
+      handles.current.add(props);
+      return () => {
+        handles.current.delete(props);
+      };
+    },
+    [],
+  );
   const [count, setCount] = useState(3);
   const [cluster, setCluster] = useState(true);
   const [custom, setCustom] = useState(true);
@@ -92,123 +130,187 @@ export default function ClusterVerification() {
   useEffect(() => {
     if (!__DEV__) return;
     const target = globalThis as DebugGlobal;
-    const api = { snapshot: () => evidence.current };
+    let disposed = false;
+    const waitForCluster = async (expectedCount?: number) => {
+      const deadline = Date.now() + 15000;
+      while (!disposed && Date.now() < deadline) {
+        const handle = [...handles.current].find(
+          (value) =>
+            expectedCount === undefined || value.count === expectedCount,
+        );
+        if (handle) return handle;
+        await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      }
+      throw new Error(
+        disposed
+          ? 'Cluster fixture disposed'
+          : 'Timed out waiting for custom cluster',
+      );
+    };
+    const api = {
+      snapshot: () => ({
+        ...evidence.current,
+        clusters: [...handles.current].map(({ count, coordinate }) => ({
+          count,
+          coordinate,
+        })),
+      }),
+      configure: (options: {
+        count?: number;
+        custom?: boolean;
+        present?: boolean;
+        clustered?: boolean;
+        moved?: boolean;
+      }) => {
+        if (options.count !== undefined) {
+          if (
+            !Number.isInteger(options.count) ||
+            options.count < 1 ||
+            options.count > 10000
+          )
+            throw new RangeError('Invalid fixture marker count');
+          setCount(options.count);
+        }
+        if (options.custom !== undefined) setCustom(options.custom);
+        if (options.present !== undefined) setPresent(options.present);
+        if (options.clustered !== undefined) setCluster(options.clustered);
+        if (options.moved !== undefined) setMoved(options.moved);
+      },
+      remount: () => setGeneration((v) => v + 1),
+      reloadStyle: () => setStyleEpoch((v) => v + 1),
+      animate: (zoom: number) =>
+        map.current?.animateCamera({ ...initialCamera, zoom }, 0),
+      capture: () => [...handles.current][0],
+      inspect: async (expectedCount?: number) => {
+        const handle = await waitForCluster(expectedCount);
+        const members = await handle.getMembers();
+        evidence.current.memberIDs = members.map((member) => member.id);
+        evidence.current.metadata = members.map((member) => member.data);
+        return members;
+      },
+    };
     target.__enhancedMapsClusters = api;
     return () => {
+      disposed = true;
       if (target.__enhancedMapsClusters === api)
         delete target.__enhancedMapsClusters;
     };
   }, []);
   return (
-    <Inspection.Provider
-      value={(members) => {
-        evidence.current.memberIDs = members.map((member) => member.id);
-        evidence.current.metadata = members.map((member) => member.data);
-        setSummary(
-          `${members.length} members · ${members
-            .slice(0, 3)
-            .map((member) => member.id)
-            .join(', ')}`,
-        );
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        <Text testID="cluster-status">{summary}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {[3, 1000, 10000].map((value) => (
-            <Button
-              key={value}
-              title={`${value} markers`}
-              onPress={() => setCount(value)}
-            />
-          ))}
-          <Button
-            title={cluster ? 'Disable clustering' : 'Enable clustering'}
-            onPress={() => setCluster((value) => !value)}
-          />
-          <Button
-            title={custom ? 'Default bubble' : 'Custom bubble'}
-            onPress={() => setCustom((value) => !value)}
-          />
-          <Button
-            title="Zoom 13"
-            onPress={() => map.current?.animateCamera(initialCamera, 0)}
-          />
-          <Button
-            title="Zoom 16"
-            onPress={() =>
-              map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
-            }
-          />
-          <Button
-            title="Move markers"
-            onPress={() => setMoved((value) => !value)}
-          />
-          <Button
-            title={present ? 'Remove markers' : 'Restore markers'}
-            onPress={() => setPresent((value) => !value)}
-          />
-          <Button
-            title="Reload style"
-            onPress={() => setStyleEpoch((value) => value + 1)}
-          />
-          <Button
-            title="Remount"
-            onPress={() => setGeneration((value) => value + 1)}
-          />
-        </View>
-        <MapView
-          key={generation}
-          ref={map}
-          style={{ flex: 1 }}
-          initialCamera={initialCamera}
-          styleURL={`https://tiles.openfreemap.org/styles/liberty?cluster=${styleEpoch}`}
-          clusterComponent={custom ? VesselCluster : undefined}
-          onMapReady={() => {
-            evidence.current.ready++;
-            setSummary('Ready');
-          }}
-          onError={(error) => {
-            evidence.current.errors.push(error.message);
-            evidence.current.errors = evidence.current.errors.slice(-32);
-            setSummary(error.message);
-          }}
-        >
-          {present &&
-            markers.map((marker) => (
-              <Marker
-                key={marker.id}
-                {...marker}
-                cluster={cluster}
-                anchor={{ x: 0.5, y: 0.5 }}
-              >
-                <Pressable
-                  accessibilityLabel={marker.id}
-                  onPress={() => setSummary(marker.data.name)}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: '#e07020',
-                  }}
-                >
-                  <Text>●</Text>
-                </Pressable>
-              </Marker>
+    <ClusterRegistry.Provider value={register}>
+      <Inspection.Provider
+        value={(members) => {
+          evidence.current.memberIDs = members.map((member) => member.id);
+          evidence.current.metadata = members.map((member) => member.data);
+          setSummary(
+            `${members.length} members · ${members
+              .slice(0, 3)
+              .map((member) => member.id)
+              .join(', ')}`,
+          );
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text testID="cluster-status">{summary}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {[3, 1000, 10000].map((value) => (
+              <Button
+                key={value}
+                title={`${value} markers`}
+                onPress={() => setCount(value)}
+              />
             ))}
-          <Marker
-            id="independent"
-            coordinate={{ latitude: 54.37, longitude: 18.674 }}
+            <Button
+              title={cluster ? 'Disable clustering' : 'Enable clustering'}
+              onPress={() => setCluster((value) => !value)}
+            />
+            <Button
+              title={custom ? 'Default bubble' : 'Custom bubble'}
+              onPress={() => setCustom((value) => !value)}
+            />
+            <Button
+              title="Zoom 13"
+              onPress={() => map.current?.animateCamera(initialCamera, 0)}
+            />
+            <Button
+              title="Zoom 16"
+              onPress={() =>
+                map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
+              }
+            />
+            <Button
+              title="Move markers"
+              onPress={() => setMoved((value) => !value)}
+            />
+            <Button
+              title={present ? 'Remove markers' : 'Restore markers'}
+              onPress={() => setPresent((value) => !value)}
+            />
+            <Button
+              title="Reload style"
+              onPress={() => setStyleEpoch((value) => value + 1)}
+            />
+            <Button
+              title="Remount"
+              onPress={() => setGeneration((value) => value + 1)}
+            />
+          </View>
+          <MapView
+            key={generation}
+            ref={map}
+            style={{ flex: 1 }}
+            initialCamera={initialCamera}
+            styleURL={`https://tiles.openfreemap.org/styles/liberty?cluster=${styleEpoch}`}
+            clusterComponent={custom ? VesselCluster : undefined}
+            onMapReady={() => {
+              evidence.current.ready++;
+              setSummary('Ready');
+            }}
+            onCameraIdle={(event) => {
+              evidence.current.camera = event;
+            }}
+            onError={(error) => {
+              evidence.current.errors.push(error.message);
+              evidence.current.errors = evidence.current.errors.slice(-32);
+              setSummary(error.message);
+            }}
           >
-            <Pressable
-              accessibilityLabel="Independent marker"
-              onPress={() => setSummary('Independent marker selected')}
+            {present &&
+              markers.map((marker) => (
+                <Marker
+                  key={marker.id}
+                  {...marker}
+                  cluster={cluster}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <Pressable
+                    accessibilityLabel={marker.id}
+                    onPress={() => setSummary(marker.data.name)}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#e07020',
+                    }}
+                  >
+                    <Text>●</Text>
+                  </Pressable>
+                </Marker>
+              ))}
+            <Marker
+              id="independent"
+              coordinate={{ latitude: 54.37, longitude: 18.674 }}
             >
-              <Text>⚓</Text>
-            </Pressable>
-          </Marker>
-        </MapView>
-      </View>
-    </Inspection.Provider>
+              <Pressable
+                accessibilityLabel="Independent marker"
+                onPress={() => setSummary('Independent marker selected')}
+              >
+                <Text>⚓</Text>
+              </Pressable>
+            </Marker>
+          </MapView>
+        </View>
+      </Inspection.Provider>
+    </ClusterRegistry.Provider>
   );
 }
