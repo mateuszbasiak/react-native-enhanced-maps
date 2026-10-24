@@ -35,8 +35,11 @@ recorded as a failed early query, then repeated successfully after adding explic
 expected-count readiness. It is not counted as a native clustering failure or a
 performance result.
 
-These results do not close clustering acceptance. Spatial/antimeridian and zoom
-boundary semantics, overlapping clusters, stale in-flight native work, visible
-output/index-memory bounds, background cancellation, repeated stress and
-physical-device Release latency/performance remain open. The 10000 bound is the
+The implemented component clustering flow is complete for the supported behavior
+verified above. Additional spatial/antimeridian and zoom-boundary fixtures,
+overlapping clusters, stale in-flight native work, visible output/index-memory
+bounds, background cancellation and repeated stress remain separate work under
+CLUSTER-06/07. Physical-device Release latency/performance and device accessibility
+checks are deferred to the maintainer and do not block this feature's completion
+or PR readiness. No physical-device results are claimed. The 10000 bound is the
 current supported clustered-marker count; no 100000-marker claim is made.
