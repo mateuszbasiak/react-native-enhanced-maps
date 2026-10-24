@@ -2,6 +2,7 @@ import { Children, Fragment, isValidElement } from 'react';
 import normalizeColor from '@react-native/normalize-colors';
 import type { ReactNode } from 'react';
 import type { Coordinate } from './types';
+import { geodesicPath, geodesicPolygon } from './geodesic.js';
 
 export interface ShapePressEvent {
   readonly nativeEvent: {
@@ -23,6 +24,7 @@ interface ContentProps {
   readonly lineDashPattern?: readonly number[];
 }
 export interface PolylineProps extends ContentProps {
+  readonly geodesic?: boolean;
   readonly coordinates: readonly Coordinate[];
   readonly strokeColor?: string;
   readonly strokeWidth?: number;
@@ -33,7 +35,7 @@ export interface PolygonProps extends PolylineProps {
 }
 export interface CircleProps extends Omit<
   PolygonProps,
-  'coordinates' | 'holes'
+  'coordinates' | 'holes' | 'geodesic'
 > {
   readonly center: Coordinate;
   readonly radius: number;
@@ -271,10 +273,21 @@ export function compileMapContent(children: ReactNode): RenderScene {
         node.type === Circle
       ) {
         const ring = node.type !== Polyline;
-        const c =
+        const geodesic =
+          node.type === Circle ? false : boolean(p.geodesic, false);
+        if (node.type !== Circle) allowed.push('geodesic');
+        let c =
           node.type === Circle
             ? circleRing(p.center, p.radius)
             : coordinates(p.coordinates, ring);
+        let h = node.type === Polygon ? holes(p.holes) : noHoles;
+        if (geodesic) {
+          if (ring) {
+            const polygon = geodesicPolygon(c, h);
+            c = polygon.coordinates;
+            h = polygon.holes;
+          } else c = geodesicPath(c);
+        }
         totalPoints += c.length;
         const strokeColor = color(p.strokeColor, '#0088ff'),
           strokeWidth = number(p.strokeWidth, 0, 256, 2);
@@ -285,7 +298,6 @@ export function compileMapContent(children: ReactNode): RenderScene {
         );
         if (ring) {
           allowed.push('fillColor', ...(node.type === Circle ? [] : ['holes']));
-          const h = node.type === Circle ? noHoles : holes(p.holes);
           totalPoints += h.reduce((sum, r) => sum + r.length, 0);
           items.push({
             ...common,

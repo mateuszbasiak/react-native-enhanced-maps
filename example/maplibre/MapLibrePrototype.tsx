@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, {
   Marker,
@@ -6,17 +6,97 @@ import MapView, {
   Polygon,
   Polyline,
 } from 'react-native-enhanced-maps';
-import type { MapViewRef } from 'react-native-enhanced-maps';
+import type {
+  Coordinate,
+  MapPoint,
+  MapViewRef,
+  ShapePressEvent,
+} from 'react-native-enhanced-maps';
 import { createFleet, route } from './fixtures';
+const geodesicRoute = [
+  { latitude: 55, longitude: -60 },
+  { latitude: 55, longitude: 60 },
+];
+const geodesicArea = [...geodesicRoute, { latitude: 15, longitude: 0 }];
+const geodesicHoles = [
+  [
+    { latitude: 40, longitude: -10 },
+    { latitude: 40, longitude: 10 },
+    { latitude: 50, longitude: 0 },
+  ],
+];
+const harborCamera = {
+  center: { latitude: 54.37, longitude: 18.66 },
+  zoom: 12,
+  heading: 0,
+  pitch: 0,
+};
+const geodesicCamera = {
+  center: { latitude: 50, longitude: 0 },
+  zoom: 0.4,
+  heading: 0,
+  pitch: 0,
+};
+type DebugGlobal = typeof globalThis & {
+  __enhancedMapsShapes?: {
+    snapshot(): {
+      ready: boolean;
+      selection: string;
+      geodesicDemo: boolean;
+      pressCount: number;
+      lastPress: ShapePressEvent['nativeEvent'] | null;
+    };
+    point(coordinate: Coordinate): Promise<MapPoint>;
+    coordinate(point: MapPoint): Promise<Coordinate>;
+  };
+};
 export default function MapDemo() {
   const [count, setCount] = useState(1000),
     [visible, setVisible] = useState(true),
     [ready, setReady] = useState(false),
     [selection, setSelection] = useState(''),
-    [generation, setGeneration] = useState(0);
+    [generation, setGeneration] = useState(0),
+    [geodesicDemo, setGeodesicDemo] = useState(false);
   const camera = useRef<MapViewRef>(null),
-    step = useRef(0);
+    step = useRef(0),
+    presses = useRef<{
+      count: number;
+      last: ShapePressEvent['nativeEvent'] | null;
+    }>({ count: 0, last: null });
+  const selectShape = (event: ShapePressEvent) => {
+    presses.current = {
+      count: presses.current.count + 1,
+      last: event.nativeEvent,
+    };
+    setSelection(event.nativeEvent.identifier);
+  };
   const data = useMemo(() => createFleet(count), [count]);
+  useEffect(() => {
+    if (!__DEV__) return;
+    const target = globalThis as DebugGlobal;
+    const api = {
+      snapshot: () => ({
+        ready,
+        selection,
+        geodesicDemo,
+        pressCount: presses.current.count,
+        lastPress: presses.current.last,
+      }),
+      point: async (coordinate: Coordinate) => {
+        if (!camera.current || !ready) throw new Error('Map is not ready');
+        return camera.current.pointForCoordinate(coordinate);
+      },
+      coordinate: async (point: MapPoint) => {
+        if (!camera.current || !ready) throw new Error('Map is not ready');
+        return camera.current.coordinateForPoint(point);
+      },
+    };
+    target.__enhancedMapsShapes = api;
+    return () => {
+      if (target.__enhancedMapsShapes === api)
+        delete target.__enhancedMapsShapes;
+    };
+  }, [ready, selection, geodesicDemo]);
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ padding: 8 }}>
@@ -33,7 +113,7 @@ export default function MapDemo() {
         />
         <Button
           title="Camera path"
-          disabled={!ready}
+          disabled={!ready || geodesicDemo}
           onPress={() =>
             camera.current?.animateCamera(
               {
@@ -45,6 +125,18 @@ export default function MapDemo() {
               2000,
             )
           }
+        />
+        <Button
+          title={geodesicDemo ? 'Harbor shapes' : 'Geodesic shapes'}
+          disabled={!ready}
+          onPress={() => {
+            setSelection('');
+            setGeodesicDemo(!geodesicDemo);
+            camera.current?.animateCamera(
+              geodesicDemo ? harborCamera : geodesicCamera,
+              0,
+            );
+          }}
         />
         <Button
           title="Remount"
@@ -59,12 +151,7 @@ export default function MapDemo() {
         ref={camera}
         style={{ flex: 1 }}
         styleURL="https://tiles.openfreemap.org/styles/liberty"
-        initialCamera={{
-          center: { latitude: 54.37, longitude: 18.66 },
-          zoom: 12,
-          heading: 0,
-          pitch: 0,
-        }}
+        initialCamera={geodesicDemo ? geodesicCamera : harborCamera}
         onMapReady={() => setReady(true)}
         onError={(e) => setSelection(e.code)}
       >
@@ -78,6 +165,7 @@ export default function MapDemo() {
           opacity={0.85}
         />
         {visible &&
+          !geodesicDemo &&
           data.features.map((feature) => {
             const [longitude, latitude] =
               feature.geometry.type === 'Point'
@@ -114,7 +202,7 @@ export default function MapDemo() {
           strokeWidth={3}
           lineDashPattern={[9, 6]}
           tappable
-          onPress={(e) => setSelection(e.nativeEvent.identifier)}
+          onPress={selectShape}
         />
         <Polygon
           id="harbor-area"
@@ -126,7 +214,7 @@ export default function MapDemo() {
           fillColor="#e67e2240"
           strokeColor="#e67e22"
           tappable
-          onPress={(e) => setSelection(e.nativeEvent.identifier)}
+          onPress={selectShape}
         />
         <Polyline
           id="harbor-path"
@@ -141,12 +229,46 @@ export default function MapDemo() {
           lineJoin="bevel"
           lineDashPattern={[12, 6]}
           tappable
-          onPress={(e) => setSelection(e.nativeEvent.identifier)}
+          onPress={selectShape}
         />
+        {geodesicDemo && (
+          <>
+            <Polygon
+              id="geodesic-area"
+              coordinates={geodesicArea}
+              holes={geodesicHoles}
+              geodesic
+              fillColor="#16a08530"
+              strokeColor="#16a085"
+              strokeWidth={2}
+              tappable
+              onPress={selectShape}
+            />
+            <Polyline
+              id="straight-reference"
+              coordinates={geodesicRoute}
+              strokeColor="#145e99"
+              strokeWidth={3}
+              lineDashPattern={[8, 4]}
+            />
+            <Polyline
+              id="geodesic-route"
+              coordinates={geodesicRoute}
+              geodesic
+              strokeColor="#ef4274"
+              strokeWidth={6}
+              tappable
+              onPress={selectShape}
+            />
+          </>
+        )}
       </MapView>
       <Text style={{ padding: 8 }}>
         MapLibre Native owns basemap and layer projection. This example imports
-        only the core package. Public demo tiles require internet.
+        only the core package.{' '}
+        {geodesicDemo
+          ? 'Pink follows the shortest great-circle arc; dashed blue joins the same endpoints in the map projection. Green is a geodesic polygon with a hole.'
+          : 'Public demo tiles require internet.'}
       </Text>
     </View>
   );
