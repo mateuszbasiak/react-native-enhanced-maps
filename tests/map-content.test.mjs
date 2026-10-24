@@ -272,3 +272,67 @@ test('zero-radius circles have no rendered geometry even with a visible stroke',
   );
   assert.deepEqual(scene.sources[0].data.features, []);
 });
+
+test('shape color strings normalize to one native RGBA representation', async () => {
+  const { compileMapContent, Polyline, Polygon, Circle } = await load();
+  const colors = [
+    ['rebeccapurple', '#663399ff'],
+    ['transparent', '#00000000'],
+    ['#0f08', '#00ff0088'],
+    ['#abc', '#aabbccff'],
+    ['rgba(255, 0, 0, 0.5)', '#ff000080'],
+    ['hsl(120, 100%, 50%)', '#00ff00ff'],
+  ];
+  for (const [input, expected] of colors) {
+    const scene = compileMapContent([
+      React.createElement(Polyline, {
+        id: 'line',
+        coordinates: line,
+        strokeColor: input,
+      }),
+      React.createElement(Polygon, {
+        id: 'area',
+        coordinates: [...line, { latitude: 52, longitude: 21.01 }],
+        fillColor: input,
+      }),
+      React.createElement(Circle, {
+        id: 'circle',
+        center: line[0],
+        radius: 100,
+        fillColor: input,
+      }),
+    ]);
+    assert.equal(scene.items[0].strokeColor, expected);
+    assert.equal(scene.items[1].fillColor, expected);
+    assert.equal(scene.items[2].fillColor, expected);
+  }
+  for (const invalid of [
+    'var(--theme)',
+    'currentColor',
+    'not-a-color',
+    123,
+    null,
+    {},
+    'x'.repeat(257),
+  ]) {
+    assert.throws(
+      () =>
+        compileMapContent(
+          React.createElement(Polyline, {
+            coordinates: line,
+            strokeColor: invalid,
+          }),
+        ),
+      /color/i,
+    );
+  }
+  assert.equal(
+    compileMapContent(
+      React.createElement(Polyline, {
+        coordinates: line,
+        strokeColor: '#AABBCC',
+      }),
+    ).items[0].strokeColor,
+    '#AABBCC',
+  );
+});

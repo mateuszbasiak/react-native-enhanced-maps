@@ -33,6 +33,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **TEST-01–02, TEST-04** — Contract/native-helper tests, production bundle and package checks, and development/build commands exist. These do not replace native runtime acceptance.
 
 - [x] Repeated lifecycle verification harness — Both simulators pass 100 strict remount/readiness/stale-ref/native-bounds cycles, with bounded results and cancellation checks. [Results and debugger limitation](docs/map-lifecycle-acceptance.md). Broader lifecycle/resource coverage remains below; physical-device validation is maintainer-owned follow-up.
+- [x] Shape color strings — Polyline/Polygon/Circle accept the pinned React Native string forms and normalize them before native transport. Contract/package/bundle checks and Debug simulator rendering/press smoke pass. [Contract and results](docs/shapes.md).
 
 ## Map lifetime, camera and gestures
 
@@ -49,7 +50,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Decide dedicated image, dragging and callout APIs. [Marker sync evidence](docs/marker-coordinate-sync.md).
 - [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — Complete holes, geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes.
-- [ ] **SHAPE-03** — Decide remaining shape compatibility: CSS colors, geodesic geometry, gradient strokes and dash phase.
+- [ ] **SHAPE-03** — React Native color strings are implemented with canonical native RGBA normalization. Decide remaining geodesic geometry, gradient strokes and dash phase. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
 - [ ] **SRC-04, SRC-07, ARCH-09** — Measure parsing/rebuild cost; design incremental updates, off-UI-thread work, cancellation and bounded queues where needed. Android currently uses synchronous source updates for alignment.
 - [ ] **SRC-05–06** — Broader malformed native input and geographic fixtures (wrapping, poles, holes, multi-geometries). Existing aggregate position and 4 MiB scene bounds remain in force. [Scene budgets](docs/scene-budgets.md).
