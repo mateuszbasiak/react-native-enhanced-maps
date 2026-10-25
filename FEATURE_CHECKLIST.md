@@ -102,7 +102,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 
 ## Compatibility and distribution
 
-- [ ] **COMPAT-01–02, COMPAT-05–06, COMPAT-08–09** — Pin RN Maps and document supported/partial/unsupported APIs with equivalent fixtures and migration examples. Current familiar component names do not promise full parity; include camera/bounds/snapshot/helper gaps.
+- [ ] **COMPAT-01–02, COMPAT-05–06, COMPAT-08–09** — RN Maps 1.26.20 is pinned for the [source/API comparison and compiler-checked migration examples](docs/compatibility.md#pinned-react-native-maps-comparison). Complete equivalent runtime parity fixtures. Current familiar component names do not promise full parity; include camera/bounds/snapshot/helper gaps.
 - [ ] **COMPAT-07, A11Y-04** — Define user-location/tracking, permission ownership, denial and privacy behavior.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.

@@ -113,6 +113,15 @@ writeFileSync(
   path.join(consumer, 'consumer.ts'),
   `import type { Camera, MapViewProps } from 'react-native-enhanced-maps';\nimport { ShaderLayer } from 'react-native-enhanced-maps/shaders';\nvoid ShaderLayer;\ndeclare const camera: Camera;\nconst props: MapViewProps = { styleURL: 'https://example.com/style.json', initialCamera: camera };\nvoid props;\n`,
 );
+// Compile the same migration fixture against packed public declarations as well
+// as workspace sources, so examples cannot rely on private module exports.
+writeFileSync(
+  path.join(consumer, 'rn-maps-migration.tsx'),
+  readFileSync(
+    path.join(root, 'packages/maps/type-tests/rn-maps-migration.tsx'),
+    'utf8',
+  ).replaceAll('../src/index.js', 'react-native-enhanced-maps'),
+);
 execFileSync(
   process.execPath,
   [
@@ -129,6 +138,7 @@ execFileSync(
     '--jsx',
     'react-jsx',
     'consumer.ts',
+    'rn-maps-migration.tsx',
   ],
   { cwd: consumer, stdio: 'inherit' },
 );

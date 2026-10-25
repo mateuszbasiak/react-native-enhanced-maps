@@ -57,9 +57,10 @@ query, preserving lower-layer and map fall-through. See
 [polygon-hole picking](polygon-hole-picking.md). Marker views remain a separate
 input/ordering system.
 
-This is a compatibility subset, not drop-in react-native-maps parity. Per-vertex
-strokeColors and lineDashPhase remain unsupported and rejected rather than
-silently ignored. Native geographic edge behavior and press semantics have
+This is a compatibility subset, not drop-in react-native-maps parity. Polyline
+per-vertex `strokeColors` are supported as described below; `lineDashPhase` remains
+unsupported and is rejected rather than silently ignored. Native geographic edge
+behavior and press semantics have
 separate validation coverage; physical-device checks are maintainer-owned
 follow-up. Build/contract checks do not establish visual parity or production
 performance.
