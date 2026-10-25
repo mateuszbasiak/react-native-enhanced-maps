@@ -37,17 +37,17 @@ Minimum iOS 16 and Android 24. Rebuild after native setup.
 
 No Google/Apple map provider adapters, API keys, patched dependencies or React
 Native MapLibre wrapper are used. A style URL and suitable tile hosting are required.
-Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute state and uniforms. World-anchored tile output is submitted on a dedicated worklet runtime. See [contract and limits](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md). TypeGPU may later be an optional typed authoring tool.
+Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute state and uniforms. World-anchored tile output is submitted on a dedicated worklet runtime. See [contract and limits](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md). TypeGPU may later be an optional typed authoring tool.
 
-Shape props and compatibility limits: [shape components](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shapes.md).
+Shape props and compatibility limits: [shape components](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shapes.md).
 
 Use `ref.getCapabilities()` or `onCapabilitiesChange` to read the current native
-feature evidence states. See [capability reports](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/capabilities.md).
+feature evidence states. See [capability reports](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/capabilities.md).
 
-Camera idle events expose [native movement provenance](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/camera-origins.md).
+Camera idle events expose [native movement provenance](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/camera-origins.md).
 
 Map refs provide asynchronous projection, visible bounds, `fitCoordinates` and
-`fitElements`. See [map geometry and fitting](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/map-geometry.md) for input
+`fitElements`. See [map geometry and fitting](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/map-geometry.md) for input
 limits, padding, acceptance semantics and prototype constraints.
 
 Set `cluster` or `clusterGroup` on participating `Marker` children. Nonparticipating markers remain
@@ -89,14 +89,14 @@ Import experimental `ShaderLayer` separately from
 `react-native-enhanced-maps/shaders`. Its optional peers are
 `react-native-webgpu@0.17.x` and `react-native-worklets@0.12.2`; configure the
 Worklets Babel plugin as in the example and rebuild native projects. Core-only
-consumers do not need these peers. See [ShaderLayer](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md).
+consumers do not need these peers. See [ShaderLayer](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md).
 
 ## Installation status
 
 This package remains private and UNLICENSED. Use a locally packed tarball for the
 supported baseline: React Native 0.85.3 / React 19.2.3, New Architecture only.
 Do not treat the package name as a published npm release. Start with the
-[packed-consumer instructions](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/native-consumers.md),
+[packed-consumer instructions](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/native-consumers.md),
 including the documented npm optional-peer resolver override. Those instructions
 record actual core-only Debug/Release builds and Release simulator startup.
 
@@ -132,6 +132,6 @@ unmeasured devices and broader compatibility are not claimed as passing.
 For Expo SDK 56 / RN 0.85.3, install the packed package and add
 `"react-native-enhanced-maps"` to `expo.plugins`. The config plugin adds the iOS
 MapLibre SPM hook; Android uses autolinking. Use a custom native build, not Expo Go.
-See [Expo setup and validation](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/expo.md)
+See [Expo setup and validation](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md)
 for the pinned template, optional-peer resolver requirement and reproducible
 consumer command. Do not combine a manual iOS hook with plugin management.

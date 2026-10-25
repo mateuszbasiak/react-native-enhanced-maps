@@ -1,9 +1,15 @@
 # Rendered feature press results
 
-`GeoJSONSource.onPress(featureId)` retains its original callback. Add
-`onFeaturePress(event)` to receive `sourceId`, `layerId`, `featureId`, `properties`,
-`coordinate` and `position`. Either callback makes the source's layers interactive;
-both may be supplied and each receives the same selected hit once.
+Public shapes expose `tappable` and `onPress`, receiving
+`{nativeEvent:{identifier, coordinate, position}}`. Ordinary Marker children own
+their React Native input handlers. Cluster children use the
+[component clustering contract](clustering.md). Applications do not register
+source-level `onFeaturePress` callbacks or query source handles.
+
+Internally, native feature events include `sourceId`, `layerId`, `featureId`,
+`properties`, `coordinate` and `position`. MapView validates those fields and
+routes the selected hit to its owning component. The structured source callbacks
+are private implementation details retained for native regressions.
 
 `coordinate` is the geographic tap location, not the feature's geometry centroid.
 `position` is relative to the map in logical points on both platforms. Properties
@@ -24,6 +30,10 @@ malformed native events are discarded. Property payloads are bounded to 4 MiB
 UTF-8 and nesting depth 16, matching the source scene limits.
 
 This is a point query and returns one hit. Radius queries, overlap lists,
-programmatic queries, cluster interactions and accessible feature navigation
+programmatic queries and accessible feature navigation
 remain separate checklist work. Callbacks do not establish release-performance
 or complete cross-platform picking parity.
+
+Polygon fills are filtered against geographic hole geometry before selecting a
+hit, preserving lower-layer/background fall-through; outlines remain independently
+hittable. See [the native fix and bounded results](polygon-hole-picking.md).

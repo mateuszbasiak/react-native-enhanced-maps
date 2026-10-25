@@ -1,6 +1,6 @@
 # Project checklist
 
-Last reviewed: **2026-10-24**, against the current working tree.
+Last reviewed: **2026-10-25**, against the current working tree.
 
 Package-owned MapLibre Native on iOS/Android, React Native New Architecture only.
 The public API is component-based: `MapView`, `Marker`, `Polyline`, `Polygon`,
@@ -36,7 +36,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] Repeated lifecycle verification harness — Both simulators pass 100 strict remount/readiness/stale-ref/native-bounds cycles, with bounded results and cancellation checks. [Results and debugger limitation](docs/map-lifecycle-acceptance.md). Broader lifecycle/resource coverage remains below; physical-device validation is maintainer-owned follow-up.
 - [x] Shape color strings — Polyline/Polygon/Circle accept the pinned React Native string forms and normalize them before native transport. Contract/package/bundle checks and Debug simulator rendering/press smoke pass. [Contract and results](docs/shapes.md).
 
-- [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and separate native hole-picking defect](docs/shapes.md).
+- [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and subsequent hole-picking fix](docs/shapes.md).
 
 ## Map lifetime, camera and gestures
 
@@ -52,7 +52,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 ## Markers, shapes and internal rendering
 
 - [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Decide dedicated image, dragging and callout APIs. [Marker sync evidence](docs/marker-coordinate-sync.md).
-- [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — Fix the reproduced pinned-SDK fill-query hits inside polygon holes, then complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Observed defect](docs/shapes.md).
+- [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed; complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Native fix and remaining geometry limits](docs/polygon-hole-picking.md).
 - [ ] **SHAPE-03** — React Native color strings and geodesic Polyline/Polygon edges (including holes) are implemented. Decide remaining gradient-stroke and dash-phase compatibility. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
 - [ ] **SRC-04, SRC-07, ARCH-09** — Measure parsing/rebuild cost; design incremental updates, off-UI-thread work, cancellation and bounded queues where needed. Android currently uses synchronous source updates for alignment.
@@ -106,7 +106,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.
 - [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
 - [x] **REL-04** — Expo SDK 56 config plugin and isolated packed core consumer pass repeated prebuild, iOS/Android Debug/Release builds and simulator rendering/marker presses. Release starts with the Expo Metro server stopped. [Setup and results](docs/expo.md). Expo Go is outside the target; physical-device checks are maintainer-owned follow-up.
-- [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
+- [x] **REL-06** — Current installation, API, capability and component-clustering references match public exports. Source/layer transport is explicitly private; prototype/provider scenarios are historical. Canonical repository links and the fixed hole-picking status are reconciled. [Documentation index](docs/README.md).
 - [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
 - [ ] **REL-11** — Validate npm prerelease and obtain explicit publishing approval.
 

@@ -86,7 +86,7 @@ normalize before transport; dynamic/native color objects are unsupported.
 `tappable` defaults false. Shape press receives
 `{nativeEvent:{identifier,coordinate,position}}`. Higher shape zIndex draws later;
 ties retain declaration order. This is a compatibility subset. See the
-[shape contract](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shapes.md)
+[shape contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shapes.md)
 for exact geometry, styling and picking limits and current validation results.
 
 ## Optional shaders and unavailable APIs
@@ -94,12 +94,12 @@ for exact geometry, styling and picking limits and current validation results.
 The experimental shader entry requires `react-native-webgpu@0.17.x` and
 `react-native-worklets@0.12.2`, Worklets Babel configuration and native rebuilds.
 Core components do not require those peers. See the
-[shader contract](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md)
+[shader contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md)
 for WGSL, resource, placement, adapter and lifecycle constraints.
 
 Provider selection, user-location/tracking/permission ownership, snapshots,
 controlled camera and public source/layer components are not implemented. Expo
 SDK 56 custom native builds use the package config plugin; see
-[Expo setup](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/expo.md).
+[Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in
 compatibility. Legacy React Native architecture is outside the target.

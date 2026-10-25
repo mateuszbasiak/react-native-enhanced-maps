@@ -132,11 +132,12 @@ native binaries were used; this change adds shared geometry and example code.
 The bounded Debug global `__enhancedMapsShapes` exposes snapshots and public map
 projection queries for geographic press targets, and is removed on fixture disposal.
 
-**Known native picking defect:** Exact geographic taps near 44°N, 0°E, inside the
+**Historical defect, fixed subsequently:** Exact geographic taps near 44°N, 0°E, inside the
 visible hole, selected `geodesic-area` on both hosts. This matches
 [MapLibre Native #4783](https://github.com/maplibre/maplibre-native/issues/4783)
 on the pinned Android 13.6.1 / iOS 6.31.0 SDKs (the upstream report uses
 Android 13.7.1). It also affects ordinary polygons;
-this is not recorded as a passing hole-picking check. A separate native picking
-fix remains actionable under SHAPE-02/PICK-02–03. Physical-device testing remains
+this is not recorded as a passing hole-picking check. The [native hole-picking fix](polygon-hole-picking.md) now filters those false hits
+and preserves lower-layer/background fall-through. Broader geometry and picking
+fixtures remain under SHAPE-02/PICK-02–03. Physical-device testing remains
 maintainer-owned follow-up.

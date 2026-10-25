@@ -1,4 +1,4 @@
-> Historical source/layer prototype, superseded by [standalone native components](native-components.md). These source/layer components are no longer public exports.
+> Historical prototype record. This is not the current public API or current acceptance evidence. Use the [public API reference](../packages/maps/docs/api.md), [shape contract](shapes.md) and [component clustering](clustering.md).
 
 # Native source/layer scenario
 
