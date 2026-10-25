@@ -6,7 +6,7 @@ Package-owned MapLibre Native on iOS/Android, React Native New Architecture only
 The public API is component-based: `MapView`, `Marker`, `Polyline`, `Polygon`,
 `Circle`, and experimental `ShaderLayer` through `/shaders`. Sources and style
 layers are internal infrastructure; marker clustering replaces the former public
-source-oriented clustering API. See the [approved component direction](docs/plans/2026-10-21-marker-clustering.md)
+source-oriented clustering API. See the [clustering contract](docs/clustering.md)
 and [current exports](packages/maps/src/index.ts).
 
 Layers, native clustering, native gestures and portable custom GPU shaders remain
@@ -65,7 +65,7 @@ Current implementation compiles opt-in `Marker.cluster` children into a private
 MapLibre index, renders default/custom React cluster children, and exposes lazy
 membership and expansion through cluster component props. Source query APIs and
 their old fixtures describe internal/historical behavior, not the current public API.
-[Plan](docs/plans/2026-10-21-marker-clustering.md), [implementation](packages/maps/src/markerClustering.ts),
+[Contract](docs/clustering.md), [implementation](packages/maps/src/markerClustering.ts),
 [regressions](tests/marker-clustering.test.mjs).
 
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.

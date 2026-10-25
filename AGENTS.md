@@ -1,5 +1,10 @@
 # Repository instructions
 
+## Superpowers planning documents
+
+Follow [the planning-document rule](.cursor/rules/planning-documents.mdc).
+Keep Superpowers design docs and implementation plans local; do not commit them.
+
 ## Pull request dependencies
 
 Use `gh stack` for all dependent pull requests. Read and follow

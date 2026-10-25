@@ -16,3 +16,7 @@ example/ios/Config/Maps.local.xcconfig
 example/android/maps.local.properties
 
 .cxx/
+
+# Local Superpowers design docs and implementation plans
+/docs/plans/
+/docs/superpowers/
