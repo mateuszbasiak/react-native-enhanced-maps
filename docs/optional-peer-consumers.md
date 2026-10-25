@@ -37,8 +37,9 @@ sentinel must remain absent after each core bundle, because Metro can swallow
 resolver exceptions for optional imports. A negative-control fixture deliberately
 requires WebGPU inside `try` and must create the sentinel before it is cleared.
 Thus the core check detects attempted imports even when bundling itself succeeds,
-including when optional peers are installed. A separate shader entry
-uses the Worklets Babel plugin when both peers are present. When a peer is
+including when optional peers are installed. A separate shader entry retains the same MapView/Marker/Circle imports and adds
+ShaderLayer, using the Worklets Babel plugin when both peers are present. Matrix
+reports label this comparable entry pair as `bundleFixtureVersion: 2`. When a peer is
 omitted, bundle success is recorded separately as `bundled-with-missing-runtime-peers`,
 not shader runtime support. React Native Metro permits optional dependencies in
 `try` blocks, so a missing runtime can defer failure until initialization. A

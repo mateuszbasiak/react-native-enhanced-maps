@@ -25,6 +25,8 @@ Native on iOS/Android and targets React Native's New Architecture.
 ## Develop and verify
 
 [Development](development.md) describes commands and local builds.
+[Consumer footprint](consumer-footprint.md) measures comparable core/shader JS
+bundles and installed dependency payloads, separately from native app sizes.
 [Optional GPU peer consumers](optional-peer-consumers.md) describes the isolated
 installation, declaration and bundling matrix and its native acceptance limits.
 [Remote CI acceptance](remote-ci-acceptance.md) records verified workflow runs,

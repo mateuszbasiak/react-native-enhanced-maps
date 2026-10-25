@@ -37,7 +37,8 @@
     "format:check": "prettier . --check",
     "consumer:prepare": "npm run build && node scripts/prepare-native-consumer.mjs",
     "consumer:prepare:expo": "npm run build && node scripts/prepare-expo-consumer.mjs",
-    "verify:optional-peers": "npm run build && node scripts/check-optional-peers.mjs"
+    "verify:optional-peers": "npm run build && node scripts/check-optional-peers.mjs",
+    "measure:consumer-footprint": "node scripts/measure-consumer-footprint.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

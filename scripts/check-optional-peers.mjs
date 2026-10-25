@@ -45,6 +45,7 @@ const tarball = path.join(output, pack.filename);
 const peers = ['react-native-webgpu', 'react-native-worklets'];
 const results = {
   schemaVersion: 1,
+  bundleFixtureVersion: 2,
   sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',
@@ -170,7 +171,7 @@ module.exports = mergeConfig(getDefaultConfig(__dirname), {resolver: {resolveReq
   );
   writeFileSync(
     path.join(consumer, 'shaders.js'),
-    `import { ShaderLayer } from '${manifest.name}/shaders';\nconsole.log(ShaderLayer);\n`,
+    `import MapView, { Marker, Circle } from '${manifest.name}';\nimport { ShaderLayer } from '${manifest.name}/shaders';\nconsole.log(MapView, Marker, Circle, ShaderLayer);\n`,
   );
   writeFileSync(
     path.join(consumer, 'shaders.tsx'),
