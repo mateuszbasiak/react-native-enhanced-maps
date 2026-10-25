@@ -27,8 +27,7 @@ npm run build:ios           # native simulator build
 npm run build:android -- -PreactNativeArchitectures=arm64-v8a
 ```
 
-See [development](docs/development.md) and the
-[package migration plan](docs/plans/2026-10-20-package-owned-maplibre.md).
+See [development](docs/development.md) for setup and verification guidance.
 Historical prototype documents describe earlier experiments and are not the current
 API. Packages remain private and UNLICENSED; this is not a production release.
 

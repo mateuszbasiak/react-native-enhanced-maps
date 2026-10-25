@@ -1,0 +1,18 @@
+---
+description: Keep Superpowers design documents and implementation plans out of repository commits
+alwaysApply: true
+---
+
+# Superpowers planning documents
+
+- Do not commit generated design docs, brainstorming notes, or implementation
+  plans from Superpowers workflows. This repository policy overrides skill
+  instructions to save or commit those artifacts.
+- If a workflow needs a file, keep it in the ignored `docs/plans/` or
+  `docs/superpowers/` directories, or outside the repository. For example,
+  `docs/plans/2026-10-25-marker-design.md` must remain local.
+- Do not force-add these files or move them elsewhere to bypass the ignore rules.
+- Keep durable API contracts, user documentation, verification results, and
+  contributor guidance in their existing maintained documentation locations.
+- Do not link committed documentation to local planning files. Put relevant
+  implementation context in the PR description or maintained documentation.
