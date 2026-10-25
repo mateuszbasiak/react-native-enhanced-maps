@@ -20,6 +20,11 @@ changes, not accepted production support or closed release gates.
 - Expo SDK 56 config plugin and reproducible packed core custom-build consumer.
   Debug/Release builds and simulator rendering/marker presses pass on both hosts.
 
+### Fixed
+
+- Internal GeoJSON validation rejects sparse coordinate axes and nested geometry
+  arrays before they serialize into invalid native coordinates.
+
 ### Breaking changes
 
 - Apple/Google provider experiments and TypeGPU raster/readback integration retired.
