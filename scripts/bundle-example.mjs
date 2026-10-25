@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { assertReleaseBundle } from './release-bundle.mjs';
 const root = process.cwd();
 for (const platform of ['ios', 'android']) {
   const output = path.join(root, 'artifacts/bundles', platform);
@@ -26,4 +27,8 @@ for (const platform of ['ios', 'android']) {
     { cwd: 'example', stdio: 'inherit' },
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
+  assertReleaseBundle(readFileSync(path.join(output, 'main.jsbundle'), 'utf8'));
+  console.log(
+    `${platform}: development maps globals absent from production bundle`,
+  );
 }
