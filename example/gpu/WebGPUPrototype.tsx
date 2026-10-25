@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useRef, useState } from 'react';
 import { Button, Text, TextInput, View, NativeModules } from 'react-native';
 import { MapView, Marker } from 'react-native-enhanced-maps';
@@ -36,135 +37,142 @@ export default function WebGPUPrototype() {
         {'\n'}
         {status}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button
+            title={
+              placement === 'below-labels' ? 'Above labels' : 'Below labels'
+            }
+            onPress={() =>
+              setPlacement((v) =>
+                v === 'below-labels' ? 'above-labels' : 'below-labels',
+              )
+            }
+          />
+          <Button
+            title={paused ? 'Resume' : 'Pause'}
+            onPress={() => setPaused((v) => !v)}
+          />
+          <Button
+            title={['Waves', 'Radar', 'Checkerboard'][effect]}
+            onPress={() => setEffect((v) => (v + 1) % 3)}
+          />
+          <Button
+            title={amber ? 'Blue' : 'Amber'}
+            onPress={() => setAmber((v) => !v)}
+          />
+          <Button
+            title={visible ? 'Hide layer' : 'Show layer'}
+            onPress={() => setVisible((v) => !v)}
+          />
+          <Button
+            title={second ? 'Remove second' : 'Second layer'}
+            onPress={() => setSecond((v) => !v)}
+          />
+          <Button
+            title="Tilt / rotate"
+            onPress={() => {
+              map.current?.animateCamera(
+                {
+                  center,
+                  zoom: 12,
+                  heading: tilted ? 0 : 45,
+                  pitch: tilted ? 0 : 50,
+                },
+                1000,
+              );
+              setTilted((v) => !v);
+            }}
+          />
+          <Button
+            title="Reload style"
+            onPress={() => setAlternateStyle((v) => !v)}
+          />
+          <Button title="Remount" onPress={() => setGeneration((v) => v + 1)} />
+          <Button
+            title={editing ? 'Close editor' : 'Edit WGSL'}
+            onPress={() => setEditing((v) => !v)}
+          />
+          <Button
+            title="Reset shader"
+            onPress={() => setSource(shaderSource)}
+          />
+        </View>
         <Button
-          title={placement === 'below-labels' ? 'Above labels' : 'Below labels'}
-          onPress={() =>
-            setPlacement((v) =>
-              v === 'below-labels' ? 'above-labels' : 'below-labels',
-            )
+          title={
+            allowSoftwareAdapter
+              ? 'Software diagnostics enabled'
+              : 'Allow software GPU (diagnostic)'
           }
+          onPress={() => setAllowSoftwareAdapter((v) => !v)}
         />
         <Button
-          title={paused ? 'Resume' : 'Pause'}
-          onPress={() => setPaused((v) => !v)}
+          title={wind ? 'Procedural waves' : 'Wind particles'}
+          onPress={() => setWind((v) => !v)}
         />
         <Button
-          title={['Waves', 'Radar', 'Checkerboard'][effect]}
-          onPress={() => setEffect((v) => (v + 1) % 3)}
-        />
-        <Button
-          title={amber ? 'Blue' : 'Amber'}
-          onPress={() => setAmber((v) => !v)}
-        />
-        <Button
-          title={visible ? 'Hide layer' : 'Show layer'}
-          onPress={() => setVisible((v) => !v)}
-        />
-        <Button
-          title={second ? 'Remove second' : 'Second layer'}
-          onPress={() => setSecond((v) => !v)}
-        />
-        <Button
-          title="Tilt / rotate"
+          title="Block JS 3s"
           onPress={() => {
-            map.current?.animateCamera(
-              {
-                center,
-                zoom: 12,
-                heading: tilted ? 0 : 45,
-                pitch: tilted ? 0 : 50,
-              },
-              1000,
+            const before = NativeModules.EMShaderLayer.diagnostics();
+            const end = Date.now() + 3000;
+            while (Date.now() < end) {
+              /* Worklet keeps submitting. */
+            }
+            const after = NativeModules.EMShaderLayer.diagnostics();
+            setStatus(
+              `${after.produced - before.produced} GPU frames published while main JS blocked for 3s`,
             );
-            setTilted((v) => !v);
           }}
         />
-        <Button
-          title="Reload style"
-          onPress={() => setAlternateStyle((v) => !v)}
-        />
-        <Button title="Remount" onPress={() => setGeneration((v) => v + 1)} />
-        <Button
-          title={editing ? 'Close editor' : 'Edit WGSL'}
-          onPress={() => setEditing((v) => !v)}
-        />
-        <Button title="Reset shader" onPress={() => setSource(shaderSource)} />
-      </View>
-      <Button
-        title={
-          allowSoftwareAdapter
-            ? 'Software diagnostics enabled'
-            : 'Allow software GPU (diagnostic)'
-        }
-        onPress={() => setAllowSoftwareAdapter((v) => !v)}
-      />
-      <Button
-        title={wind ? 'Procedural waves' : 'Wind particles'}
-        onPress={() => setWind((v) => !v)}
-      />
-      <Button
-        title="Block JS 3s"
-        onPress={() => {
-          const before = NativeModules.EMShaderLayer.diagnostics();
-          const end = Date.now() + 3000;
-          while (Date.now() < end) {
-            /* Worklet keeps submitting. */
-          }
-          const after = NativeModules.EMShaderLayer.diagnostics();
-          setStatus(
-            `${after.produced - before.produced} GPU frames published while main JS blocked for 3s`,
-          );
-        }}
-      />
-      <View style={{ flexDirection: 'row' }}>
-        <Button
-          title="World view"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 0, longitude: 0 },
-                zoom: 1,
-                heading: 0,
-                pitch: 0,
-              },
-              1200,
-            )
-          }
-        />
-        <Button
-          title="Dateline"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 0, longitude: 179.9 },
-                zoom: 3,
-                heading: 0,
-                pitch: 0,
-              },
-              1200,
-            )
-          }
-        />
-        <Button
-          title="Local view"
-          onPress={() =>
-            map.current?.animateCamera(
-              { center, zoom: 12, heading: 0, pitch: 0 },
-              1200,
-            )
-          }
-        />
-      </View>
-      {editing && (
-        <TextInput
-          accessibilityLabel="WGSL source"
-          multiline
-          value={source}
-          onChangeText={setSource}
-          style={{ height: 140, fontSize: 10, borderWidth: 1 }}
-        />
-      )}
+        <View style={{ flexDirection: 'row' }}>
+          <Button
+            title="World view"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 0, longitude: 0 },
+                  zoom: 1,
+                  heading: 0,
+                  pitch: 0,
+                },
+                1200,
+              )
+            }
+          />
+          <Button
+            title="Dateline"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 0, longitude: 179.9 },
+                  zoom: 3,
+                  heading: 0,
+                  pitch: 0,
+                },
+                1200,
+              )
+            }
+          />
+          <Button
+            title="Local view"
+            onPress={() =>
+              map.current?.animateCamera(
+                { center, zoom: 12, heading: 0, pitch: 0 },
+                1200,
+              )
+            }
+          />
+        </View>
+        {editing && (
+          <TextInput
+            accessibilityLabel="WGSL source"
+            multiline
+            value={source}
+            onChangeText={setSource}
+            style={{ height: 140, fontSize: 10, borderWidth: 1 }}
+          />
+        )}
+      </ExampleControls>
       <MapView
         key={generation}
         ref={map}

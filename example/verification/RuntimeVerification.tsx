@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
@@ -198,208 +199,210 @@ export default function RuntimeVerification() {
       <Text testID="verification-summary" style={styles.status}>
         {summary}
       </Text>
-      <View style={styles.controls}>
-        <Button
-          title={enabled ? 'Disable gesture events' : 'Enable gesture events'}
-          disabled={cycling}
-          onPress={() => setEnabled((v) => !v)}
-        />
-        <Button
-          title={`Interval ${interval}ms`}
-          onPress={() => setInterval((v) => (v === 50 ? 250 : 50))}
-        />
-        <Button
-          title={pressEnabled ? 'Disable map presses' : 'Enable map presses'}
-          onPress={() => setPressEnabled((v) => !v)}
-        />
-        <Button
-          title={showMarker ? 'Hide marker child' : 'Show marker child'}
-          onPress={() => setShowMarker((v) => !v)}
-        />
-        <Button
-          title="Query map geometry"
-          onPress={async () => {
-            try {
-              const current = map.current;
-              if (!current) throw new Error('Map is not mounted');
-              const input = { latitude: 54.373, longitude: 18.664 };
-              const point = await current.pointForCoordinate(input);
-              const [coordinate, bounds] = await Promise.all([
-                current.coordinateForPoint(point),
-                current.getVisibleBounds(),
-              ]);
-              append(
-                evidence.current.geometryQueries,
-                { input, point, coordinate, bounds },
-                32,
-              );
-              setSummary(
-                `Geometry round trip ${evidence.current.geometryQueries.length}`,
-              );
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : 'Query failed';
-              append(evidence.current.queryErrors, message, 32);
-              setSummary(message);
+      <ExampleControls>
+        <View style={styles.controls}>
+          <Button
+            title={enabled ? 'Disable gesture events' : 'Enable gesture events'}
+            disabled={cycling}
+            onPress={() => setEnabled((v) => !v)}
+          />
+          <Button
+            title={`Interval ${interval}ms`}
+            onPress={() => setInterval((v) => (v === 50 ? 250 : 50))}
+          />
+          <Button
+            title={pressEnabled ? 'Disable map presses' : 'Enable map presses'}
+            onPress={() => setPressEnabled((v) => !v)}
+          />
+          <Button
+            title={showMarker ? 'Hide marker child' : 'Show marker child'}
+            onPress={() => setShowMarker((v) => !v)}
+          />
+          <Button
+            title="Query map geometry"
+            onPress={async () => {
+              try {
+                const current = map.current;
+                if (!current) throw new Error('Map is not mounted');
+                const input = { latitude: 54.373, longitude: 18.664 };
+                const point = await current.pointForCoordinate(input);
+                const [coordinate, bounds] = await Promise.all([
+                  current.coordinateForPoint(point),
+                  current.getVisibleBounds(),
+                ]);
+                append(
+                  evidence.current.geometryQueries,
+                  { input, point, coordinate, bounds },
+                  32,
+                );
+                setSummary(
+                  `Geometry round trip ${evidence.current.geometryQueries.length}`,
+                );
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : 'Query failed';
+                append(evidence.current.queryErrors, message, 32);
+                setSummary(message);
+              }
+            }}
+          />
+          <Button
+            title="Clear evidence"
+            onPress={() => {
+              evidence.current = {
+                schemaVersion: 1,
+                platform: Platform.OS,
+                gestures: [],
+                subscriptionTransitions: [],
+                featureHits: [],
+                legacyFeatureIds: [],
+                mapPresses: [],
+                markerPresses: 0,
+                markerLongPresses: 0,
+                geometryQueries: [],
+                queryErrors: [],
+                viewport: evidence.current.viewport,
+                fitRuns: [],
+                camera: [],
+                capabilities: [],
+                errors: [],
+                readyCount: 0,
+              };
+              setSummary('Evidence cleared');
+            }}
+          />
+          <Button title="Fit fixture" onPress={() => fit('fixture')} />
+          <Button title="Fit elements" onPress={() => fit('elements')} />
+          <Button title="Fit dateline" onPress={() => fit('dateline')} />
+          <Button title="Fit animated" onPress={() => fit('animated')} />
+          <Button
+            title="Camera command"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 54.37, longitude: 18.66 },
+                  zoom: 13,
+                  heading: 45,
+                  pitch: 35,
+                },
+                600,
+              )
             }
-          }}
-        />
-        <Button
-          title="Clear evidence"
-          onPress={() => {
-            evidence.current = {
-              schemaVersion: 1,
-              platform: Platform.OS,
-              gestures: [],
-              subscriptionTransitions: [],
-              featureHits: [],
-              legacyFeatureIds: [],
-              mapPresses: [],
-              markerPresses: 0,
-              markerLongPresses: 0,
-              geometryQueries: [],
-              queryErrors: [],
-              viewport: evidence.current.viewport,
-              fitRuns: [],
-              camera: [],
-              capabilities: [],
-              errors: [],
-              readyCount: 0,
-            };
-            setSummary('Evidence cleared');
-          }}
-        />
-        <Button title="Fit fixture" onPress={() => fit('fixture')} />
-        <Button title="Fit elements" onPress={() => fit('elements')} />
-        <Button title="Fit dateline" onPress={() => fit('dateline')} />
-        <Button title="Fit animated" onPress={() => fit('animated')} />
-        <Button
-          title="Camera command"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 54.37, longitude: 18.66 },
-                zoom: 13,
-                heading: 45,
-                pitch: 35,
-              },
-              600,
-            )
-          }
-        />
-        <Button
-          title="Long camera"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 54.4, longitude: 18.7 },
-                zoom: 15,
-                heading: 90,
-                pitch: 20,
-              },
-              10000,
-            )
-          }
-        />
-        <Button
-          title="Instant camera"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 54.37, longitude: 18.66 },
-                zoom: 13,
-                heading: 45,
-                pitch: 35,
-              },
-              0,
-            )
-          }
-        />
-        <Button
-          title="Repeat current camera"
-          onPress={() => {
-            const current = evidence.current.camera.at(-1)?.camera;
-            if (current) map.current?.animateCamera(current, 0);
-          }}
-        />
-        <Button
-          title="Reload style"
-          onPress={() => {
-            setStyleEpoch((v) => v + 1);
-            setSummary('Reloading style');
-          }}
-        />
-        <Button
-          title="Move shape"
-          onPress={() => {
-            const next = {
-              revision: accepted.revision + 1,
-              longitude: accepted.longitude === 18.66 ? 18.67 : 18.66,
-            };
-            setAccepted(next);
-            setCandidate(next);
-          }}
-        />
-        <Button
-          title="Restore accepted"
-          onPress={() => setCandidate(accepted)}
-        />
-        <Button
-          title={present ? 'Remove shape' : 'Re-add shape'}
-          onPress={() => {
-            if (!present) {
-              const next = { revision: 0, longitude: 18.66 };
+          />
+          <Button
+            title="Long camera"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 54.4, longitude: 18.7 },
+                  zoom: 15,
+                  heading: 90,
+                  pitch: 20,
+                },
+                10000,
+              )
+            }
+          />
+          <Button
+            title="Instant camera"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 54.37, longitude: 18.66 },
+                  zoom: 13,
+                  heading: 45,
+                  pitch: 35,
+                },
+                0,
+              )
+            }
+          />
+          <Button
+            title="Repeat current camera"
+            onPress={() => {
+              const current = evidence.current.camera.at(-1)?.camera;
+              if (current) map.current?.animateCamera(current, 0);
+            }}
+          />
+          <Button
+            title="Reload style"
+            onPress={() => {
+              setStyleEpoch((v) => v + 1);
+              setSummary('Reloading style');
+            }}
+          />
+          <Button
+            title="Move shape"
+            onPress={() => {
+              const next = {
+                revision: accepted.revision + 1,
+                longitude: accepted.longitude === 18.66 ? 18.67 : 18.66,
+              };
               setAccepted(next);
               setCandidate(next);
-            }
-            setPresent((v) => !v);
-          }}
-        />
-        <Button
-          title="Remount verification map"
-          onPress={() => {
-            setCandidate(initial);
-            setAccepted(initial);
-            setGeneration((v) => v + 1);
-          }}
-        />
-        <Button
-          title={compact ? 'Expand map' : 'Shrink map'}
-          onPress={() => setCompact((value) => !value)}
-        />
-        <Button
-          title="Cycle subscriber"
-          disabled={cycling}
-          onPress={() => {
-            if (subscriptionTimers.current.length) return;
-            setEnabled(true);
-            setCycling(true);
-            subscriptionTimers.current = [false, true].map((value, index) =>
-              setTimeout(
-                () => {
-                  append(
-                    evidence.current.subscriptionTransitions,
-                    {
-                      enabled: value,
-                      gestureCount: evidence.current.gestures.length,
-                    },
-                    16,
-                  );
-                  setEnabled(value);
-                  setSummary(
-                    value ? 'Subscriber restored' : 'Subscriber removed',
-                  );
-                  if (value) {
-                    subscriptionTimers.current = [];
-                    setCycling(false);
-                  }
-                },
-                index === 0 ? 6000 : 10000,
-              ),
-            );
-          }}
-        />
-      </View>
+            }}
+          />
+          <Button
+            title="Restore accepted"
+            onPress={() => setCandidate(accepted)}
+          />
+          <Button
+            title={present ? 'Remove shape' : 'Re-add shape'}
+            onPress={() => {
+              if (!present) {
+                const next = { revision: 0, longitude: 18.66 };
+                setAccepted(next);
+                setCandidate(next);
+              }
+              setPresent((v) => !v);
+            }}
+          />
+          <Button
+            title="Remount verification map"
+            onPress={() => {
+              setCandidate(initial);
+              setAccepted(initial);
+              setGeneration((v) => v + 1);
+            }}
+          />
+          <Button
+            title={compact ? 'Expand map' : 'Shrink map'}
+            onPress={() => setCompact((value) => !value)}
+          />
+          <Button
+            title="Cycle subscriber"
+            disabled={cycling}
+            onPress={() => {
+              if (subscriptionTimers.current.length) return;
+              setEnabled(true);
+              setCycling(true);
+              subscriptionTimers.current = [false, true].map((value, index) =>
+                setTimeout(
+                  () => {
+                    append(
+                      evidence.current.subscriptionTransitions,
+                      {
+                        enabled: value,
+                        gestureCount: evidence.current.gestures.length,
+                      },
+                      16,
+                    );
+                    setEnabled(value);
+                    setSummary(
+                      value ? 'Subscriber restored' : 'Subscriber removed',
+                    );
+                    if (value) {
+                      subscriptionTimers.current = [];
+                      setCycling(false);
+                    }
+                  },
+                  index === 0 ? 6000 : 10000,
+                ),
+              );
+            }}
+          />
+        </View>
+      </ExampleControls>
       <View
         style={compact ? { height: 160 } : { flex: 1 }}
         onLayout={({ nativeEvent }) => {

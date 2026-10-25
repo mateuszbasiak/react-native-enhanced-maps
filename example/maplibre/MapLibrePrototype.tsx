@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, {
@@ -103,49 +104,51 @@ export default function MapDemo() {
         Package-owned MapLibre · {ready ? 'Ready' : 'Loading'} · {count} points
         · selected {selection || 'none'}
       </Text>
-      <View style={styles.row}>
-        {[100, 1000, 10000].map((n) => (
-          <Button key={n} title={`${n} points`} onPress={() => setCount(n)} />
-        ))}
-        <Button
-          title={visible ? 'Hide points' : 'Show points'}
-          onPress={() => setVisible((v) => !v)}
-        />
-        <Button
-          title="Camera path"
-          disabled={!ready || geodesicDemo}
-          onPress={() =>
-            camera.current?.animateCamera(
-              {
-                center: { latitude: 54.37, longitude: 18.66 },
-                zoom: 13,
-                heading: (++step.current % 4) * 70,
-                pitch: 45,
-              },
-              2000,
-            )
-          }
-        />
-        <Button
-          title={geodesicDemo ? 'Harbor shapes' : 'Geodesic shapes'}
-          disabled={!ready}
-          onPress={() => {
-            setSelection('');
-            setGeodesicDemo(!geodesicDemo);
-            camera.current?.animateCamera(
-              geodesicDemo ? harborCamera : geodesicCamera,
-              0,
-            );
-          }}
-        />
-        <Button
-          title="Remount"
-          onPress={() => {
-            setReady(false);
-            setGeneration((v) => v + 1);
-          }}
-        />
-      </View>
+      <ExampleControls>
+        <View style={styles.row}>
+          {[100, 1000, 10000].map((n) => (
+            <Button key={n} title={`${n} points`} onPress={() => setCount(n)} />
+          ))}
+          <Button
+            title={visible ? 'Hide points' : 'Show points'}
+            onPress={() => setVisible((v) => !v)}
+          />
+          <Button
+            title="Camera path"
+            disabled={!ready || geodesicDemo}
+            onPress={() =>
+              camera.current?.animateCamera(
+                {
+                  center: { latitude: 54.37, longitude: 18.66 },
+                  zoom: 13,
+                  heading: (++step.current % 4) * 70,
+                  pitch: 45,
+                },
+                2000,
+              )
+            }
+          />
+          <Button
+            title={geodesicDemo ? 'Harbor shapes' : 'Geodesic shapes'}
+            disabled={!ready}
+            onPress={() => {
+              setSelection('');
+              setGeodesicDemo(!geodesicDemo);
+              camera.current?.animateCamera(
+                geodesicDemo ? harborCamera : geodesicCamera,
+                0,
+              );
+            }}
+          />
+          <Button
+            title="Remount"
+            onPress={() => {
+              setReady(false);
+              setGeneration((v) => v + 1);
+            }}
+          />
+        </View>
+      </ExampleControls>
       <MapView
         key={generation}
         ref={camera}

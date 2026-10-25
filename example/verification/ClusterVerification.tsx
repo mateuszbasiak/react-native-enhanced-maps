@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, {
   createContext,
   useContext,
@@ -224,53 +225,55 @@ export default function ClusterVerification() {
       >
         <View style={{ flex: 1 }}>
           <Text testID="cluster-status">{summary}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {[3, 6, 1000, 10000].map((value) => (
+          <ExampleControls>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[3, 6, 1000, 10000].map((value) => (
+                <Button
+                  key={value}
+                  title={`${value} markers`}
+                  onPress={() => setCount(value)}
+                />
+              ))}
               <Button
-                key={value}
-                title={`${value} markers`}
-                onPress={() => setCount(value)}
+                title={cluster ? 'Disable clustering' : 'Enable clustering'}
+                onPress={() => setCluster((value) => !value)}
               />
-            ))}
-            <Button
-              title={cluster ? 'Disable clustering' : 'Enable clustering'}
-              onPress={() => setCluster((value) => !value)}
-            />
-            <Button
-              title={grouped ? 'Merge groups' : 'Separate groups'}
-              onPress={() => setGrouped((value) => !value)}
-            />
-            <Button
-              title={custom ? 'Default bubble' : 'Custom bubble'}
-              onPress={() => setCustom((value) => !value)}
-            />
-            <Button
-              title="Zoom 13"
-              onPress={() => map.current?.animateCamera(initialCamera, 0)}
-            />
-            <Button
-              title="Zoom 16"
-              onPress={() =>
-                map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
-              }
-            />
-            <Button
-              title="Move markers"
-              onPress={() => setMoved((value) => !value)}
-            />
-            <Button
-              title={present ? 'Remove markers' : 'Restore markers'}
-              onPress={() => setPresent((value) => !value)}
-            />
-            <Button
-              title="Reload style"
-              onPress={() => setStyleEpoch((value) => value + 1)}
-            />
-            <Button
-              title="Remount"
-              onPress={() => setGeneration((value) => value + 1)}
-            />
-          </View>
+              <Button
+                title={grouped ? 'Merge groups' : 'Separate groups'}
+                onPress={() => setGrouped((value) => !value)}
+              />
+              <Button
+                title={custom ? 'Default bubble' : 'Custom bubble'}
+                onPress={() => setCustom((value) => !value)}
+              />
+              <Button
+                title="Zoom 13"
+                onPress={() => map.current?.animateCamera(initialCamera, 0)}
+              />
+              <Button
+                title="Zoom 16"
+                onPress={() =>
+                  map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
+                }
+              />
+              <Button
+                title="Move markers"
+                onPress={() => setMoved((value) => !value)}
+              />
+              <Button
+                title={present ? 'Remove markers' : 'Restore markers'}
+                onPress={() => setPresent((value) => !value)}
+              />
+              <Button
+                title="Reload style"
+                onPress={() => setStyleEpoch((value) => value + 1)}
+              />
+              <Button
+                title="Remount"
+                onPress={() => setGeneration((value) => value + 1)}
+              />
+            </View>
+          </ExampleControls>
           <MapView
             key={generation}
             ref={map}
