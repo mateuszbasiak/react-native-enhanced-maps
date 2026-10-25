@@ -151,8 +151,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       }
       nativeMap.addOnMapClickListener { coordinate ->
         val point = nativeMap.projection.toScreenLocation(coordinate)
-        for (id in (nativeMap.style?.layers ?: emptyList()).map { it.id }.filter { it in interactiveLayers }.asReversed()) {
-          val feature = nativeMap.queryRenderedFeatures(point, id).firstOrNull() ?: continue
+        for (layer in (nativeMap.style?.layers ?: emptyList()).filter { it.id in interactiveLayers }.asReversed()) {
+          val id=layer.id
+          val feature = nativeMap.queryRenderedFeatures(point, id).firstOrNull {
+            layer !is FillLayer || NativeFillHit.accepts(it.geometry(),coordinate.longitude,coordinate.latitude)
+          } ?: continue
           val source = layerSources[id] ?: ""
           val properties=feature.properties()?.deepCopy() ?: com.google.gson.JsonObject()
           val stamp=if(source in clusteredSources)properties.remove(NativeClustering.INDEX_PROPERTY) else null

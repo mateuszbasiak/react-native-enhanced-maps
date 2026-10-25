@@ -52,9 +52,10 @@ is bounded to 64 shapes and 10,000 total points, including generated circle poin
 `{nativeEvent: {identifier, coordinate: {latitude, longitude}, position: {x, y}}}`.
 The position is relative to the map in logical screen points. The topmost rendered
 interactive layer wins; noninteractive layers let picks reach layers below them.
-Polygon holes render cutouts, but the pinned native SDK fill query currently
-reports hits inside them; see the known limitation below. Marker views remain a
-separate input/ordering system.
+Polygon holes are excluded by native geometry filtering after the rendered-feature
+query, preserving lower-layer and map fall-through. See
+[polygon-hole picking](polygon-hole-picking.md). Marker views remain a separate
+input/ordering system.
 
 This is a compatibility subset, not drop-in react-native-maps parity. Per-vertex
 strokeColors and lineDashPhase remain unsupported and rejected rather than

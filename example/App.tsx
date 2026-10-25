@@ -6,6 +6,7 @@ import MapDemo from './maplibre/MapLibrePrototype';
 import RuntimeVerification from './verification/RuntimeVerification';
 import ClusterVerification from './verification/ClusterVerification';
 import LifecycleVerification from './verification/LifecycleVerification';
+import ShapePickingVerification from './verification/ShapePickingVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
   const [verification, setVerification] = useState(false);
   const [clustering, setClustering] = useState(false);
   const [lifecycle, setLifecycle] = useState(false);
+  const [shapePicking, setShapePicking] = useState(false);
   return (
     <SafeAreaView
       style={{
@@ -66,7 +68,15 @@ export default function App() {
           onPress={() => setWebgpu((v) => !v)}
         />
       )}
-      {lifecycle && __DEV__ ? (
+      {__DEV__ && (
+        <Button
+          title={shapePicking ? 'Close shape picking' : 'Open shape picking'}
+          onPress={() => setShapePicking((value) => !value)}
+        />
+      )}
+      {shapePicking && __DEV__ ? (
+        <ShapePickingVerification />
+      ) : lifecycle && __DEV__ ? (
         <LifecycleVerification />
       ) : settings && __DEV__ ? (
         <MapSettingsVerification />
