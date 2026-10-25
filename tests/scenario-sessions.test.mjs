@@ -196,3 +196,21 @@ test('gradient scenario participates in bounded readiness collection', async () 
   });
   assert.equal((await f.session.collect(metadata)).status, 'ready');
 });
+
+test('shader lifecycle scenario collects current-epoch readiness without claiming semantic acceptance', async () => {
+  const f = fixture();
+  const selected = f.session.select('shader-lifecycle');
+  f.session.acknowledge(selected.generation);
+  f.observe({
+    ready: true,
+    evidence: {
+      ready: true,
+      diagnostics: { pools: 2, sampled: 1 },
+      maps: { a: { epoch: 1 }, b: { epoch: 1 } },
+    },
+  });
+  const result = await f.session.collect(metadata);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.scenario, 'shader-lifecycle');
+  assert.equal(result.evidence.diagnostics.pools, 2);
+});

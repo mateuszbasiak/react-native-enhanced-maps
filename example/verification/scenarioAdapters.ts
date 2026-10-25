@@ -9,6 +9,7 @@ export function inspectScenario(scenario: Scenario): Observation | undefined {
     clusters: '__enhancedMapsClusters',
     'shape-picking': '__enhancedMapsShapePicking',
     gradients: '__enhancedMapsGradient',
+    'shader-lifecycle': '__enhancedMapsShaderLifecycle',
   };
   const name = names[scenario];
   if (!name) return;

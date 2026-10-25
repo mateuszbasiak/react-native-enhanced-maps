@@ -21,6 +21,7 @@ import ShapePickingVerification from './verification/ShapePickingVerification';
 import GradientVerification from './verification/GradientVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
+import ShaderLifecycleVerification from './gpu/ShaderLifecycleVerification';
 import {
   createScenarioSession,
   scenarios,
@@ -41,6 +42,7 @@ const controls: readonly [Scenario, string][] = [
   ['lifecycle', 'lifecycle'],
   ['shader', 'GPU prototype'],
   ['webgpu', 'WebGPU prototype'],
+  ['shader-lifecycle', 'Shader lifecycle'],
   ['shape-picking', 'shape picking'],
   ['gradients', 'gradients'],
 ];
@@ -123,6 +125,8 @@ export default function App() {
           <LifecycleVerification />
         ) : id === 'settings' && __DEV__ ? (
           <MapSettingsVerification />
+        ) : id === 'shader-lifecycle' && __DEV__ ? (
+          <ShaderLifecycleVerification />
         ) : id === 'webgpu' && __DEV__ ? (
           <WebGPUPrototype />
         ) : id === 'shader' && __DEV__ ? (
