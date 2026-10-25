@@ -2,7 +2,7 @@ import { Children, Fragment, isValidElement } from 'react';
 import normalizeColor from '@react-native/normalize-colors';
 import type { ReactNode } from 'react';
 import type { Coordinate } from './types';
-import { geodesicPath, geodesicPolygon } from './geodesic.js';
+import { geodesicPath, geodesicPolygon } from './geodesic.ts';
 
 export interface ShapePressEvent {
   readonly nativeEvent: {
