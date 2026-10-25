@@ -3,6 +3,7 @@ import type {
   Camera,
   MapViewRef,
   ClusterComponentProps,
+  PolygonProps,
 } from '../src/index.js';
 const camera: Camera = {
   center: { latitude: 52, longitude: 21 },
@@ -240,3 +241,18 @@ void incompletePadding;
 <Polyline coordinates={[camera.center, camera.center]} geodesic="yes" />;
 // @ts-expect-error Circle already uses geographic radius and has no geodesic flag
 <Circle center={camera.center} radius={500} geodesic />;
+
+<Polyline
+  coordinates={[camera.center, camera.center]}
+  strokeColors={['red', '#0088ff80']}
+/>;
+// @ts-expect-error gradient colors are strings
+<Polyline coordinates={[camera.center, camera.center]} strokeColors={[1, 2]} />;
+const unsupportedPolygonGradient: PolygonProps = {
+  coordinates: [camera.center, camera.center, camera.center],
+  // @ts-expect-error gradients belong to Polyline, not Polygon
+  strokeColors: ['red', 'blue', 'green'],
+};
+void unsupportedPolygonGradient;
+// @ts-expect-error Circle does not accept per-vertex gradient colors
+<Circle center={camera.center} radius={500} strokeColors={['red', 'blue']} />;
