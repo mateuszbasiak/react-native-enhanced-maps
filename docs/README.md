@@ -25,6 +25,8 @@ Native on iOS/Android and targets React Native's New Architecture.
 ## Develop and verify
 
 [Development](development.md) describes commands and local builds.
+[Remote CI acceptance](remote-ci-acceptance.md) records verified workflow runs,
+commit provenance, package/bundle artifacts and the limits of those checks.
 [Component cluster acceptance](component-cluster-acceptance.md),
 [lifecycle acceptance](map-lifecycle-acceptance.md),
 [polygon-hole picking](polygon-hole-picking.md) and
