@@ -36,7 +36,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "consumer:prepare": "npm run build && node scripts/prepare-native-consumer.mjs",
-    "consumer:prepare:expo": "npm run build && node scripts/prepare-expo-consumer.mjs"
+    "consumer:prepare:expo": "npm run build && node scripts/prepare-expo-consumer.mjs",
+    "verify:optional-peers": "npm run build && node scripts/check-optional-peers.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

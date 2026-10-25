@@ -68,7 +68,9 @@ The generated root manifest constrains `react-native-reanimated` to 4.6.0 throug
 then succeeds, and none of Reanimated, Worklets or WebGPU is installed. This is an
 explicit resolver workaround, not a claim that broader Worklets versions work.
 Do not hide the conflict with `--legacy-peer-deps` or `--force`. GPU-enabled
-consumers require their own explicit peer installation and acceptance matrix.
+consumers require explicit peer installation. The [optional-peer matrix](optional-peer-consumers.md)
+checks isolated installation, declarations and JavaScript bundles; native GPU
+consumer builds and runtime acceptance remain separate.
 
 ## Bounded results, 2026-10-23
 
