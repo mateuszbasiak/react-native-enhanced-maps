@@ -307,6 +307,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       } }
       sourceRevisions.validate(revisions)
       val parsedLayers = (0 until layers.length()).map { layers.getJSONObject(it).also { layer -> require(!layer.has("clusterFilter") || layer.getString("clusterFilter") in listOf("clusters","points")) { "Invalid cluster filter" } } }
+      val metricSources=(0 until sources.length()).map { sources.getJSONObject(it) }.filter { it.optBoolean("lineMetrics",false) }.map { it.getString("id") }.toSet()
+      val gradients=parsedLayers.associate { definition ->
+        val expression=NativeLineGradient.parse(definition.optJSONObject("style"))
+        require(expression==null || (definition.getString("type")=="line" && definition.getString("source") in metricSources)) { "Gradient requires a line-metrics source" }
+        definition.getString("id") to expression
+      }
       require(clusterIndexRevision<9007199254740991L) { "Cluster index revisions exhausted" }
       ++clusterIndexRevision
       sceneLayers.asReversed().forEach { style.removeLayer(it) }; sceneSources.forEach { style.removeSource(it) }
@@ -319,7 +325,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         val id = definition.getString("id"); if(definition.optBoolean("interactive",false)) interactiveLayers.add(id); val source = definition.getString("source"); val properties = definition.optJSONObject("style") ?: JSONObject()
         val layer: Layer = when (definition.getString("type")) {
           "circle" -> CircleLayer(id,source).apply { if(properties.has("circleColor")) setProperties(circleColor(properties.getString("circleColor"))); if(properties.has("circleRadius")) setProperties(circleRadius(properties.getDouble("circleRadius").toFloat())); if(properties.has("circleOpacity")) setProperties(circleOpacity(properties.getDouble("circleOpacity").toFloat())) }
-          "line" -> LineLayer(id,source).apply { if(properties.has("lineColor")) setProperties(lineColor(properties.getString("lineColor"))); if(properties.has("lineWidth")) setProperties(lineWidth(properties.getDouble("lineWidth").toFloat())); if(properties.has("lineOpacity")) setProperties(lineOpacity(properties.getDouble("lineOpacity").toFloat())); if(properties.has("lineCap")) setProperties(lineCap(properties.getString("lineCap"))); if(properties.has("lineJoin")) setProperties(lineJoin(properties.getString("lineJoin"))); if(properties.has("lineMiterLimit")) setProperties(lineMiterLimit(properties.getDouble("lineMiterLimit").toFloat())); if(properties.has("lineDasharray")) { val d=properties.getJSONArray("lineDasharray"); setProperties(lineDasharray(Array(d.length()) { d.getDouble(it).toFloat() })) } }
+          "line" -> LineLayer(id,source).apply { gradients[id]?.let { setProperties(lineGradient(it)) }; if(properties.has("lineColor")) setProperties(lineColor(properties.getString("lineColor"))); if(properties.has("lineWidth")) setProperties(lineWidth(properties.getDouble("lineWidth").toFloat())); if(properties.has("lineOpacity")) setProperties(lineOpacity(properties.getDouble("lineOpacity").toFloat())); if(properties.has("lineCap")) setProperties(lineCap(properties.getString("lineCap"))); if(properties.has("lineJoin")) setProperties(lineJoin(properties.getString("lineJoin"))); if(properties.has("lineMiterLimit")) setProperties(lineMiterLimit(properties.getDouble("lineMiterLimit").toFloat())); if(properties.has("lineDasharray")) { val d=properties.getJSONArray("lineDasharray"); setProperties(lineDasharray(Array(d.length()) { d.getDouble(it).toFloat() })) } }
           "fill" -> FillLayer(id,source).apply { if(properties.has("fillColor")) setProperties(fillColor(properties.getString("fillColor"))); if(properties.has("fillOpacity")) setProperties(fillOpacity(properties.getDouble("fillOpacity").toFloat())) }
           else -> throw IllegalArgumentException("Unsupported layer type")
         }

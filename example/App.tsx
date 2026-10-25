@@ -7,6 +7,7 @@ import RuntimeVerification from './verification/RuntimeVerification';
 import ClusterVerification from './verification/ClusterVerification';
 import LifecycleVerification from './verification/LifecycleVerification';
 import ShapePickingVerification from './verification/ShapePickingVerification';
+import GradientVerification from './verification/GradientVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
   const [clustering, setClustering] = useState(false);
   const [lifecycle, setLifecycle] = useState(false);
   const [shapePicking, setShapePicking] = useState(false);
+  const [gradients, setGradients] = useState(false);
   return (
     <SafeAreaView
       style={{
@@ -74,7 +76,15 @@ export default function App() {
           onPress={() => setShapePicking((value) => !value)}
         />
       )}
-      {shapePicking && __DEV__ ? (
+      {__DEV__ && (
+        <Button
+          title={gradients ? 'Close gradients' : 'Open gradients'}
+          onPress={() => setGradients((value) => !value)}
+        />
+      )}
+      {gradients && __DEV__ ? (
+        <GradientVerification />
+      ) : shapePicking && __DEV__ ? (
         <ShapePickingVerification />
       ) : lifecycle && __DEV__ ? (
         <LifecycleVerification />

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
+import { readFileSync } from 'node:fs';
 import {
   Polyline,
   Polygon,
@@ -171,4 +172,39 @@ test('Polygon and Circle reject the Polyline-only gradient prop', () => {
       }),
     ),
   );
+});
+
+test('MapView scene transport preserves gradient source metrics and removes them for solid strokes', async () => {
+  const moduleURL = new URL(
+    '../packages/maps/lib/maplibreContent.js',
+    import.meta.url,
+  );
+  const code = readFileSync(moduleURL, 'utf8')
+    .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
+    .replace(
+      /from '(\.\/[^']+)'/g,
+      (_, path) => `from '${new URL(path + '.js', moduleURL).href}'`,
+    );
+  const { compileScene } = await import(
+    `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+  );
+  const compile = (props) =>
+    JSON.parse(
+      compileScene(
+        React.createElement(Polyline, {
+          id: 'route',
+          coordinates: route,
+          ...props,
+        }),
+      ).json,
+    );
+  const gradient = compile({ strokeColors: colors });
+  assert.equal(gradient.sources[0].lineMetrics, true);
+  assert.deepEqual(
+    gradient.layers[0].style.lineGradient,
+    stops(scene({ strokeColors: colors })),
+  );
+  const solid = compile({ strokeColor: 'orange' });
+  assert.equal(solid.sources[0].lineMetrics, undefined);
+  assert.equal(solid.layers[0].style.lineGradient, undefined);
 });
