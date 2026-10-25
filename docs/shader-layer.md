@@ -59,7 +59,9 @@ Simulation survives camera/tile changes and ordinary uniforms/pause updates. Sha
 
 `beforeId` inserts immediately beneath an existing style layer and takes precedence over `placement`. Missing target IDs and duplicate layer IDs report errors. `placement` defaults to `below-labels`; `above-labels` inserts at the style top. Native iOS annotation markers remain above the map. Arbitrary ordering relative to every React marker is not guaranteed.
 
-`visible={false}` releases resources. Backgrounding skips output production and freezes time until active again. `onReady` currently indicates pipeline initialization and native attachment; `onError` reports compilation, runtime, native import or device-loss errors. A failed layer is detached without making the ordinary map unavailable. Correcting shader/configuration props retries initialization. Unexpected device loss now uses bounded automatic recovery, described below. `allowSoftwareAdapter` is an explicit diagnostic opt-in, never hardware performance acceptance.
+`visible={false}` releases layer-owned textures, buffers, shared-memory imports and native atlas pools. One rendering worker is retained for the JS bundle, and clean GPU devices are retained in an idle pool up to peak concurrent layer demand. Each active layer has an exclusive device, preserving GPU-error isolation; later layer lifetimes reuse idle devices instead of repeatedly allocating native contexts. Software-adapter consent is checked for each lease. Backgrounding skips output production and freezes time until active again. `onReady` currently indicates pipeline initialization and native attachment; `onError` reports compilation, runtime, native import or device-loss errors. A failed layer is detached without making the ordinary map unavailable. Correcting shader/configuration props retries initialization. Unexpected device loss now uses bounded automatic recovery, described below. `allowSoftwareAdapter` is an explicit diagnostic opt-in, never hardware performance acceptance.
+
+See [native-context lifetime regression evidence](shader-lifetime-acceptance.md) for the repeated-initialization fix and its memory-observation limits.
 
 The host capability report marks shaders `unvalidated`. Release-device throughput, energy use, high-pitch/horizon coverage, high-zoom precision, resolution-transition quality and full lifecycle stress remain open validation gates.
 
@@ -67,7 +69,7 @@ The host capability report marks shaders `unvalidated`. Release-device throughpu
 
 An unexpected `GPUDevice.lost` event stops output production, detaches the failed
 layer and tears down its textures, shared-memory imports, buffers, native atlas
-pool and device before requesting a replacement. Cleanup steps continue if one
+pool before obtaining a replacement device. The lost device is invalidated and cannot return to the idle pool. Cleanup steps continue if one
 throws; a failed cleanup prevents automatic replacement. Cleanup tolerates a rejected queue-completion promise on a lost device. Ordinary maps remain independent of the failed
 shader layer.
 
@@ -78,8 +80,7 @@ a resource-owning configuration starts a fresh lifetime. Uniform/pause changes d
 not reset this budget. Intentional destruction during disposal does not retry;
 ordinary shader validation, compilation, import and runtime errors also do not
 trigger this device-loss policy. Hiding/removing the layer or replacing its host
-cancels pending retry waits. No new public retry prop is added. Each replacement requests a new adapter and
-device, consistent with the [WebGPU device-loss model](https://gpuweb.github.io/gpuweb/explainer/).
+cancels pending retry waits. No new public retry prop is added. Replacement uses another healthy idle device when available; otherwise it requests a fresh adapter and device, consistent with the [WebGPU device-loss model](https://gpuweb.github.io/gpuweb/explainer/).
 
 `onError` reports each unexpected loss; `onReady` runs again after a replacement
 pipeline is initialized and attached. Readiness is not proof of a submitted frame.
