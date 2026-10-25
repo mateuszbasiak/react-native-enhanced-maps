@@ -9,6 +9,7 @@ export const scenarios = [
   'gradients',
   'shader',
   'webgpu',
+  'shader-lifecycle',
 ] as const;
 export type Scenario = (typeof scenarios)[number];
 export type Selection = Readonly<{ id: Scenario; generation: number }>;
@@ -34,6 +35,7 @@ type Options = {
   sleep: (ms: number) => Promise<void>;
 };
 const instrumented: readonly Scenario[] = [
+  'shader-lifecycle',
   'shapes',
   'settings',
   'runtime',
