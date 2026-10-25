@@ -4,6 +4,7 @@ import { AppState, NativeModules } from 'react-native';
 import type { GPUSharedTextureMemory } from 'react-native-webgpu';
 import type { Synchronizable } from 'react-native-worklets';
 import { ShaderMapContext } from './shaderContext';
+import { runShaderRecovery, releaseShaderResources } from './shaderRecovery';
 import {
   defaultShaderVertex,
   shaderPrelude,
@@ -69,8 +70,10 @@ export function ShaderLayer(props: ShaderLayerProps) {
     if (!host.ready || !visible) return;
     let stopped = false;
     let localControl: Synchronizable<ShaderControl> | undefined;
+    let cancelRetryWait: (() => void) | undefined;
     const stop = () => {
       stopped = true;
+      cancelRetryWait?.();
       localControl?.setBlocking((previous) => ({ ...previous, stopped: true }));
     };
     let active = AppState.currentState === 'active';
@@ -79,7 +82,18 @@ export function ShaderLayer(props: ShaderLayerProps) {
       localControl?.setBlocking((previous) => ({ ...previous, active }));
     });
     const run = async () => {
-      if (stopped) return;
+      if (stopped) return false;
+      let attemptStopped = false,
+        recover = false;
+      let clean: boolean;
+      let debugLoss: (() => void) | undefined;
+      const stopAttempt = () => {
+        attemptStopped = true;
+        localControl?.setBlocking((previous) => ({
+          ...previous,
+          stopped: true,
+        }));
+      };
       let pool: Pool | undefined,
         device: GPUDevice | undefined,
         attached = false;
@@ -102,7 +116,8 @@ export function ShaderLayer(props: ShaderLayerProps) {
         const { runShaderFrames } =
           require('./shaderWorklet') as typeof import('./shaderWorklet');
         /* eslint-enable @typescript-eslint/no-require-imports */
-        if (stopped) return;
+        if (stopped || attemptStopped)
+          throw new Error('Shader attempt stopped');
         const uniforms = latest.current.uniforms ?? [];
         if (
           typeof uniforms === 'function' &&
@@ -128,17 +143,33 @@ export function ShaderLayer(props: ShaderLayerProps) {
             'Software GPU requires explicit allowSoftwareAdapter diagnostics',
           );
         device = await adapter.requestDevice();
-        void device.lost.then((info) => {
-          if (info.reason !== 'destroyed' && !stopped) {
+        const lost = (info: Pick<GPUDeviceLostInfo, 'reason' | 'message'>) => {
+          if (info.reason !== 'destroyed' && !stopped && !attemptStopped) {
+            recover = true;
+            stopAttempt();
             report(new Error(`ShaderLayer device lost: ${info.message}`));
-            stop();
+          }
+        };
+        void device.lost.then(lost);
+        if (__DEV__) {
+          const target = globalThis as typeof globalThis & {
+            __enhancedMapsShaderRecovery?: Map<string, () => void>;
+          };
+          const registry = (target.__enhancedMapsShaderRecovery ??= new Map());
+          debugLoss = () => {
+            lost({ reason: 'unknown', message: 'Debug fault injection' });
+            device?.destroy();
+          };
+          registry.set(id, debugLoss);
+        }
+        device.addEventListener('uncapturederror', (event) => {
+          if (!stopped && !attemptStopped) {
+            stopAttempt();
+            report(new Error(event.error.message));
           }
         });
-        device.addEventListener('uncapturederror', (event) => {
-          report(new Error(event.error.message));
-          stop();
-        });
-        if (stopped) return;
+        if (stopped || attemptStopped)
+          throw new Error('Shader attempt stopped');
         pool = await bridge.create(1024);
         const native = (
           globalThis as unknown as {
@@ -283,7 +314,8 @@ export function ShaderLayer(props: ShaderLayerProps) {
             ],
           };
         }
-        if (stopped) return;
+        if (stopped || attemptStopped)
+          throw new Error('Shader attempt stopped');
         await host.request({
           action: 'attach',
           id,
@@ -292,7 +324,8 @@ export function ShaderLayer(props: ShaderLayerProps) {
           ...(beforeId ? { beforeId } : {}),
         });
         attached = true;
-        if (stopped) return;
+        if (stopped || attemptStopped)
+          throw new Error('Shader attempt stopped');
         const runtime = worklets.createWorkletRuntime({
           name: `ShaderLayer:${id}`,
           enableEventLoop: true,
@@ -329,42 +362,81 @@ export function ShaderLayer(props: ShaderLayerProps) {
           });
         });
       } catch (error) {
-        report(error);
+        if (!attemptStopped) report(error);
       } finally {
         if (controlRef.current === localControl) controlRef.current = null;
-        if (attached && pool) {
-          try {
-            await host.request({ action: 'remove', id, poolId: pool.id });
-          } catch {
-            /* Style disposal already detached the layer. */
-          }
+        if (__DEV__) {
+          const target = globalThis as typeof globalThis & {
+            __enhancedMapsShaderRecovery?: Map<string, () => void>;
+          };
+          const registry = target.__enhancedMapsShaderRecovery;
+          if (registry?.get(id) === debugLoss) registry?.delete(id);
+          if (registry?.size === 0) delete target.__enhancedMapsShaderRecovery;
         }
-        try {
-          await device?.queue.onSubmittedWorkDone();
-        } catch {
-          /* Device loss. */
-        }
-        for (const output of outputs) {
-          output.texture.destroy();
-          output.memory.destroy();
-        }
-        buffers.forEach((buffer) => buffer.destroy());
-        if (pool) {
-          try {
-            await (NativeModules.EMShaderLayer as Bridge).release(pool.id);
-          } catch (error) {
-            report(error);
-          }
-        }
-        device?.destroy();
-      }
-    };
-    serial.current = serial.current.then(run).catch((error) => {
-      if (!stopped)
-        latest.current.onError?.(
-          error instanceof Error ? error : new Error(String(error)),
+        clean = await releaseShaderResources(
+          [
+            async () => {
+              if (attached && pool) {
+                try {
+                  await host.request({ action: 'remove', id, poolId: pool.id });
+                } catch (error) {
+                  if (!stopped) throw error;
+                }
+              }
+            },
+            async () => {
+              try {
+                await device?.queue.onSubmittedWorkDone();
+              } catch {
+                /* Lost devices reject queue completion. */
+              }
+            },
+            ...outputs.flatMap((output) => [
+              () => output.texture.destroy(),
+              () => output.memory.destroy(),
+            ]),
+            ...buffers.map((buffer) => () => buffer.destroy()),
+            async () => {
+              if (pool)
+                await (NativeModules.EMShaderLayer as Bridge).release(pool.id);
+            },
+            () => device?.destroy(),
+          ],
+          report,
         );
-    });
+        localControl = undefined;
+      }
+      return recover && clean;
+    };
+    serial.current = serial.current
+      .then(() =>
+        runShaderRecovery({
+          run,
+          stopped: () => stopped,
+          wait: (milliseconds) =>
+            new Promise<void>((resolve) => {
+              const finish = () => {
+                clearTimeout(timer);
+                cancelRetryWait = undefined;
+                resolve();
+              };
+              const timer = setTimeout(finish, milliseconds);
+              cancelRetryWait = finish;
+            }),
+          exhausted: () =>
+            latest.current.onError?.(
+              new Error(
+                'ShaderLayer device recovery exhausted; change configuration or remount to retry',
+              ),
+            ),
+        }),
+      )
+      .catch((error) => {
+        if (!stopped)
+          latest.current.onError?.(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+      });
     return () => {
       stop();
       subscription.remove();
