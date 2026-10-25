@@ -457,9 +457,16 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
                 val beforeID=request.getString("beforeId");require(beforeID!=id)
                 style.getLayer(beforeID) ?: throw IllegalArgumentException("beforeId layer is missing")
               } else if(request.optString("placement")=="above-labels")null else style.layers.firstOrNull { it is SymbolLayer }
-              val weakMap=java.lang.ref.WeakReference(nativeMap)
+              val weakOwner=java.lang.ref.WeakReference(this)
+              val repaintRevision=revision
               val layer=CustomLayer(id,SharedOutputNative.host(pool,Runnable {
-                com.facebook.react.bridge.UiThreadUtil.runOnUiThread { weakMap.get()?.triggerRepaint() }
+                com.facebook.react.bridge.UiThreadUtil.runOnUiThread {
+                  val owner=weakOwner.get()
+                  // A queued GPU callback can outlive its layer, style or native map.
+                  if(owner!=null && !owner.disposed && owner.styleRevision==repaintRevision && owner.readyStyleRevision==repaintRevision && owner.shaderLayerOwners[id]==pool) {
+                    owner.map?.triggerRepaint()
+                  }
+                }
               }))
               if(shaderLayerOwners[id]==pool)style.removeLayer(id)
               if(before==null)style.addLayer(layer) else style.addLayerBelow(layer,before.id)
