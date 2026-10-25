@@ -26,7 +26,7 @@ import { MapView, Marker } from 'react-native-enhanced-maps';
 
 Use ordinary React Native children and input handlers inside `Marker`. Higher
 `zIndex` wins; equal values use marker creation order. `Polyline`, `Polygon` and
-`Circle` compile to private MapLibre sources and layers. See the example for usage.
+`Circle` compile to private MapLibre sources and layers. See the [public API reference](docs/api.md) for props, refs and event contracts.
 
 Android links MapLibre Native OpenGL 13.6.1 directly. iOS links MapLibre 6.31.0 via
 Swift Package Manager alongside React Native Pods. In the consumer Podfile require
@@ -37,17 +37,17 @@ Minimum iOS 16 and Android 24. Rebuild after native setup.
 
 No Google/Apple map provider adapters, API keys, patched dependencies or React
 Native MapLibre wrapper are used. A style URL and suitable tile hosting are required.
-Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute state and uniforms. World-anchored tile output is submitted on a dedicated worklet runtime. See [contract and limits](../../docs/shader-layer.md). TypeGPU may later be an optional typed authoring tool.
+Experimental `ShaderLayer` accepts WGSL programs, optional layer-wide compute state and uniforms. World-anchored tile output is submitted on a dedicated worklet runtime. See [contract and limits](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md). TypeGPU may later be an optional typed authoring tool.
 
-Shape props and compatibility limits: [shape components](../../docs/shapes.md).
+Shape props and compatibility limits: [shape components](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shapes.md).
 
 Use `ref.getCapabilities()` or `onCapabilitiesChange` to read the current native
-feature evidence states. See [capability reports](../../docs/capabilities.md).
+feature evidence states. See [capability reports](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/capabilities.md).
 
-Camera idle events expose [native movement provenance](../../docs/camera-origins.md).
+Camera idle events expose [native movement provenance](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/camera-origins.md).
 
 Map refs provide asynchronous projection, visible bounds, `fitCoordinates` and
-`fitElements`. See [map geometry and fitting](../../docs/map-geometry.md) for input
+`fitElements`. See [map geometry and fitting](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/map-geometry.md) for input
 limits, padding, acceptance semantics and prototype constraints.
 
 Set `cluster` on participating `Marker` children. Nonparticipating markers remain
@@ -68,12 +68,49 @@ Obsolete cluster operations reject after index, style or map replacement.
 </Marker>
 ```
 
-The current input limit is 10,000 clustered markers. End-to-end component acceptance,
-spatial parity and physical-device performance remain open. Source-oriented query
+The current input limit is 10,000 clustered markers. Component acceptance covers 1k/10k membership and updates on both simulators.
+Broader spatial parity remains open; physical-device performance checks are
+maintainer-owned deferred follow-up. Source-oriented query
 APIs in older documents describe internal or historical infrastructure.
 
 Import experimental `ShaderLayer` separately from
 `react-native-enhanced-maps/shaders`. Its optional peers are
 `react-native-webgpu@0.17.x` and `react-native-worklets@0.12.2`; configure the
 Worklets Babel plugin as in the example and rebuild native projects. Core-only
-consumers do not need these peers. See [ShaderLayer](../../docs/shader-layer.md).
+consumers do not need these peers. See [ShaderLayer](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md).
+
+## Installation status
+
+This package remains private and UNLICENSED. Use a locally packed tarball for the
+supported baseline: React Native 0.85.3 / React 19.2.3, New Architecture only.
+Do not treat the package name as a published npm release. Start with the
+[packed-consumer instructions](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/native-consumers.md),
+including the documented npm optional-peer resolver override. Those instructions
+record actual core-only Debug/Release builds and Release simulator startup.
+
+Android uses ordinary React Native autolinking; minimum API 24. For iOS, add the
+installed package's SPM hook to the existing Podfile and preserve the ordinary
+React Native setup. Resolve the package entry and then its adjacent hook:
+
+```ruby
+maps_entry = Pod::Executable.execute_command('node', ['-p',
+  'require.resolve("react-native-enhanced-maps", {paths: [process.argv[1]]})',
+  __dir__]).strip
+require File.expand_path('../maplibre-spm', File.dirname(maps_entry))
+
+# Inside the existing target's post_install block:
+# EnhancedMaps.post_install(installer)
+# react_native_post_install(installer, config[:reactNativePath], ...)
+```
+
+The published entry path is `lib/index.js`, so the hook resolves at the package
+root. Call `EnhancedMaps.post_install(installer)` before the existing
+`react_native_post_install`, run `pod install`, and rebuild. Minimum iOS is 16.
+The integration pins the MapLibre SPM binary; do not add another wrapper's Pods or
+SPM hook. Expo config-plugin/build support remains unimplemented; Expo Go cannot
+load this custom native package.
+
+The README and [API reference](docs/api.md) are included in the tarball. Detailed
+repository documentation uses absolute links so it remains reachable from an
+installed package. Physical-device checks do not block feature completion, but
+unmeasured devices and broader compatibility are not claimed as passing.
