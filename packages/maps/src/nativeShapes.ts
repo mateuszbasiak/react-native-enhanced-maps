@@ -65,17 +65,16 @@ export function nativeShapes(
       visible: item.visible,
       interactive: item.tappable,
     };
-    const slot = sources.findIndex((source) => source.id === item.id);
     if (item.type === 'polygon')
       layers.push({
         ...common,
-        id: `fill:${slot}`,
+        id: `fill:${item.id}`,
         type: 'fill',
         style: { fillColor: item.fillColor, fillOpacity: item.opacity },
       });
     layers.push({
       ...common,
-      id: `stroke:${slot}`,
+      id: `stroke:${item.id}`,
       type: 'line',
       style: {
         lineColor: item.strokeColor,
