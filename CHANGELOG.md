@@ -22,6 +22,9 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Camera fit requests reject sparse coordinate arrays before they serialize into
+  invalid native point payloads.
+
 - Shader reinitialization reuses a bundle rendering worker and exclusive idle GPU
   devices, avoiding repeated native-context allocation. Device error dispatchers
   release layer callbacks without retaining invalidated devices.
