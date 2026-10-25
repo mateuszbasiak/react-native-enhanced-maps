@@ -9,6 +9,7 @@
 #import "NativeClusterQueries.h"
 #import "MarkerClusterLayout.h"
 #import "PolygonHitTest.h"
+#import "LineGradient.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
@@ -326,6 +327,8 @@ static UIColor *EMColor(id value) {
   MLNStyle *style=_map.style;
   std::vector<enhancedmaps::RevisionedSource> revisions;
   NSMutableArray<MLNShapeSource *> *parsedSources=[NSMutableArray new];
+  NSMutableSet<NSString *> *metricSources=[NSMutableSet new];
+  NSMutableDictionary<NSString *,NSExpression *> *gradients=[NSMutableDictionary new];
   @try {
     // Validate all source versions and parse geometry before removing the accepted scene.
     for(NSDictionary *entry in scene[@"sources"]) {
@@ -337,6 +340,7 @@ static UIColor *EMColor(id value) {
       if(![identifier isKindOfClass:NSString.class]) { [self emitSceneError:@"Invalid source ID"];return NO; }
       NSDictionary *options=EMClusterOptions(entry);
       std::string identity((const char *)data.bytes,data.length);
+      if([entry[@"lineMetrics"] boolValue]) { identity+="\nlineMetrics:true";[metricSources addObject:identifier]; }
       if(entry[@"cluster"]) {
         NSData *configuration=[NSJSONSerialization dataWithJSONObject:entry[@"cluster"] options:NSJSONWritingSortedKeys error:&error];
         if(!configuration)@throw [NSException exceptionWithName:@"Cluster" reason:@"Invalid cluster options" userInfo:nil];
@@ -349,6 +353,7 @@ static UIColor *EMColor(id value) {
       [parsedSources addObject:[[MLNShapeSource alloc] initWithIdentifier:identifier shape:shape options:options]];
     }
     for(NSDictionary *entry in scene[@"layers"])if(entry[@"clusterFilter"] && ![@[@"clusters",@"points"] containsObject:entry[@"clusterFilter"]])@throw [NSException exceptionWithName:@"Cluster" reason:@"Invalid cluster filter" userInfo:nil];
+    for(NSDictionary *entry in scene[@"layers"]) { NSExpression *gradient=EMLineGradientExpression(entry,metricSources);if(gradient)gradients[entry[@"id"]]=gradient; }
     try { _sourceRevisions.validate(revisions); }
     catch(const std::exception &exception) { [self emitSceneError:@(exception.what())];return NO; }
     EMClusterQueryRequire(_clusterIndexRevision<9007199254740991ULL,@"Cluster index revisions exhausted");
@@ -361,7 +366,7 @@ static UIColor *EMColor(id value) {
       MLNSource *source=[style sourceWithIdentifier:entry[@"source"]]; if(!source){[self emitSceneError:@"Layer source does not exist"];return NO;}
       MLNStyleLayer *layer=nil; NSString *type=entry[@"type"]; NSDictionary *s=entry[@"style"]?:@{};
       if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
-      else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
+      else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(gradients[entry[@"id"]])l.lineGradient=gradients[entry[@"id"]]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
       else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }
       if(!layer)continue;
       if(entry[@"clusterFilter"] && [layer isKindOfClass:MLNVectorStyleLayer.class])((MLNVectorStyleLayer *)layer).predicate=[entry[@"clusterFilter"] isEqual:@"clusters"]?[NSPredicate predicateWithFormat:@"cluster == YES"]:[NSPredicate predicateWithFormat:@"cluster != YES"];

@@ -5,7 +5,11 @@ type Polygon = { readonly coordinates: Path; readonly holes: readonly Path[] };
 const radians = Math.PI / 180;
 const maxStep = 0.25 * radians;
 const maxLatitude = 85 * radians;
-const paths = new WeakMap<Path, Path>();
+type GeodesicPath = {
+  readonly coordinates: Path;
+  readonly vertexIndices: readonly number[];
+};
+const paths = new WeakMap<Path, GeodesicPath>();
 const polygons = new WeakMap<Path, WeakMap<readonly Path[], Polygon>>();
 const vector = (p: Coordinate): readonly [number, number, number] => {
   const lat = p.latitude * radians,
@@ -21,10 +25,11 @@ const unwrap = (longitude: number, previous: number): number =>
 const latitude = (z: number): number => Math.asin(Math.max(-1, Math.min(1, z)));
 
 /** Input is already validated, immutable component geometry. No camera-dependent work. */
-export function geodesicPath(input: Path): Path {
+export function geodesicPathInfo(input: Path): GeodesicPath {
   const cached = paths.get(input);
   if (cached) return cached;
   const output: Coordinate[] = [input[0]!];
+  const vertexIndices = [0];
   for (let i = 1; i < input.length; i++) {
     const start = input[i - 1]!,
       end = input[i]!;
@@ -80,9 +85,14 @@ export function geodesicPath(input: Path): Path {
       latitude: end.latitude,
       longitude: unwrap(end.longitude, output.at(-1)!.longitude),
     });
+    vertexIndices.push(output.length - 1);
   }
-  paths.set(input, output);
-  return output;
+  const result = { coordinates: output, vertexIndices };
+  paths.set(input, result);
+  return result;
+}
+export function geodesicPath(input: Path): Path {
+  return geodesicPathInfo(input).coordinates;
 }
 function closedPath(input: Path): Path {
   const path = geodesicPath(input);

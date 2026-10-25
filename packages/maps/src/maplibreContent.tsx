@@ -61,6 +61,7 @@ export function compileScene(children: ReactNode) {
       id: string;
       data: GeoJSONData;
       revision?: number;
+      lineMetrics?: boolean;
       cluster?: Readonly<Required<ClusterOptions>>;
     }[] = [],
     layers: Record<string, unknown>[] = [],
@@ -188,7 +189,12 @@ export function compileScene(children: ReactNode) {
         );
     });
     const scene = nativeShapes(content, { sources: [], layers: [] });
-    for (const s of scene.sources) sources.push({ id: s.id, data: s.data });
+    for (const s of scene.sources)
+      sources.push({
+        id: s.id,
+        data: s.data,
+        ...(s.lineMetrics ? { lineMetrics: true } : {}),
+      });
     layers.push(...scene.layers);
   }
   const sourceIds = new Set<string>(),
