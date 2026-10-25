@@ -94,7 +94,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 
 - [ ] **ARCH-08** — Consistent recoverable/fatal errors across map, source, command and GPU failures.
 - [ ] **PERF-06–07, PERF-10** — At least 100 lifecycle cycles, memory drift/resource bounds, large-content update/cancellation cost, poor-network/offline behavior, memory pressure and GPU failure resilience.
-- [ ] **PERF-08** — Core versus GPU npm/app binary sizes and clean/incremental build cost.
+- [ ] **PERF-08** — [Repeatable consumer footprint tooling](docs/consumer-footprint.md) measures the maps tarball, installed dependency payload and comparable core/core-plus-shader production JS bundles. Complete native app binary sizes and clean/incremental build cost; npm file payload is not native binary overhead.
 - [x] **TEST-03, TEST-10** — Remote main and PR package CI jobs, 128 passing tests, Codegen, packed declarations, both production bundles and uploaded artifacts are verified for the [recorded commits/runs](docs/remote-ci-acceptance.md). Later revisions need fresh CI results. Native CI builds were intentionally removed in PR #13; native build/runtime acceptance remains separate.
 - [ ] **TEST-05–09, TEST-11** — Debug selection/readiness collection and provenance records are implemented. Complete consolidated semantic assertions, pass/fail results, controlled visual baselines, alignment and trace capture. [Session contract](docs/scenario-sessions.md). Unavailable devices must not count as passes.
 - [ ] **TEST-12** — Verify Release consumers omit development diagnostic interfaces and sensitive data by default.
