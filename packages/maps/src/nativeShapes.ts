@@ -50,10 +50,16 @@ export function nativeShapes(
     .map((item) => {
       const data = dataFor(item);
       const old = previous.sources.find((source) => source.id === item.id);
+      const lineMetrics =
+        item.type === 'polyline' && item.strokeGradient !== undefined;
       return {
         id: item.id,
         type: 'geojson' as const,
-        revision: old ? old.revision + (old.data === data ? 0 : 1) : 0,
+        ...(lineMetrics ? { lineMetrics: true } : {}),
+        revision: old
+          ? old.revision +
+            (old.data === data && !!old.lineMetrics === lineMetrics ? 0 : 1)
+          : 0,
         data,
       };
     })
@@ -78,6 +84,9 @@ export function nativeShapes(
       type: 'line',
       style: {
         lineColor: item.strokeColor,
+        ...(item.type === 'polyline' && item.strokeGradient
+          ? { lineGradient: item.strokeGradient }
+          : {}),
         lineWidth: item.strokeWidth,
         lineOpacity: item.opacity,
         lineCap: item.lineCap,
@@ -100,6 +109,7 @@ export function nativeShapes(
       return (
         old.id === source.id &&
         old.revision === source.revision &&
+        old.lineMetrics === source.lineMetrics &&
         old.data === source.data
       );
     })

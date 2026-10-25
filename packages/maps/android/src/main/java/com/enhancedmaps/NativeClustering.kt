@@ -12,6 +12,13 @@ internal object NativeClustering {
     val raw=source.getJSONObject("data")
     val options=GeoJsonOptions().withSynchronousUpdate(true)
     var identity=raw.toString()
+    if(source.has("lineMetrics")) {
+      val metrics=source.get("lineMetrics")
+      require(metrics is Boolean) { "Line metrics must be boolean" }
+      require(!metrics || !source.has("cluster")) { "Line metrics cannot use clustering" }
+      options.withLineMetrics(metrics)
+      if(metrics)identity+="\nlineMetrics:true"
+    }
     if(source.has("cluster")) {
       val cluster=source.getJSONObject("cluster")
       require(cluster.keys().asSequence().toSet()==setOf("radius","maxZoom","minPoints")) { "Invalid cluster options" }

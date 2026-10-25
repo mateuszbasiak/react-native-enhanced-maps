@@ -76,7 +76,12 @@ dragging and callout APIs are not implemented.
 `fillColor`. `Circle` takes `center`, `radius` in meters and fill/stroke props.
 All accept optional `id`, `zIndex`, `visible`, `opacity`, `tappable`, `onPress`,
 `strokeColor`, `strokeWidth`, `lineCap`, `lineJoin`, `miterLimit` and
-`lineDashPattern`. Use immutable geometry arrays and explicit IDs in changing lists.
+`lineDashPattern`. Polyline additionally accepts `strokeColors`, one color string
+per original coordinate; these override `strokeColor` and interpolate along native
+Mercator line distance. Gradient plus dash pattern rejects. Polygon/Circle do not
+accept `strokeColors`. Polyline/Polygon accept opt-in `geodesic` great-circle edges,
+including polygon holes. Use immutable geometry/color arrays and explicit IDs in
+changing lists.
 
 The collection supports 64 shapes and 10000 total points, including generated
 circle vertices. Coordinates are within ±85° latitude / ±180° longitude. Circle

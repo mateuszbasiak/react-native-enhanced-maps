@@ -1,5 +1,6 @@
 import { Children, Fragment, isValidElement } from 'react';
 import type { ReactNode } from 'react';
+import type { GradientStops } from './polylineGradient';
 
 export type GeoJSONPosition = readonly [longitude: number, latitude: number];
 export type GeoJSONGeometry =
@@ -41,6 +42,7 @@ export interface GeoJSONSourceProps {
   readonly children?: ReactNode;
 }
 export interface LineStyle {
+  readonly lineGradient?: GradientStops;
   readonly lineCap?: 'butt' | 'round' | 'square';
   readonly lineJoin?: 'miter' | 'round' | 'bevel';
   readonly lineMiterLimit?: number;
@@ -78,6 +80,7 @@ export function FillLayer(_props: FillLayerProps): ReactNode {
   throw new Error('FillLayer must be inside MapView or GeoJSONSource');
 }
 export interface SourceDefinition {
+  readonly lineMetrics?: boolean;
   readonly id: string;
   readonly type: 'geojson';
   readonly revision: number;

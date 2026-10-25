@@ -141,3 +141,45 @@ this is not recorded as a passing hole-picking check. The [native hole-picking f
 and preserves lower-layer/background fall-through. Broader geometry and picking
 fixtures remain under SHAPE-02/PICK-02–03. Physical-device testing remains
 maintainer-owned follow-up.
+
+## Polyline gradient strokes
+
+`Polyline.strokeColors` accepts one React Native color string for each original
+input coordinate and overrides `strokeColor` while present. It is not available
+on Polygon or Circle. Keep both coordinate and color arrays immutable. Colors
+interpolate linearly along native Mercator line distance; intermediate stops land
+at the original vertices, including when `geodesic` adds arc samples. This is not
+interpolation by vertex index or spherical travel time.
+
+Adjacent coincident vertices share a stop and the last color wins. A completely
+zero-length route stays invisible and uses finite, constant-color stops. Changing
+only colors retains geometry. Enabling or removing the gradient changes the
+source's line-distance-metrics option. Existing point, shape and transport budgets
+still apply; generated geodesic vertices count toward the point budget.
+
+A gradient combined with `lineDashPattern` rejects before native transport because
+MapLibre disables line gradients for dashed lines. Separate uniform dashed lines
+remain supported. Dash phase remains a separate compatibility decision under
+SHAPE-03. No arbitrary expression or source API is added.
+
+The Debug example's “Open gradients” screen provides palette changes, solid/gradient
+toggles, geodesic geometry, a separate dashed reference, presses and map remounting.
+Its bounded `__enhancedMapsGradient` helper exposes configuration, status and public
+projection queries for geographic press targets and is removed on disposal.
+
+## Gradient verification, 2026-10-25
+
+Eight contracts cover normalized distance stops, geodesic vertex alignment,
+coincident and zero-length paths, source/geometry reuse, gradient removal,
+unsupported combinations and the final MapView transport. The transport test first
+reproduced a dropped line-metrics flag, which is now preserved. Full local CI
+passes 114 tests, strict types, lint/format, Codegen, packed-package checks and both
+production bundles.
+
+New native Debug builds pass on iPhone 17 Pro / iOS 26.1 and Pixel 9a ARM64 /
+Android API 36. Both render the red/lime/blue and yellow/magenta/cyan palettes,
+solid fallback, geodesic updates and restored gradients after remount. Geographic
+presses select `gradient-route` before and after the geodesic update on both.
+A separate dashed reference remains visible in the flat fixture. iOS initially
+rejected hex-string expression casts; native UIColor interpolation stops fix that
+SDK bridge behavior. Physical-device testing remains maintainer-owned follow-up.
