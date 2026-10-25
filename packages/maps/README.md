@@ -50,12 +50,24 @@ Map refs provide asynchronous projection, visible bounds, `fitCoordinates` and
 `fitElements`. See [map geometry and fitting](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/map-geometry.md) for input
 limits, padding, acceptance semantics and prototype constraints.
 
-Set `cluster` on participating `Marker` children. Nonparticipating markers remain
+Set `cluster` or `clusterGroup` on participating `Marker` children. Nonparticipating markers remain
 independent. `MapView.clusterComponent` optionally supplies custom React cluster
 contents; the default count bubble expands on press. Custom components receive
-`count`, `coordinate`, lazy `getMembers()` and `expand()`. Membership includes
+`count`, `coordinate`, `clusterGroup`, lazy `getMembers()` and `expand()`. Membership includes
 marker IDs, coordinates and application-owned `Marker.data`; metadata stays in JS.
 Obsolete cluster operations reject after index, style or map replacement.
+
+Use `clusterGroup="boats"` to restrict clustering to opted-in markers with exactly
+that group name. Different groups never merge, even at identical coordinates;
+proximity and zoom still determine clusters within a group. Omission uses the
+shared default group when `cluster={true}`. A group enables clustering by default;
+explicit `cluster={false}` overrides it. Omitting both props keeps a marker
+independent. Group names must be nonblank strings of at
+most 512 characters. Custom cluster components receive the group's name, or
+undefined for the default group. Each group consumes one source and one layer
+within the map's shared 64-source/128-layer scene limits. The total clustered
+marker limit remains 10000. Different groups may overlap visually. Changing a
+group invalidates existing cluster operations.
 
 ```tsx
 <Marker
