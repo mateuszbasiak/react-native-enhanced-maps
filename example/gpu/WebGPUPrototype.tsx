@@ -1,5 +1,5 @@
 import ExampleControls from '../ExampleControls';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, TextInput, View, NativeModules } from 'react-native';
 import { MapView, Marker } from 'react-native-enhanced-maps';
 import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
@@ -29,6 +29,40 @@ export default function WebGPUPrototype() {
   const [source, setSource] = useState(shaderSource);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('Waiting for ShaderLayer');
+  const evidence = useRef({ readyCount: 0, errors: [] as string[] });
+  const report = (error: { message: string }) => {
+    evidence.current.errors.push(error.message);
+    if (evidence.current.errors.length > 40) evidence.current.errors.shift();
+    setStatus(error.message);
+  };
+  useEffect(() => {
+    if (!__DEV__) return;
+    const target = globalThis as typeof globalThis & {
+      __enhancedMapsShaderRecovery?: Map<string, () => void>;
+      __enhancedMapsWebGPU?: unknown;
+    };
+    const api = {
+      snapshot: () => ({
+        ...evidence.current,
+        errors: [...evidence.current.errors],
+        diagnostics: NativeModules.EMShaderLayer?.diagnostics?.(),
+      }),
+      lose: () => {
+        const inject =
+          target.__enhancedMapsShaderRecovery?.get('animated-water');
+        if (!inject) throw new Error('Shader device is not available');
+        inject();
+      },
+      software: setAllowSoftwareAdapter,
+      visible: setVisible,
+      remount: () => setGeneration((value) => value + 1),
+    };
+    target.__enhancedMapsWebGPU = api;
+    return () => {
+      if (target.__enhancedMapsWebGPU === api)
+        delete target.__enhancedMapsWebGPU;
+    };
+  }, []);
   const tint = amber ? [1, 0.45, 0.03, 0.85] : [0.04, 0.48, 0.95, 0.85];
   return (
     <View style={{ flex: 1 }}>
@@ -110,6 +144,20 @@ export default function WebGPUPrototype() {
           title={wind ? 'Procedural waves' : 'Wind particles'}
           onPress={() => setWind((v) => !v)}
         />
+        {__DEV__ && (
+          <Button
+            title="Simulate device loss"
+            onPress={() => {
+              const target = globalThis as typeof globalThis & {
+                __enhancedMapsShaderRecovery?: Map<string, () => void>;
+              };
+              const inject =
+                target.__enhancedMapsShaderRecovery?.get('animated-water');
+              if (inject) inject();
+              else setStatus('Shader device is not available');
+            }}
+          />
+        )}
         <Button
           title="Block JS 3s"
           onPress={() => {
@@ -179,7 +227,7 @@ export default function WebGPUPrototype() {
         style={{ flex: 1 }}
         styleURL={`https://tiles.openfreemap.org/styles/${alternateStyle ? 'bright' : 'liberty'}`}
         initialCamera={{ center, zoom: 12, heading: 0, pitch: 0 }}
-        onError={(error) => setStatus(error.message)}
+        onError={report}
       >
         <ShaderLayer
           id="animated-water"
@@ -207,8 +255,11 @@ export default function WebGPUPrototype() {
           visible={visible}
           uniforms={[effect, 0, 0, 0, ...tint]}
           allowSoftwareAdapter={allowSoftwareAdapter}
-          onReady={() => setStatus('ShaderLayer ready')}
-          onError={(error) => setStatus(error.message)}
+          onReady={() => {
+            evidence.current.readyCount++;
+            setStatus('ShaderLayer ready');
+          }}
+          onError={report}
         />
         {second && (
           <ShaderLayer
@@ -216,7 +267,7 @@ export default function WebGPUPrototype() {
             shaders={{ fragment: shaderSource }}
             uniforms={[1, 0, 0, 0, 1, 0.1, 0.3, 0.85]}
             allowSoftwareAdapter={allowSoftwareAdapter}
-            onError={(error) => setStatus(error.message)}
+            onError={report}
           />
         )}
         <Marker id="webgpu-anchor" coordinate={center}>

@@ -59,6 +59,65 @@ Simulation survives camera/tile changes and ordinary uniforms/pause updates. Sha
 
 `beforeId` inserts immediately beneath an existing style layer and takes precedence over `placement`. Missing target IDs and duplicate layer IDs report errors. `placement` defaults to `below-labels`; `above-labels` inserts at the style top. Native iOS annotation markers remain above the map. Arbitrary ordering relative to every React marker is not guaranteed.
 
-`visible={false}` releases resources. Backgrounding skips output production and freezes time until active again. `onReady` currently indicates pipeline initialization and native attachment; `onError` reports compilation, runtime, native import or device-loss errors. A failed layer is detached without making the ordinary map unavailable. Correcting shader/configuration props retries initialization; automatic device-loss recovery is not implemented. `allowSoftwareAdapter` is an explicit diagnostic opt-in, never hardware performance acceptance.
+`visible={false}` releases resources. Backgrounding skips output production and freezes time until active again. `onReady` currently indicates pipeline initialization and native attachment; `onError` reports compilation, runtime, native import or device-loss errors. A failed layer is detached without making the ordinary map unavailable. Correcting shader/configuration props retries initialization. Unexpected device loss now uses bounded automatic recovery, described below. `allowSoftwareAdapter` is an explicit diagnostic opt-in, never hardware performance acceptance.
 
 The host capability report marks shaders `unvalidated`. Release-device throughput, energy use, high-pitch/horizon coverage, high-zoom precision, resolution-transition quality and full lifecycle stress remain open validation gates.
+
+## Bounded device-loss recovery
+
+An unexpected `GPUDevice.lost` event stops output production, detaches the failed
+layer and tears down its textures, shared-memory imports, buffers, native atlas
+pool and device before requesting a replacement. Cleanup steps continue if one
+throws; a failed cleanup prevents automatic replacement. Cleanup tolerates a rejected queue-completion promise on a lost device. Ordinary maps remain independent of the failed
+shader layer.
+
+One shader/configuration effect lifetime permits the initial attempt plus two
+automatic replacements, separated by 100ms and 500ms retry waits. A third loss
+reports recovery exhaustion and leaves the layer detached. Remounting or changing
+a resource-owning configuration starts a fresh lifetime. Uniform/pause changes do
+not reset this budget. Intentional destruction during disposal does not retry;
+ordinary shader validation, compilation, import and runtime errors also do not
+trigger this device-loss policy. Hiding/removing the layer or replacing its host
+cancels pending retry waits. No new public retry prop is added. Each replacement requests a new adapter and
+device, consistent with the [WebGPU device-loss model](https://gpuweb.github.io/gpuweb/explainer/).
+
+`onError` reports each unexpected loss; `onReady` runs again after a replacement
+pipeline is initialized and attached. Readiness is not proof of a submitted frame.
+The old GPU state cannot be retained after device loss: simulation storage is
+reinitialized from `initialData`, and simulation time restarts at zero. Current
+uniforms, paused state and application activity are applied to the new attempt.
+
+The Debug WebGPU fixture has a “Simulate device loss” control and bounded
+`__enhancedMapsWebGPU` snapshot/control interface. Its `lose()` calls the same loss
+handler and intentionally destroys the device. This verifies the package's
+teardown/reinitialization path; it does not reproduce an actual driver failure or
+establish physical-device robustness. The underlying per-layer injection registry
+and fixture interface are absent from production bundles. Android software
+adapters still require explicit diagnostic opt-in and do not establish hardware
+performance or acceptance.
+
+### Recovery verification, 2026-10-25
+
+Five contracts cover bounded retry counts/waits, disposal before/during a retry,
+complete cleanup despite errors or throwing application callbacks, cleanup-before-
+replacement ordering, and suppression of recovery after failed cleanup. Full local
+CI passes 128 tests, strict types, lint/format, Codegen, packed-package checks and
+both production bundles with Debug helpers excluded. Independent review found no
+actionable correctness issues.
+
+Source `5853422` used compatible existing native Debug binaries from `9076f0c` on
+iPhone 17 Pro/iOS 26.1 and Pixel 9a ARM64/API 36. Android first rejected its
+software adapter as expected, then used explicit diagnostic opt-in. Each host
+completed the same nine recorded checkpoints: exhausted with zero pools; remount
+with one pool; first and second replacements with one pool; exhausted again with
+zero pools; another remount; hidden during recovery with zero pools and no new
+ready callback after a one-second observation; shown with one pool; final disposal
+with zero pools and no injection registry. Native produced and sampled counters
+were positive after each initialized/recovered checkpoint. Ready counts progressed
+3→4→5→6, stayed 6 on exhaustion, then 7, stayed 7 while hidden, and reached 8 when
+shown. Those counts are fixture callbacks, not frame-time measurements.
+
+These are deliberate fault-injection and pool-lifetime checks, not actual GPU
+driver-loss, full memory accounting, performance or physical-device acceptance.
+Broader initialization, shader-edit, background, style, multiple-layer and lifetime
+stress coverage remains open under GPU-12.

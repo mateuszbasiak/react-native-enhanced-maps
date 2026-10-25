@@ -39,6 +39,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and subsequent hole-picking fix](docs/shapes.md).
 - [x] Polyline gradient strokes — Per-original-vertex colors interpolate along native line distance, including geodesic subdivision. Contracts and both Debug simulators verify updates, solid fallback, remounts and presses. Gradient/dash combinations reject explicitly. [Contract and results](docs/shapes.md).
 - [x] Debug scenario sessions — Single-scenario selection, committed-generation readiness, bounded immutable records, explicit timeout/cancel/failure/skip and provenance fields. Broader semantic/visual/trace automation remains below. [Contract](docs/scenario-sessions.md).
+- [x] Bounded shader device recovery — Unexpected loss gets at most two serial replacements after cleanup; disposal cancels retries. Contracts and both Debug simulators verify injected recovery/exhaustion, produced/sampled output and zero final pools. [Policy and bounded results](docs/shader-layer.md).
 
 ## Map lifetime, camera and gestures
 
@@ -85,7 +86,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and atlas resolution transitions. Planar Mercator/polar limits must remain explicit.
 - [ ] **GPU-09** — Stabilize the experimental WGSL/input/resource contract. Decide schema-typed authoring and streamed texture requirements separately from current packed uniforms/storage.
 - [ ] **GPU-10–11** — Evaluate native-fence handoff beyond current GPU-queue completion waits as a separate optimization. Physical-device scheduling, frame-age, backpressure, allocation and energy measurements are maintainer-owned deferred follow-up.
-- [ ] **GPU-12** — Stress initialization interruption, failed shader edits, pause/background/resume, style replacement, multiple maps/layers and idempotent disposal. Automatic device-loss recovery remains unimplemented.
+- [ ] **GPU-12** — Stress initialization interruption, failed shader edits, pause/background/resume, style replacement, multiple maps/layers and idempotent disposal. Bounded automatic device-loss recovery is implemented; complete the remaining lifecycle/resource stress matrix.
 - [ ] **GPU-13–14** — Validate capability/error degradation and composition limits, including label placement, controls/attribution and native marker ordering. Capability reports currently mark shaders unvalidated.
 - [ ] **PICK-04** — Decide GPU picking and ordering relative to ordinary content; supply interaction alternatives for visual-only effects.
 
