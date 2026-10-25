@@ -44,6 +44,8 @@ for (const directory of ['maps']) {
     for (const required of [
       'EnhancedMaps.podspec',
       'react-native.config.cjs',
+      'app.plugin.cjs',
+      'plugin/podfile.cjs',
       'ios/EMMapLibreView.mm',
       'ios/EMMarkerView.mm',
       'maplibre-spm.rb',

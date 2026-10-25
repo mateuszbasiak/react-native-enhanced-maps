@@ -66,3 +66,5 @@ Experimental world shader layers (`react-native-enhanced-maps/shaders`): [Shader
 Development changes are tracked in [CHANGELOG.md](CHANGELOG.md). See
 [contributing](CONTRIBUTING.md), [private security reporting](SECURITY.md) and
 [prerelease policy](docs/release-policy.md).
+
+Expo custom builds: [config plugin and isolated consumer](docs/expo.md).

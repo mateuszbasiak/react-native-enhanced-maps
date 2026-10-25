@@ -17,7 +17,8 @@
       "types": "./lib/shaders.d.ts",
       "react-native": "./src/shaders.ts",
       "default": "./lib/shaders.js"
-    }
+    },
+    "./app.plugin": "./app.plugin.cjs"
   },
   "files": [
     "lib",
@@ -30,7 +31,9 @@
     "*.podspec",
     "react-native.config.cjs",
     "*.rb",
-    "cpp"
+    "cpp",
+    "app.plugin.cjs",
+    "plugin"
   ],
   "peerDependencies": {
     "react": "^19.2.3",

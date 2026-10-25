@@ -21,7 +21,8 @@ performance claim.
 
 The package does not claim react-native-maps drop-in compatibility. Provider
 selection, controlled camera, marker dragging/callouts, user location/tracking,
-snapshots and Expo integration are not implemented. Public source/layer components
+snapshots are not implemented. [Expo SDK 56 custom builds](expo.md) have core
+consumer build/simulator acceptance; Expo Go is outside the target. Public source/layer components
 and their old cluster-query APIs were retired. Symbol/icon, raster/tile, heatmap
 and expression/filter requirements still need reconciliation with the component
 API. Complete RNGH/input, accessibility, lifecycle and spatial-parity matrices

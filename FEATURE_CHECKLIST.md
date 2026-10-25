@@ -105,7 +105,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
 - [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.
 - [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
-- [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
+- [x] **REL-04** — Expo SDK 56 config plugin and isolated packed core consumer pass repeated prebuild, iOS/Android Debug/Release builds and simulator rendering/marker presses. Release starts with the Expo Metro server stopped. [Setup and results](docs/expo.md). Expo Go is outside the target; physical-device checks are maintainer-owned follow-up.
 - [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
 - [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
 - [ ] **REL-11** — Validate npm prerelease and obtain explicit publishing approval.
