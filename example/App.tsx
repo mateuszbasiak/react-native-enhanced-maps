@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Platform, SafeAreaView, StatusBar, View } from 'react-native';
+import {
+  Button,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import MapSettingsVerification from './verification/MapSettingsVerification';
 import CustomMarkers from './markers/CustomMarkersPrototype';
 import MapDemo from './maplibre/MapLibrePrototype';
@@ -38,6 +49,7 @@ export default function App() {
     id: 'markers',
     generation: 0,
   });
+  const [pickerOpen, setPickerOpen] = useState(false);
   const session = useRef<Session | null>(null);
   useEffect(() => {
     if (!__DEV__) return;
@@ -83,6 +95,12 @@ export default function App() {
     else setSelection((old) => ({ id, generation: old.generation + 1 }));
   };
   const id = selection.id;
+  const examples: readonly [Scenario, string][] = [
+    ['markers', 'Custom markers'],
+    ['shapes', 'Native layers'],
+    ...(__DEV__ ? controls : []),
+  ];
+  const title = examples.find(([scenario]) => scenario === id)?.[1] ?? id;
   return (
     <SafeAreaView
       style={{
@@ -90,18 +108,12 @@ export default function App() {
         paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
       }}
     >
-      <Button
-        title={id === 'shapes' ? 'Show custom markers' : 'Show native layers'}
-        onPress={() => navigate(id === 'shapes' ? 'markers' : 'shapes')}
-      />
-      {__DEV__ &&
-        controls.map(([scenario, label]) => (
-          <Button
-            key={scenario}
-            title={`${id === scenario ? 'Close' : 'Open'} ${label}`}
-            onPress={() => navigate(id === scenario ? 'markers' : scenario)}
-          />
-        ))}
+      <View style={styles.header}>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+        <Button title="Examples" onPress={() => setPickerOpen(true)} />
+      </View>
       <View key={selection.generation} style={{ flex: 1 }}>
         {id === 'gradients' && __DEV__ ? (
           <GradientVerification />
@@ -125,6 +137,67 @@ export default function App() {
           <CustomMarkers />
         )}
       </View>
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: '#fff',
+            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+          }}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title} accessibilityRole="header">
+              Choose example
+            </Text>
+            <Button title="Close" onPress={() => setPickerOpen(false)} />
+          </View>
+          <ScrollView>
+            {examples.map(([scenario, label]) => (
+              <Pressable
+                key={scenario}
+                accessibilityRole="button"
+                accessibilityState={{ selected: id === scenario }}
+                onPress={() => {
+                  if (id !== scenario) navigate(scenario);
+                  setPickerOpen(false);
+                }}
+                style={[styles.option, id === scenario && styles.selected]}
+              >
+                <Text style={styles.optionText}>
+                  {label}
+                  {id === scenario ? ' ✓' : ''}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    minHeight: 48,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ccd3da',
+  },
+  title: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#182b3a',
+    textTransform: 'capitalize',
+  },
+  option: { padding: 18, minHeight: 52 },
+  selected: { backgroundColor: '#e8f2fa' },
+  optionText: { fontSize: 17, color: '#182b3a', textTransform: 'capitalize' },
+});

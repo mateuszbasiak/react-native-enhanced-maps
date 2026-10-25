@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useState } from 'react';
 import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapView } from 'react-native-enhanced-maps';
@@ -24,26 +25,28 @@ export function MarkerStackingDemo({ onBack }: { onBack: () => void }) {
         Front: {!showB || mode === 'A' ? 'A' : 'B'} · z A {za}, B {zb} · last{' '}
         {last} · hits A {hits.A}, B {hits.B}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button title="A on top" onPress={() => setMode('A')} />
-        <Button title="B on top" onPress={() => setMode('B')} />
-        <Button title="Equal z" onPress={() => setMode('equal')} />
-        <Button
-          title={showB ? 'Hide B' : 'Show B'}
-          onPress={() => setShowB((v) => !v)}
-        />
-        <Button
-          title="Remount stack"
-          onPress={() => {
-            setReady(false);
-            setGeneration((v) => v + 1);
-          }}
-        />
-      </View>
-      <Text style={{ padding: 8 }}>
-        Tap the overlapping center. Equal values put later-mounted B on top.
-        Orange A has an exposed border.
-      </Text>
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button title="A on top" onPress={() => setMode('A')} />
+          <Button title="B on top" onPress={() => setMode('B')} />
+          <Button title="Equal z" onPress={() => setMode('equal')} />
+          <Button
+            title={showB ? 'Hide B' : 'Show B'}
+            onPress={() => setShowB((v) => !v)}
+          />
+          <Button
+            title="Remount stack"
+            onPress={() => {
+              setReady(false);
+              setGeneration((v) => v + 1);
+            }}
+          />
+        </View>
+        <Text style={{ padding: 8 }}>
+          Tap the overlapping center. Equal values put later-mounted B on top.
+          Orange A has an exposed border.
+        </Text>
+      </ExampleControls>
       <MapView
         key={generation}
         style={{ flex: 1 }}

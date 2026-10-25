@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useRef, useState } from 'react';
 import { Button, Platform, Text, View } from 'react-native';
 // Deliberately use the internal boundary: this spike defines no public shader API.
@@ -63,146 +64,153 @@ export default function ShaderPrototype() {
         {'\n'}
         {status}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button
-          title="Below labels"
-          disabled={!ready}
-          onPress={() => {
-            setPlacement('below');
-            setPaused(false);
-            send('below');
-          }}
-        />
-        <Button
-          title="Above labels"
-          disabled={!ready}
-          onPress={() => {
-            setPlacement('above');
-            setPaused(false);
-            send('above');
-          }}
-        />
-        <Button
-          title={paused ? 'Resume' : 'Pause'}
-          disabled={!ready}
-          onPress={() => {
-            send(paused ? 'resume' : 'pause');
-            setPaused(!paused);
-          }}
-        />
-        <Button
-          title="Remove"
-          onPress={() => send('remove')}
-          disabled={!ready}
-        />
-        <Button title="Stats" onPress={() => send('stats')} disabled={!ready} />
-        <Button
-          title={tilted ? 'Flat' : 'Tilt / rotate'}
-          disabled={!ready}
-          onPress={() => {
-            if (map.current)
-              Commands.animateCamera(
-                map.current,
-                54.375,
-                18.665,
-                12,
-                tilted ? 0 : 45,
-                tilted ? 0 : 50,
-                1800,
-              );
-            setTilted(!tilted);
-          }}
-        />
-        <Button
-          title="Block JS 3s"
-          disabled={!ready}
-          onPress={() => {
-            const end = Date.now() + 3000;
-            while (Date.now() < end) {
-              /* Deliberate contention test. */
-            }
-          }}
-        />
-        <Button
-          title="Reload style"
-          disabled={!ready}
-          onPress={() => {
-            setReady(false);
-            setRevision((v) => v + 1);
-          }}
-        />
-        <Button
-          title="Remount"
-          onPress={() => {
-            setReady(false);
-            setGeneration((v) => v + 1);
-          }}
-        />
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button
-          title="Blue"
-          disabled={!ready}
-          onPress={() => configure({ red: 0.04, green: 0.48, blue: 0.95 })}
-        />
-        <Button
-          title="Amber"
-          disabled={!ready}
-          onPress={() => configure({ red: 1, green: 0.45, blue: 0.03 })}
-        />
-        <Button
-          title="Purple"
-          disabled={!ready}
-          onPress={() => configure({ red: 0.65, green: 0.15, blue: 0.95 })}
-        />
-        <Button
-          title={`Speed ${uniforms.speed}×`}
-          disabled={!ready}
-          onPress={() =>
-            configure({
-              speed: uniforms.speed === 1 ? 3 : uniforms.speed === 3 ? 0.3 : 1,
-            })
-          }
-        />
-        <Button
-          title={`Detail ${uniforms.parameters[0]}`}
-          disabled={!ready}
-          onPress={() =>
-            configure({
-              parameters: [
-                uniforms.parameters[0] === 100
-                  ? 40
-                  : uniforms.parameters[0] === 40
-                    ? 200
-                    : 100,
-                0,
-                0,
-                0,
-              ],
-            })
-          }
-        />
-        <Button
-          title={`Opacity ${uniforms.opacity}`}
-          disabled={!ready}
-          onPress={() =>
-            configure({ opacity: uniforms.opacity === 1 ? 0.35 : 1 })
-          }
-        />
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {(Object.keys(effects) as EffectName[]).map((name) => (
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           <Button
-            key={name}
-            title={name === effect ? `${name} (active)` : name}
+            title="Below labels"
             disabled={!ready}
             onPress={() => {
-              setEffect(name);
-              send('configure', uniforms, name);
+              setPlacement('below');
+              setPaused(false);
+              send('below');
             }}
           />
-        ))}
-      </View>
+          <Button
+            title="Above labels"
+            disabled={!ready}
+            onPress={() => {
+              setPlacement('above');
+              setPaused(false);
+              send('above');
+            }}
+          />
+          <Button
+            title={paused ? 'Resume' : 'Pause'}
+            disabled={!ready}
+            onPress={() => {
+              send(paused ? 'resume' : 'pause');
+              setPaused(!paused);
+            }}
+          />
+          <Button
+            title="Remove"
+            onPress={() => send('remove')}
+            disabled={!ready}
+          />
+          <Button
+            title="Stats"
+            onPress={() => send('stats')}
+            disabled={!ready}
+          />
+          <Button
+            title={tilted ? 'Flat' : 'Tilt / rotate'}
+            disabled={!ready}
+            onPress={() => {
+              if (map.current)
+                Commands.animateCamera(
+                  map.current,
+                  54.375,
+                  18.665,
+                  12,
+                  tilted ? 0 : 45,
+                  tilted ? 0 : 50,
+                  1800,
+                );
+              setTilted(!tilted);
+            }}
+          />
+          <Button
+            title="Block JS 3s"
+            disabled={!ready}
+            onPress={() => {
+              const end = Date.now() + 3000;
+              while (Date.now() < end) {
+                /* Deliberate contention test. */
+              }
+            }}
+          />
+          <Button
+            title="Reload style"
+            disabled={!ready}
+            onPress={() => {
+              setReady(false);
+              setRevision((v) => v + 1);
+            }}
+          />
+          <Button
+            title="Remount"
+            onPress={() => {
+              setReady(false);
+              setGeneration((v) => v + 1);
+            }}
+          />
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button
+            title="Blue"
+            disabled={!ready}
+            onPress={() => configure({ red: 0.04, green: 0.48, blue: 0.95 })}
+          />
+          <Button
+            title="Amber"
+            disabled={!ready}
+            onPress={() => configure({ red: 1, green: 0.45, blue: 0.03 })}
+          />
+          <Button
+            title="Purple"
+            disabled={!ready}
+            onPress={() => configure({ red: 0.65, green: 0.15, blue: 0.95 })}
+          />
+          <Button
+            title={`Speed ${uniforms.speed}×`}
+            disabled={!ready}
+            onPress={() =>
+              configure({
+                speed:
+                  uniforms.speed === 1 ? 3 : uniforms.speed === 3 ? 0.3 : 1,
+              })
+            }
+          />
+          <Button
+            title={`Detail ${uniforms.parameters[0]}`}
+            disabled={!ready}
+            onPress={() =>
+              configure({
+                parameters: [
+                  uniforms.parameters[0] === 100
+                    ? 40
+                    : uniforms.parameters[0] === 40
+                      ? 200
+                      : 100,
+                  0,
+                  0,
+                  0,
+                ],
+              })
+            }
+          />
+          <Button
+            title={`Opacity ${uniforms.opacity}`}
+            disabled={!ready}
+            onPress={() =>
+              configure({ opacity: uniforms.opacity === 1 ? 0.35 : 1 })
+            }
+          />
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {(Object.keys(effects) as EffectName[]).map((name) => (
+            <Button
+              key={name}
+              title={name === effect ? `${name} (active)` : name}
+              disabled={!ready}
+              onPress={() => {
+                setEffect(name);
+                send('configure', uniforms, name);
+              }}
+            />
+          ))}
+        </View>
+      </ExampleControls>
       <NativeMap
         key={generation}
         ref={map}

@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Button,
@@ -125,25 +126,29 @@ export default function ShapePickingVerification() {
         {result.count}
         {error ? ` · ${error}` : ''}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button
-          title={`Underlay ${configuration.underlay ? 'on' : 'off'}`}
-          onPress={() =>
-            setConfiguration((old) => ({ ...old, underlay: !old.underlay }))
-          }
-        />
-        <Button
-          title={`Top ${configuration.top ? 'on' : 'off'}`}
-          onPress={() => setConfiguration((old) => ({ ...old, top: !old.top }))}
-        />
-        <Button
-          title={`Outline ${configuration.outline ? 'on' : 'off'}`}
-          onPress={() =>
-            setConfiguration((old) => ({ ...old, outline: !old.outline }))
-          }
-        />
-        <Button title="Remount" onPress={remount} />
-      </View>
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button
+            title={`Underlay ${configuration.underlay ? 'on' : 'off'}`}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, underlay: !old.underlay }))
+            }
+          />
+          <Button
+            title={`Top ${configuration.top ? 'on' : 'off'}`}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, top: !old.top }))
+            }
+          />
+          <Button
+            title={`Outline ${configuration.outline ? 'on' : 'off'}`}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, outline: !old.outline }))
+            }
+          />
+          <Button title="Remount" onPress={remount} />
+        </View>
+      </ExampleControls>
       <View
         ref={host}
         style={{ flex: 1 }}

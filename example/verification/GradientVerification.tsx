@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Button,
@@ -133,27 +134,29 @@ export default function GradientVerification() {
         {ready ? 'Ready' : 'Loading'} · {selection} · presses {presses}
         {error ? ` · ${error}` : ''}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        <Button
-          title={configuration.gradient ? 'Gradient on' : 'Gradient off'}
-          onPress={() =>
-            setConfiguration((old) => ({ ...old, gradient: !old.gradient }))
-          }
-        />
-        <Button
-          title="Swap colors"
-          onPress={() =>
-            setConfiguration((old) => ({ ...old, alternate: !old.alternate }))
-          }
-        />
-        <Button
-          title={configuration.geodesic ? 'Geodesic on' : 'Geodesic off'}
-          onPress={() =>
-            setConfiguration((old) => ({ ...old, geodesic: !old.geodesic }))
-          }
-        />
-        <Button title="Remount" onPress={remount} />
-      </View>
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button
+            title={configuration.gradient ? 'Gradient on' : 'Gradient off'}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, gradient: !old.gradient }))
+            }
+          />
+          <Button
+            title="Swap colors"
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, alternate: !old.alternate }))
+            }
+          />
+          <Button
+            title={configuration.geodesic ? 'Geodesic on' : 'Geodesic off'}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, geodesic: !old.geodesic }))
+            }
+          />
+          <Button title="Remount" onPress={remount} />
+        </View>
+      </ExampleControls>
       <View
         ref={host}
         style={{ flex: 1 }}
