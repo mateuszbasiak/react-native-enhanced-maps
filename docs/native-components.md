@@ -1,4 +1,4 @@
-> Historical prototype record. Apple/Google experiments were removed in the package-owned MapLibre migration. See the root README and package source for the current API; earlier verification does not verify the migrated native implementation.
+> Historical prototype record. This is not the current public API or current acceptance evidence. Use the [public API reference](../packages/maps/docs/api.md), [shape contract](shapes.md) and [component clustering](clustering.md).
 
 # SDK-native map components
 

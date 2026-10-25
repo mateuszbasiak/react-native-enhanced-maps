@@ -11,7 +11,7 @@ Current contracts and acceptance limits:
   [map presses](map-presses.md) and [gestures](gestures.md).
 - [Shapes](shapes.md), [marker synchronization](marker-coordinate-sync.md) and
   [marker input](marker-gestures.md).
-- [Component clustering direction](plans/2026-10-21-marker-clustering.md) and
+- [Component clustering](clustering.md) and
   [current package API](../packages/maps/README.md).
 - [ShaderLayer](shader-layer.md), [capabilities](capabilities.md),
   [scene budgets](scene-budgets.md) and [internal source revisions](source-revisions.md).
@@ -114,7 +114,7 @@ remain later contract work; names in the design are requirements, not implemente
 
 ## Current MapLibre source revisions
 
-Explicit `GeoJSONSource.revision` values cross the native boundary and are enforced
+Explicit private source `revision` values cross the native boundary and are enforced
 by both hosts before scene replacement. Omitted revisions remain unversioned.
 See [source revision semantics](source-revisions.md) for rejection, reload and
 removal behavior. Earlier provider-specific contracts above remain historical.

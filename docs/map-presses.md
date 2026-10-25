@@ -6,7 +6,7 @@ an interactive feature. A long press does not select that feature. Both callback
 receive `{ action, coordinate, position }`, with action `tap` or `long-press`,
 geographic tap location, and a map-relative logical-point position.
 
-Interactive feature taps go to GeoJSONSource or shape callbacks instead of the
+Interactive shape taps go to their component callbacks instead of the
 background callback. This lets applications use background taps to clear selection
 without also clearing each new feature selection. A noninteractive visual feature
 does not consume the background tap. Marker child controls keep their own input

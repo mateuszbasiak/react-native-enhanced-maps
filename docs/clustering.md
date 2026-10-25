@@ -1,116 +1,92 @@
-# Native point clustering
+# Marker clustering
 
-Clustering is a prototype backed by the installed MapLibre Native GeoJSON indexes
-on iOS and Android. It adds no runtime dependency or separately linked clustering
-library. A second native Supercluster dependency would duplicate indexing and
-maintenance; a custom grid would introduce different membership/expansion rules.
-The installed SDK APIs expose radius, maximum clustering zoom and minimum points,
-so the package uses those existing implementations. This decision does not prove
-memory, CPU, binary-size or cross-platform membership parity.
+Clustering is opt-in on public `Marker` children. The package uses the pinned
+MapLibre Native indexes on both platforms, then renders clusters as React Native
+marker children. No separate clustering dependency or public source/layer API is
+required.
 
 ```tsx
-<GeoJSONSource
-  id="places"
-  revision={1}
-  data={points}
-  cluster={{ radius: 50, maxZoom: 14, minPoints: 2 }}
-  onFeaturePress={handleFeature}
+import { MapView, Marker } from 'react-native-enhanced-maps';
+import { Text, Pressable } from 'react-native';
+import type { ClusterComponentProps } from 'react-native-enhanced-maps';
+
+function FleetCluster({ count, expand }: ClusterComponentProps) {
+  return (
+    <Pressable onPress={() => void expand()}>
+      <Text>{count} boats</Text>
+    </Pressable>
+  );
+}
+
+<MapView
+  styleURL={styleURL}
+  initialCamera={camera}
+  clusterComponent={FleetCluster}
 >
-  <Layer
-    id="groups"
-    type="circle"
-    clusterFilter="clusters"
-    style={{ circleColor: '#0055ff', circleRadius: 18 }}
-  />
-  <Layer
-    id="individuals"
-    type="circle"
-    clusterFilter="points"
-    style={{ circleColor: '#ff6600', circleRadius: 8 }}
-  />
-</GeoJSONSource>
+  {boats.map((boat) => (
+    <Marker
+      key={boat.id}
+      id={boat.id}
+      coordinate={boat.coordinate}
+      clusterGroup="boats"
+      data={boat.metadata}
+    >
+      <BoatPin />
+    </Marker>
+  ))}
+</MapView>;
 ```
 
-Use `cluster={true}` for those defaults. False/omission disables clustering.
-Options are bounded integers: radius 1–512, maxZoom 0–17, minPoints 2–10000.
-Radius uses the SDK's 512-unit tile convention: 512 spans one tile width. It is
-not multiplied by device density. Clustering stops above maxZoom; maximum source
-tiling zoom retains the SDK default of 18. Fractional-zoom behavior follows the
-pinned SDK and needs a broader boundary fixture matrix.
+Application event handlers should handle rejected `expand()` or `getMembers()`
+promises when a cluster can disappear during the operation.
 
-Clustered data must contain Point features. MultiPoint and other geometries are
-rejected rather than partially clustered. Input IDs must not start with
-`cluster:`. Properties `cluster`, `cluster_id`, `point_count` and
-`point_count_abbreviated` are reserved for generated clusters. The private
-`__enhanced_maps_cluster_index` property is also reserved and never exposed in
-public hits or inspection results. All ordinary
-source/scene limits still apply, including 10000 features per source, 50000 scene
-positions and 4MiB UTF-8 serialization. Validation occurs before native mutation.
+## Participation and groups
 
-Index settings are part of source revision identity. Increase an explicit
-producer revision when changing data **or clustering settings**. A stale/equal
-revision replacement rejects and preserves the accepted native scene. Unversioned
-sources retain replacement semantics. Layer colors/visibility/filter selection
-do not require a new producer revision. `clusterFilter` requires a clustered
-source and accepts only `clusters` or `points`; general style expressions are
-separate layer work.
+`cluster={true}` joins the default group. `clusterGroup="boats"` enables
+clustering in that named group unless `cluster={false}` explicitly opts out.
+Omitting both keeps the marker independent. Only exactly matching group names
+cluster together; distance and zoom still determine membership. Names are nonblank
+strings of at most 512 characters. Different groups can overlap visually.
 
-Generated cluster hits have `featureId` of `cluster:<native ID>` and standard
-`properties.cluster`, `cluster_id`, `point_count` and `point_count_abbreviated`.
-Original point hits retain their input ID/properties. Both structured
-`onFeaturePress` and legacy `onPress(featureId)` use the synthetic cluster ID.
-IDs are scoped to a native index lifetime; do not persist them across source
-replacement, scene rebuild, style reload or remount. Distinct source IDs scope
-otherwise equal native cluster IDs. Picking reports one topmost feature, so
-duplicate-coordinate originals are not all returned by one tap.
+Each active group consumes one source and one layer from the map's shared
+64-source/128-layer budget. The total participating-marker input limit is 10000.
+Clustered coordinates are within ±85° latitude and ±180° longitude. Input arrays,
+coordinates and metadata should be immutable. Replace references for updates.
 
-The deterministic simulator fixture groups duplicate-a/duplicate-b at longitude
-18.66 and near-c at 18.662; isolated-d at 18.674 stays separate, all at latitude
-54.37. At zoom 13 both hosts pick cluster:14 with point_count 3 and isolated-d
-through different layers. At zoom 16 they pick duplicate-b and near-c as original
-points. Raising minPoints to 4 at the same source revision rejects; advancing
-the revision makes them individual points at zoom 13. Restoring minPoints 2,
-style reload and remount preserve the expected three-point cluster behavior.
-Inspection on both simulators also returns exactly duplicate-a, duplicate-b and
-near-c as leaves, a child cluster containing the same three leaves, and expansion
-zoom 15 for parent and child. Offset 3 returns an empty page with total 3.
-Dense fixtures at the same coordinate also pass complete 1000- and 10000-point
-ID-set audits on both simulators, using 100-leaf pages (10 and 100 pages).
-All expected IDs appear exactly once, pages/features/coordinates/properties are
-frozen, and the page at total is empty. This does not measure resource cost or
-prove spatial boundary membership.
+The private index uses radius 50 in the SDK's 512-unit tile convention, maximum
+clustering zoom 14 and minimum count 2. These are implementation defaults, not
+public tuning props. Membership near fractional zoom, world wrapping and spatial
+boundaries needs the remaining acceptance fixtures.
 
-## Inspecting a cluster
+## Cluster children and lazy members
 
-Structured cluster hits provide an opaque `event.cluster` handle. Pass the actual
-handle to `mapRef.current.getClusterChildren(handle, page?)`,
-`getClusterLeaves(handle, page?)` or `getClusterExpansionZoom(handle)`. Children
-and leaves resolve to immutable `{features, total, offset}` pages. Features contain
-`featureId`, `coordinate`, original/generated `properties`, and an optional child
-`cluster` handle that can be queried with the same methods.
+Without `clusterComponent`, the package supplies a count bubble that expands on
+press. A custom component receives `count`, `coordinate`, `clusterGroup` (undefined
+for the default group), `getMembers()` and `expand()`. It owns its ordinary React
+Native child event handlers and accessible labels.
 
-Page defaults are limit 100 and offset 0; limits must be integers 1–100 and offsets
-0–10000. Responses are bounded to 100 features and 256KiB UTF-8/characters, with
-bounded JSON property depth and node count. Oversized pages reject; request fewer
-features. Children paginate the SDK child list, which remains bounded by the
-10000-point source limit. Leaves use native SDK pagination. Results expose no
-private index stamps. Queries share the 32-pending, five-second query broker.
+`getMembers()` resolves all original members as an immutable array of
+`{id, coordinate, data}`. Metadata is application-owned and stays in JavaScript;
+the native index contains marker IDs and coordinates. Members are fetched in
+bounded native pages instead of being copied into each visible cluster. Native
+queries share the bounded pending-query broker. `expand()` requests the SDK's
+expansion zoom and moves the map; it does not return an animation-completed event.
 
-Handles belong to one MapView and native index lifetime. Copies, reconstructed
-objects and handles from another map reject. Any accepted scene rebuild (including
-layer recoloring), source replacement, style reload or remount invalidates old
-handles; tap again to obtain a fresh handle. Rejected source updates preserve the
-accepted index and its handles. Native generated features carry index stamps so
-late rendered hits cannot silently target a replacement index. These handles are
-runtime capabilities, not serializable identifiers.
+Cluster callbacks belong to one map and index lifetime. Data/group changes,
+accepted scene rebuilds, style replacement and remount can invalidate them.
+Obsolete callbacks reject; do not retain them as durable cluster IDs. Source-level
+cluster handles and `MapViewRef.getClusterLeaves/getClusterChildren` are retired
+public APIs and must not be used by applications.
 
-Required remaining work includes property aggregation, count-dependent styling/symbols,
-stable identity guarantees, dense/overlapping/antimeridian fixtures, background
-processing and cancellation, measured output/memory bounds, accessibility and
-1k/10k/100k release-device benchmarks. Package parsing/rebuild work currently
-runs on the native UI thread; SDK index scheduling and resource cost are not yet
-characterized. The current source limit does not establish 100k-point support.
+## Evidence and remaining coverage
 
-SDK references: [iOS source options](https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre/mlnshapesourceoptionclustered/)
-and the pinned local MLNShapeSource headers / Android GeoJsonOptions API. The
-package's current capability report schema does not yet expose a clustering field.
+[Component acceptance](component-cluster-acceptance.md) records both simulators'
+default/custom children, expansion, updates, opt-out behavior, stale callbacks and
+complete 3/1000/10000 coincident-member ID/metadata audits. These are bounded
+functional checks, not spatial parity or performance measurements. Group semantics
+also have [compiler regressions](../tests/marker-clustering.test.mjs).
+
+Output/index-memory bounds, background cancellation, overlap, zoom-boundary and
+antimeridian fixtures remain under CLUSTER-06/07. Physical-device benchmarks and
+resulting tweaks are maintainer-owned follow-up. The 10000-marker limit does not
+establish 100000-marker support.

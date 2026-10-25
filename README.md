@@ -27,7 +27,8 @@ npm run build:ios           # native simulator build
 npm run build:android -- -PreactNativeArchitectures=arm64-v8a
 ```
 
-See [development](docs/development.md) for setup and verification guidance.
+See the [documentation index](docs/README.md) for current setup, API and validation
+references, or [development](docs/development.md) for local commands.
 Historical prototype documents describe earlier experiments and are not the current
 API. Packages remain private and UNLICENSED; this is not a production release.
 
