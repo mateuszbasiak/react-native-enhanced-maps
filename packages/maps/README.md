@@ -107,10 +107,19 @@ The published entry path is `lib/index.js`, so the hook resolves at the package
 root. Call `EnhancedMaps.post_install(installer)` before the existing
 `react_native_post_install`, run `pod install`, and rebuild. Minimum iOS is 16.
 The integration pins the MapLibre SPM binary; do not add another wrapper's Pods or
-SPM hook. Expo config-plugin/build support remains unimplemented; Expo Go cannot
-load this custom native package.
+SPM hook. For generated Expo projects use the config plugin below instead of
+adding this manual hook. Expo Go cannot load this custom native package.
 
 The README and [API reference](docs/api.md) are included in the tarball. Detailed
 repository documentation uses absolute links so it remains reachable from an
 installed package. Physical-device checks do not block feature completion, but
 unmeasured devices and broader compatibility are not claimed as passing.
+
+## Expo custom builds
+
+For Expo SDK 56 / RN 0.85.3, install the packed package and add
+`"react-native-enhanced-maps"` to `expo.plugins`. The config plugin adds the iOS
+MapLibre SPM hook; Android uses autolinking. Use a custom native build, not Expo Go.
+See [Expo setup and validation](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/expo.md)
+for the pinned template, optional-peer resolver requirement and reproducible
+consumer command. Do not combine a manual iOS hook with plugin management.

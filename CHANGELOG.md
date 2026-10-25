@@ -14,6 +14,9 @@ changes, not accepted production support or closed release gates.
 - Experimental `ShaderLayer` from `/shaders`, with WGSL, optional compute/storage,
   worklet scheduling and bounded shared world-tile output.
 
+- Expo SDK 56 config plugin and reproducible packed core custom-build consumer.
+  Debug/Release builds and simulator rendering/marker presses pass on both hosts.
+
 ### Breaking changes
 
 - Apple/Google provider experiments and TypeGPU raster/readback integration retired.
@@ -26,6 +29,8 @@ changes, not accepted production support or closed release gates.
 
 ### Known limits
 
-Physical-device Release testing, complete compatibility/accessibility acceptance,
-clean consumer builds and release ownership/licensing remain open. See the
+Physical-device Release testing is deferred to the maintainer. Complete
+compatibility/accessibility acceptance, optional GPU consumer integration and
+release ownership/licensing remain open. Core bare and Expo consumer checks have
+bounded build/simulator evidence; they do not establish hardware performance. See the
 [checklist](FEATURE_CHECKLIST.md) for the complete current scope.

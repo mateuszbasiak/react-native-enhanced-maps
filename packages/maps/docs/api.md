@@ -90,6 +90,8 @@ Core components do not require those peers. See the
 for WGSL, resource, placement, adapter and lifecycle constraints.
 
 Provider selection, user-location/tracking/permission ownership, snapshots,
-controlled camera, public source/layer components and Expo integration are not
-implemented. Familiar component names do not imply react-native-maps drop-in
+controlled camera and public source/layer components are not implemented. Expo
+SDK 56 custom native builds use the package config plugin; see
+[Expo setup](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/expo.md).
+Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in
 compatibility. Legacy React Native architecture is outside the target.
