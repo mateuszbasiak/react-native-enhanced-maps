@@ -50,3 +50,39 @@ This completes the bounded hole-fill regression. Broader visibility, ordering,
 geometry replacement, accessibility and hit-cost fixtures remain checklist work.
 Physical-device validation is maintainer-owned follow-up and does not block this
 feature's completion. No physical-device or production-performance pass is claimed.
+
+## Shared native helper corpus — 2026-10-25
+
+`tests/polygon-helper-parity.test.mjs` compiles thin stdin adapters around the
+production iOS C++ and Android Java helpers and sends the same 1,164 fixtures to
+each binary. Each result is compared with an expected value, rather than merely
+checking that the platforms agree. The corpus includes:
+
+- Local, dateline/unwrapped, northern 80–85° and southern −85–−80° rectangles,
+  with exterior/hole edges and corners, filled areas and exterior misses.
+- Independent reversal of exterior and hole winding, and query world copies
+  from −720° through +720° shifts. Hole boundaries remain excluded from fill;
+  exterior boundaries remain included.
+- 512 reproducible rectangle/hole samples from seed `0x5eeda11`. Expected hits
+  use direct numeric interval membership, not a copy of either helper's
+  Mercator projection or ray-casting algorithm.
+- Nonfinite queries/vertices, out-of-range latitude, empty/short/open rings,
+  malformed holes and an excessive world-span case, all expected to reject.
+
+Both helpers passed all 1,164 cases. Temporarily inverting each adapter's boolean
+output made the suite fail with the corresponding platform/fixture label; both
+adapters were then restored and the suite passed again. Helper execution has a
+10-second timeout so a broken malformed-input guard cannot hang indefinitely.
+The adapters contain no alternative geometry implementation.
+
+Run `node --test tests/polygon-helper-parity.test.mjs` with the repository's
+supported Node version, `javac`/`java` and a C++17 compiler. The test also runs
+through the existing `npm run test:contracts` and package CI checks.
+
+This is host-side helper coverage only. It does not verify MapLibre's returned
+SDK geometry, native JSON/bridge parsing, multi-polygon component traversal,
+rendering, projected tap targeting, outline hit width, draw/hit fall-through or
+cross-platform application behavior. Arbitrary polygon topology and near-edge
+floating-point tolerances remain outside this rectangle corpus. Native rendering
+and picking matrices under SRC-05/06 and PICK-02/03 remain open. No simulator,
+physical device or native application build was used for this slice.
