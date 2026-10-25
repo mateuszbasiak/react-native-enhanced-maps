@@ -124,6 +124,8 @@ export interface ClusterMember {
   readonly data: unknown;
 }
 export interface ClusterComponentProps {
+  /** Group shared by this cluster’s markers; undefined for the default group. */
+  readonly clusterGroup?: string;
   readonly count: number;
   readonly coordinate: Coordinate;
   /** Fetches all members in bounded native pages. Rejects for obsolete clusters. */

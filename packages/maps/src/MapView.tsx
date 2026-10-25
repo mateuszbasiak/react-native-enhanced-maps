@@ -13,7 +13,6 @@ import { DefaultCluster } from './DefaultCluster';
 import {
   collectMarkers,
   markerSourceID,
-  markerLayerID,
   parseMarkerLayout,
   resolveClusterMembers,
 } from './markerClustering';
@@ -134,23 +133,21 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       () =>
         compileScene([
           ...markerContent.content,
-          ...(markerContent.markers.size
-            ? [
-                <InternalSource
-                  key="em-clusters"
-                  id={markerSourceID}
-                  data={markerContent.data}
-                  revision={markerVersion.revision}
-                  cluster
-                >
-                  <InternalLayer
-                    id={markerLayerID}
-                    type="circle"
-                    style={{ circleRadius: 1, circleOpacity: 0 }}
-                  />
-                </InternalSource>,
-              ]
-            : []),
+          ...markerContent.groups.map((group) => (
+            <InternalSource
+              key={group.sourceId}
+              id={group.sourceId}
+              data={group.data}
+              revision={markerVersion.revision}
+              cluster
+            >
+              <InternalLayer
+                id={group.layerId}
+                type="circle"
+                style={{ circleRadius: 1, circleOpacity: 0 }}
+              />
+            </InternalSource>
+          )),
         ]),
       [markerContent, markerVersion.revision],
     );
@@ -173,13 +170,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         ? markerLayout.layout.features.map((feature) => {
             if (feature.clusterId === undefined)
               return markerContent.markers.get(feature.id);
+            const group = markerContent.groups.find(
+              (group) =>
+                group.sourceId === (feature.sourceId ?? markerSourceID),
+            )!;
             const coordinate = {
               latitude: feature.latitude,
               longitude: feature.longitude,
             };
             const layout = markerLayout.layout;
             const handle = clusterHandles.capture(
-              markerSourceID,
+              group.sourceId,
               `cluster:${feature.clusterId}`,
               {
                 cluster: true,
@@ -195,12 +196,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               activeLayout.current?.layout === layout &&
               activeStyle.current === styleRequest.revision;
             const clusterProps: ClusterComponentProps = {
+              ...(group.clusterGroup === undefined
+                ? {}
+                : { clusterGroup: group.clusterGroup }),
               count: feature.count!,
               coordinate,
               getMembers: () =>
                 resolveClusterMembers(
                   feature.count!,
-                  markerContent.markers,
+                  group.markers,
                   async (offset) => {
                     const page = (await queries.request(
                       'clusterLeaves',
@@ -364,8 +368,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 !layout ||
                 layout.features.some(
                   (feature) =>
-                    feature.clusterId === undefined &&
-                    !markerContent.markers.has(feature.id),
+                    !markerContent.groups.some(
+                      (group) =>
+                        group.sourceId ===
+                          (feature.sourceId ?? markerSourceID) &&
+                        (feature.clusterId !== undefined ||
+                          group.markers.has(feature.id)),
+                    ),
                 )
               )
                 return;

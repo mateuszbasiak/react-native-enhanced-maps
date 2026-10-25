@@ -55,11 +55,19 @@ unvalidated in those reports.
 marker creation order. Use ordinary React Native child input handlers.
 Marker and shape ordering remain separate native systems.
 
-Opt into clustering with `cluster`. Optional application-owned `data` is returned
+Opt into clustering with `cluster` or `clusterGroup`. Optional application-owned `data` is returned
 lazily by `getMembers()` and remains in JavaScript. `MapView.clusterComponent`
-receives `{count, coordinate, getMembers, expand}`. The default count bubble expands
+receives `{count, coordinate, clusterGroup, getMembers, expand}`. The default count bubble expands
 on press. Membership and expansion reject after index/style/map replacement.
-The current participating-marker input bound is 10000. Dedicated marker image,
+Optional `clusterGroup` restricts clustering to participating markers with the
+same exact string and enables clustering unless `cluster={false}` explicitly
+overrides it. `cluster={true}` without a group uses the default group. Omitting
+both props keeps a marker independent. Names must be nonblank and at most 512
+characters. Custom cluster components receive `clusterGroup`, undefined for the
+default group. Each group uses one source/layer within shared scene limits of
+64 sources and 128 layers. Different groups can overlap visually; distance and
+zoom still control clustering within each group. Changing groups invalidates old
+cluster operations. The current participating-marker input bound is 10000. Dedicated marker image,
 dragging and callout APIs are not implemented.
 
 ## Shapes

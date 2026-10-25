@@ -34,7 +34,31 @@ API. Packages remain private and UNLICENSED; this is not a production release.
 Shape props and compatibility limits: [shape components](docs/shapes.md).
 
 Opt-in marker clustering uses `Marker.cluster` and optional `MapView.clusterComponent`.
-Cluster components receive count, coordinate, lazy `getMembers()` and `expand()`.
+Use `clusterGroup="boats"` to keep opted-in boats separate from other groups:
+
+```tsx
+<Marker id="boat-a" coordinate={boatA} clusterGroup="boats">
+  <BoatPin />
+</Marker>
+<Marker id="boat-b" coordinate={boatB} clusterGroup="boats">
+  <BoatPin />
+</Marker>
+<Marker id="marina" coordinate={marina} clusterGroup="marinas">
+  <MarinaPin />
+</Marker>
+```
+
+Only markers with the same group can cluster together; distance and zoom still
+determine membership. Providing `clusterGroup` enables clustering unless
+`cluster={false}` explicitly opts out. `cluster={true}` without a group uses the
+shared default group. Omitting both props keeps a marker independent.
+Group names must be nonblank strings of at most 512 characters; names compare
+exactly. Custom cluster components receive `clusterGroup` (undefined for the
+default group), count, coordinate, lazy `getMembers()` and `expand()`.
+Each active group uses one native source and one layer, sharing the map's existing
+64-source/128-layer limits with other content. The total clustered marker limit
+remains 10000. Distinct groups can overlap visually at the same coordinate.
+Changing a group rebuilds the indexes and invalidates previous cluster callbacks.
 Sources and style layers are private implementation details.
 
 Experimental world shader layers (`react-native-enhanced-maps/shaders`): [ShaderLayer contract](docs/shader-layer.md).

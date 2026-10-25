@@ -11,6 +11,9 @@ changes, not accepted production support or closed release gates.
   children, geographic shapes, camera/projection/fit helpers and capability reports.
 - Opt-in `Marker.cluster` with default/custom React cluster components, lazy member
   metadata and expansion.
+- `Marker.clusterGroup` isolates clustering by group on iOS and Android; custom
+  cluster components receive the group name. A group implicitly enables clustering
+  unless `cluster={false}` explicitly overrides it.
 - Experimental `ShaderLayer` from `/shaders`, with WGSL, optional compute/storage,
   worklet scheduling and bounded shared world-tile output.
 
