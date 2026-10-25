@@ -152,6 +152,9 @@ export default function ShaderLifecycleVerification() {
     },
   });
   const errors = useRef<{ id: MapID; epoch: number; message: string }[]>([]);
+  const transitions = useRef<
+    { state: string; at: number; probes: Record<MapID, ShaderClockProbe> }[]
+  >([]);
   const [status, setStatus] = useState('Waiting for shader maps');
   const probes = useMemo(
     () => ({
@@ -201,6 +204,17 @@ export default function ShaderLifecycleVerification() {
     const target = globalThis as typeof globalThis & {
       __enhancedMapsShaderLifecycle?: unknown;
     };
+    const subscription = AppState.addEventListener('change', (state) => {
+      transitions.current.push({
+        state,
+        at: Date.now(),
+        probes: {
+          a: { ...probes.a.getBlocking() },
+          b: { ...probes.b.getBlocking() },
+        },
+      });
+      if (transitions.current.length > 12) transitions.current.shift();
+    });
     const api = {
       snapshot: () => {
         const current = latest.current;
@@ -235,6 +249,7 @@ export default function ShaderLifecycleVerification() {
           diagnostics,
           errors: [...currentErrors],
           history: [...errors.current],
+          transitions: [...transitions.current],
         };
       },
       software: (value: boolean) =>
@@ -271,6 +286,7 @@ export default function ShaderLifecycleVerification() {
     };
     target.__enhancedMapsShaderLifecycle = api;
     return () => {
+      subscription.remove();
       if (target.__enhancedMapsShaderLifecycle === api)
         delete target.__enhancedMapsShaderLifecycle;
     };
