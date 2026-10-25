@@ -22,6 +22,11 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Shader reinitialization reuses a bundle rendering worker and exclusive idle GPU
+  devices, avoiding repeated native-context allocation. Device error dispatchers
+  release layer callbacks without retaining invalidated devices.
+- Android shader repaint callbacks ignore disposed maps and stale style/layer
+  ownership after remount or replacement.
 - Internal GeoJSON validation rejects sparse coordinate axes and nested geometry
   arrays before they serialize into invalid native coordinates.
 

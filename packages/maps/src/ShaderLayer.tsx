@@ -4,6 +4,9 @@ import { AppState, NativeModules } from 'react-native';
 import type { GPUSharedTextureMemory } from 'react-native-webgpu';
 import type { Synchronizable } from 'react-native-worklets';
 import { ShaderMapContext } from './shaderContext';
+import { getShaderRuntime } from './shaderRuntime';
+import { shaderDevices } from './shaderDevice';
+import type { ShaderDeviceLease } from './shaderDevice';
 import { runShaderRecovery, releaseShaderResources } from './shaderRecovery';
 import {
   defaultShaderVertex,
@@ -87,6 +90,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
         recover = false;
       let clean: boolean;
       let debugLoss: (() => void) | undefined;
+      let deviceLease: ShaderDeviceLease | undefined;
       const stopAttempt = () => {
         attemptStopped = true;
         localControl?.setBlocking((previous) => ({
@@ -136,13 +140,6 @@ export function ShaderLayer(props: ShaderLayerProps) {
           uniforms,
         });
         controlRef.current = localControl;
-        const adapter = await navigator.gpu.requestAdapter();
-        if (!adapter) throw new Error('WebGPU adapter unavailable');
-        if (adapter.info.isFallbackAdapter && !allowSoftwareAdapter)
-          throw new Error(
-            'Software GPU requires explicit allowSoftwareAdapter diagnostics',
-          );
-        device = await adapter.requestDevice();
         const lost = (info: Pick<GPUDeviceLostInfo, 'reason' | 'message'>) => {
           if (info.reason !== 'destroyed' && !stopped && !attemptStopped) {
             recover = true;
@@ -150,24 +147,31 @@ export function ShaderLayer(props: ShaderLayerProps) {
             report(new Error(`ShaderLayer device lost: ${info.message}`));
           }
         };
-        void device.lost.then(lost);
+        deviceLease = await shaderDevices.acquire(
+          allowSoftwareAdapter,
+          lost,
+          (event) => {
+            if (!stopped && !attemptStopped) {
+              stopAttempt();
+              report(new Error(event.error.message));
+            }
+          },
+        );
+        device = deviceLease.device;
         if (__DEV__) {
           const target = globalThis as typeof globalThis & {
             __enhancedMapsShaderRecovery?: Map<string, () => void>;
           };
           const registry = (target.__enhancedMapsShaderRecovery ??= new Map());
           debugLoss = () => {
-            lost({ reason: 'unknown', message: 'Debug fault injection' });
+            deviceLease?.invalidate({
+              reason: 'unknown',
+              message: 'Debug fault injection',
+            });
             device?.destroy();
           };
           registry.set(id, debugLoss);
         }
-        device.addEventListener('uncapturederror', (event) => {
-          if (!stopped && !attemptStopped) {
-            stopAttempt();
-            report(new Error(event.error.message));
-          }
-        });
         if (stopped || attemptStopped)
           throw new Error('Shader attempt stopped');
         pool = await bridge.create(1024);
@@ -326,11 +330,13 @@ export function ShaderLayer(props: ShaderLayerProps) {
         attached = true;
         if (stopped || attemptStopped)
           throw new Error('Shader attempt stopped');
-        const runtime = worklets.createWorkletRuntime({
-          name: `ShaderLayer:${id}`,
-          enableEventLoop: true,
-          animationQueuePollingRate: 16,
-        });
+        const runtime = getShaderRuntime(() =>
+          worklets.createWorkletRuntime({
+            name: 'EnhancedMapsShaders',
+            enableEventLoop: true,
+            animationQueuePollingRate: 16,
+          }),
+        );
         latest.current.onReady?.();
         const groupForWorklet = group(renderLayout);
         const { scheduleOnRuntime, scheduleOnRN } = worklets;
@@ -400,10 +406,21 @@ export function ShaderLayer(props: ShaderLayerProps) {
               if (pool)
                 await (NativeModules.EMShaderLayer as Bridge).release(pool.id);
             },
-            () => device?.destroy(),
           ],
           report,
         );
+        if (!clean) {
+          try {
+            deviceLease?.invalidate({
+              reason: 'destroyed',
+              message: 'Shader resource cleanup failed',
+            });
+            device?.destroy();
+          } catch {
+            /* The cleanup error has already been reported. */
+          }
+        }
+        deviceLease?.release();
         localControl = undefined;
       }
       return recover && clean;
