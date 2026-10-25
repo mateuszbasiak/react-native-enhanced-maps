@@ -38,6 +38,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and separate native hole-picking defect](docs/shapes.md).
 - [x] Polyline gradient strokes — Per-original-vertex colors interpolate along native line distance, including geodesic subdivision. Contracts and both Debug simulators verify updates, solid fallback, remounts and presses. Gradient/dash combinations reject explicitly. [Contract and results](docs/shapes.md).
+- [x] Debug scenario sessions — Single-scenario selection, committed-generation readiness, bounded immutable records, explicit timeout/cancel/failure/skip and provenance fields. Broader semantic/visual/trace automation remains below. [Contract](docs/scenario-sessions.md).
 
 ## Map lifetime, camera and gestures
 
@@ -94,7 +95,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **PERF-06–07, PERF-10** — At least 100 lifecycle cycles, memory drift/resource bounds, large-content update/cancellation cost, poor-network/offline behavior, memory pressure and GPU failure resilience.
 - [ ] **PERF-08** — Core versus GPU npm/app binary sizes and clean/incremental build cost.
 - [ ] **TEST-03, TEST-10** — Verify current remote CI results. The [quality/bundle workflow](.github/workflows/check.yml) runs package checks. Native CI builds were intentionally removed in PR #13; record local native build evidence separately. Workflow presence alone is not a successful run.
-- [ ] **TEST-05–09, TEST-11** — Consolidate current component scenarios and automate selection/collection with readiness/timeouts. Record commit, platform/device/OS, SDK/RN, build mode, seed and pass/fail/skip; include semantic checks, controlled visual baselines, alignment and trace capture. Unavailable devices must not count as passes.
+- [ ] **TEST-05–09, TEST-11** — Debug selection/readiness collection and provenance records are implemented. Complete consolidated semantic assertions, pass/fail results, controlled visual baselines, alignment and trace capture. [Session contract](docs/scenario-sessions.md). Unavailable devices must not count as passes.
 - [ ] **TEST-12** — Verify Release consumers omit development diagnostic interfaces and sensitive data by default.
 - [ ] **A11Y-01–03, A11Y-06** — VoiceOver/TalkBack acceptance for markers, clusters and shapes, accessible navigation/selection, reduced motion and shader pause alternatives. iOS child-label/frame fixes have bounded simulator evidence only.
 
