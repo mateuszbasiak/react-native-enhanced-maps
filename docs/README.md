@@ -25,6 +25,8 @@ Native on iOS/Android and targets React Native's New Architecture.
 ## Develop and verify
 
 [Development](development.md) describes commands and local builds.
+[Optional GPU peer consumers](optional-peer-consumers.md) describes the isolated
+installation, declaration and bundling matrix and its native acceptance limits.
 [Component cluster acceptance](component-cluster-acceptance.md),
 [lifecycle acceptance](map-lifecycle-acceptance.md),
 [polygon-hole picking](polygon-hole-picking.md) and
