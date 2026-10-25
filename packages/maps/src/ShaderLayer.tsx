@@ -82,7 +82,13 @@ export function ShaderLayer(props: ShaderLayerProps) {
     let active = AppState.currentState === 'active';
     const subscription = AppState.addEventListener('change', (state) => {
       active = state === 'active';
-      localControl?.setBlocking((previous) => ({ ...previous, active }));
+      localControl?.setBlocking((previous) => ({
+        ...previous,
+        active,
+        // Reading a worklet back on JS produces a remote-function wrapper.
+        // Always serialize the original callback when updating activity.
+        uniforms: latest.current.uniforms ?? [],
+      }));
     });
     const run = async () => {
       if (stopped) return false;
