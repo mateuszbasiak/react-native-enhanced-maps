@@ -55,6 +55,8 @@ export default function WebGPUPrototype() {
       },
       software: setAllowSoftwareAdapter,
       visible: setVisible,
+      second: setSecond,
+      source: setSource,
       remount: () => setGeneration((value) => value + 1),
     };
     target.__enhancedMapsWebGPU = api;
