@@ -55,11 +55,19 @@ unvalidated in those reports.
 marker creation order. Use ordinary React Native child input handlers.
 Marker and shape ordering remain separate native systems.
 
-Opt into clustering with `cluster`. Optional application-owned `data` is returned
+Opt into clustering with `cluster` or `clusterGroup`. Optional application-owned `data` is returned
 lazily by `getMembers()` and remains in JavaScript. `MapView.clusterComponent`
-receives `{count, coordinate, getMembers, expand}`. The default count bubble expands
+receives `{count, coordinate, clusterGroup, getMembers, expand}`. The default count bubble expands
 on press. Membership and expansion reject after index/style/map replacement.
-The current participating-marker input bound is 10000. Dedicated marker image,
+Optional `clusterGroup` restricts clustering to participating markers with the
+same exact string and enables clustering unless `cluster={false}` explicitly
+overrides it. `cluster={true}` without a group uses the default group. Omitting
+both props keeps a marker independent. Names must be nonblank and at most 512
+characters. Custom cluster components receive `clusterGroup`, undefined for the
+default group. Each group uses one source/layer within shared scene limits of
+64 sources and 128 layers. Different groups can overlap visually; distance and
+zoom still control clustering within each group. Changing groups invalidates old
+cluster operations. The current participating-marker input bound is 10000. Dedicated marker image,
 dragging and callout APIs are not implemented.
 
 ## Shapes
@@ -68,7 +76,12 @@ dragging and callout APIs are not implemented.
 `fillColor`. `Circle` takes `center`, `radius` in meters and fill/stroke props.
 All accept optional `id`, `zIndex`, `visible`, `opacity`, `tappable`, `onPress`,
 `strokeColor`, `strokeWidth`, `lineCap`, `lineJoin`, `miterLimit` and
-`lineDashPattern`. Use immutable geometry arrays and explicit IDs in changing lists.
+`lineDashPattern`. Polyline additionally accepts `strokeColors`, one color string
+per original coordinate; these override `strokeColor` and interpolate along native
+Mercator line distance. Gradient plus dash pattern rejects. Polygon/Circle do not
+accept `strokeColors`. Polyline/Polygon accept opt-in `geodesic` great-circle edges,
+including polygon holes. Use immutable geometry/color arrays and explicit IDs in
+changing lists.
 
 The collection supports 64 shapes and 10000 total points, including generated
 circle vertices. Coordinates are within ±85° latitude / ±180° longitude. Circle
@@ -78,7 +91,7 @@ normalize before transport; dynamic/native color objects are unsupported.
 `tappable` defaults false. Shape press receives
 `{nativeEvent:{identifier,coordinate,position}}`. Higher shape zIndex draws later;
 ties retain declaration order. This is a compatibility subset. See the
-[shape contract](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shapes.md)
+[shape contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shapes.md)
 for exact geometry, styling and picking limits and current validation results.
 
 ## Optional shaders and unavailable APIs
@@ -86,10 +99,12 @@ for exact geometry, styling and picking limits and current validation results.
 The experimental shader entry requires `react-native-webgpu@0.17.x` and
 `react-native-worklets@0.12.2`, Worklets Babel configuration and native rebuilds.
 Core components do not require those peers. See the
-[shader contract](https://github.com/mateuszbasiak/react-native-enhanced-maps/blob/main/docs/shader-layer.md)
+[shader contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md)
 for WGSL, resource, placement, adapter and lifecycle constraints.
 
 Provider selection, user-location/tracking/permission ownership, snapshots,
-controlled camera, public source/layer components and Expo integration are not
-implemented. Familiar component names do not imply react-native-maps drop-in
+controlled camera and public source/layer components are not implemented. Expo
+SDK 56 custom native builds use the package config plugin; see
+[Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
+Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in
 compatibility. Legacy React Native architecture is outside the target.

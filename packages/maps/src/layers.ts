@@ -1,5 +1,6 @@
 import { Children, Fragment, isValidElement } from 'react';
 import type { ReactNode } from 'react';
+import type { GradientStops } from './polylineGradient';
 
 export type GeoJSONPosition = readonly [longitude: number, latitude: number];
 export type GeoJSONGeometry =
@@ -41,6 +42,7 @@ export interface GeoJSONSourceProps {
   readonly children?: ReactNode;
 }
 export interface LineStyle {
+  readonly lineGradient?: GradientStops;
   readonly lineCap?: 'butt' | 'round' | 'square';
   readonly lineJoin?: 'miter' | 'round' | 'bevel';
   readonly lineMiterLimit?: number;
@@ -78,6 +80,7 @@ export function FillLayer(_props: FillLayerProps): ReactNode {
   throw new Error('FillLayer must be inside MapView or GeoJSONSource');
 }
 export interface SourceDefinition {
+  readonly lineMetrics?: boolean;
   readonly id: string;
   readonly type: 'geojson';
   readonly revision: number;
@@ -133,7 +136,8 @@ function validateData(data: GeoJSONData): number {
     if (
       !Array.isArray(p) ||
       p.length !== 2 ||
-      !p.every(Number.isFinite) ||
+      !Number.isFinite(p[0]) ||
+      !Number.isFinite(p[1]) ||
       Math.abs(p[0]!) > 180 ||
       Math.abs(p[1]!) > 90
     )
@@ -143,7 +147,9 @@ function validateData(data: GeoJSONData): number {
   const line = (points: readonly GeoJSONPosition[], ring = false) => {
     if (!Array.isArray(points) || points.length < (ring ? 4 : 2))
       throw new Error('Invalid GeoJSON line or ring');
-    points.forEach(position);
+    // Array iterators visit sparse entries, which must reject before JSON turns
+    // missing coordinates into null. forEach/every silently skip those entries.
+    for (const point of points) position(point);
     if (
       ring &&
       (points[0]![0] !== points.at(-1)![0] ||
@@ -154,7 +160,7 @@ function validateData(data: GeoJSONData): number {
   const polygon = (rings: readonly (readonly GeoJSONPosition[])[]) => {
     if (!Array.isArray(rings) || !rings.length)
       throw new Error('GeoJSON polygon needs an exterior ring');
-    rings.forEach((ring) => line(ring, true));
+    for (const ring of rings) line(ring, true);
   };
   let propertyNodes = 0;
   let propertyCharacters = 0;
@@ -210,7 +216,7 @@ function validateData(data: GeoJSONData): number {
       case 'MultiPoint':
         if (!Array.isArray(g.coordinates))
           throw new Error('Invalid MultiPoint');
-        g.coordinates.forEach(position);
+        for (const point of g.coordinates) position(point);
         break;
       case 'LineString':
         line(g.coordinates);
@@ -218,9 +224,7 @@ function validateData(data: GeoJSONData): number {
       case 'MultiLineString':
         if (!Array.isArray(g.coordinates))
           throw new Error('Invalid MultiLineString');
-        g.coordinates.forEach((points: readonly GeoJSONPosition[]) =>
-          line(points),
-        );
+        for (const points of g.coordinates) line(points);
         break;
       case 'Polygon':
         polygon(g.coordinates);
@@ -228,7 +232,7 @@ function validateData(data: GeoJSONData): number {
       case 'MultiPolygon':
         if (!Array.isArray(g.coordinates))
           throw new Error('Invalid MultiPolygon');
-        g.coordinates.forEach(polygon);
+        for (const rings of g.coordinates) polygon(rings);
         break;
       default:
         throw new Error('Unsupported GeoJSON geometry');

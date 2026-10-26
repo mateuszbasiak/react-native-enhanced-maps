@@ -13,6 +13,10 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
   const ids = new Set<string>();
   const content: ReactNode[] = [];
   const features: GeoJSONData['features'][number][] = [];
+  const grouped = new Map<
+    string | undefined,
+    GeoJSONData['features'][number][]
+  >();
   const visit = (nodes: ReactNode, depth = 0) => {
     if (depth > 32) throw new Error('Map child nesting limit exceeded');
     Children.forEach(nodes, (node) => {
@@ -37,6 +41,15 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
         if (p.cluster !== undefined && typeof p.cluster !== 'boolean')
           throw new TypeError('Marker cluster must be a boolean');
         if (
+          p.clusterGroup !== undefined &&
+          (typeof p.clusterGroup !== 'string' ||
+            !p.clusterGroup.trim() ||
+            p.clusterGroup.length > 512)
+        )
+          throw new TypeError(
+            'Marker clusterGroup must be a non-empty string of at most 512 characters',
+          );
+        if (
           !p.coordinate ||
           !Number.isFinite(p.coordinate.latitude) ||
           !Number.isFinite(p.coordinate.longitude) ||
@@ -44,7 +57,7 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
           Math.abs(p.coordinate.longitude) > 180
         )
           throw new RangeError('Invalid marker coordinate');
-        if (p.cluster) {
+        if (p.cluster ?? p.clusterGroup !== undefined) {
           if (Math.abs(p.coordinate.latitude) > 85)
             throw new RangeError(
               'Clustered markers require latitude within ±85 degrees',
@@ -52,7 +65,7 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
           if (markers.size >= 10000)
             throw new RangeError('Clustered marker limit exceeded');
           markers.set(p.id, node);
-          features.push({
+          const feature: GeoJSONData['features'][number] = {
             type: 'Feature',
             id: p.id,
             properties: {},
@@ -60,20 +73,56 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
               type: 'Point',
               coordinates: [p.coordinate.longitude, p.coordinate.latitude],
             },
-          });
+          };
+          features.push(feature);
+          const group = grouped.get(p.clusterGroup) ?? [];
+          group.push(feature);
+          grouped.set(p.clusterGroup, group);
         } else content.push(node);
       } else content.push(node);
     });
   };
   visit(children);
   const data: GeoJSONData = { type: 'FeatureCollection', features };
-  return { markers, content, data, signature: JSON.stringify(data) };
+  const keys: (string | undefined)[] = [...grouped.keys()]
+    .filter((key): key is string => key !== undefined)
+    .sort();
+  if (grouped.has(undefined)) keys.unshift(undefined);
+  let groupIndex = 0;
+  const groups = keys.map((clusterGroup) => {
+    const suffix = clusterGroup === undefined ? '' : `:${++groupIndex}`;
+    const data: GeoJSONData = {
+      type: 'FeatureCollection',
+      features: grouped.get(clusterGroup)!,
+    };
+    return {
+      clusterGroup,
+      sourceId: markerSourceID + suffix,
+      layerId: markerLayerID + suffix,
+      data,
+      markers: new Map(
+        data.features.map((feature) => [feature.id, markers.get(feature.id)!]),
+      ),
+    };
+  });
+  if (groups.length > 64)
+    throw new RangeError('Marker cluster group limit exceeded');
+  return {
+    markers,
+    content,
+    data,
+    groups,
+    signature: JSON.stringify(
+      groups.map(({ clusterGroup, data }) => ({ clusterGroup, data })),
+    ),
+  };
 }
 
 export interface MarkerLayoutFeature {
   readonly id: string;
   readonly latitude: number;
   readonly longitude: number;
+  readonly sourceId?: string;
   readonly clusterId?: number;
   readonly count?: number;
 }
@@ -113,6 +162,14 @@ export function parseMarkerLayout(
       )
         return;
       ids.add(feature.id);
+      const sourceId = feature.sourceId ?? markerSourceID;
+      if (
+        sourceId !== markerSourceID &&
+        (typeof sourceId !== 'string' ||
+          !/^em-marker-clusters:([1-9]|[1-5][0-9]|6[0-4])$/.test(sourceId))
+      )
+        return;
+      const suffix = sourceId.slice(markerSourceID.length);
       if (feature.clusterId !== undefined) {
         if (
           !Number.isSafeInteger(feature.clusterId) ||
@@ -121,7 +178,8 @@ export function parseMarkerLayout(
           !Number.isSafeInteger(feature.count) ||
           feature.count! < 2 ||
           feature.count! > 10000 ||
-          feature.id !== `${clusterMarkerPrefix}${feature.clusterId}`
+          feature.id !==
+            `${clusterMarkerPrefix}${suffix ? suffix.slice(1) + ':' : ''}${feature.clusterId}`
         )
           return;
       } else if (

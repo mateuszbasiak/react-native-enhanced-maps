@@ -7,8 +7,10 @@ import type { Coordinate } from './types';
 export interface MarkerProps {
   readonly id: string;
   readonly coordinate: Coordinate;
-  /** Participate in the map's marker clusters. Default false. */
+  /** Override clustering participation. Defaults to true when clusterGroup is set, otherwise false. */
   readonly cluster?: boolean;
+  /** Enable clustering within this group unless cluster is false. Omission uses the default group. */
+  readonly clusterGroup?: string;
   /** Application metadata returned lazily by a cluster's getMembers(). */
   readonly data?: unknown;
   readonly zIndex?: number;

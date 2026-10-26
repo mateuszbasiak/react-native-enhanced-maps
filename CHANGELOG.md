@@ -11,8 +11,34 @@ changes, not accepted production support or closed release gates.
   children, geographic shapes, camera/projection/fit helpers and capability reports.
 - Opt-in `Marker.cluster` with default/custom React cluster components, lazy member
   metadata and expansion.
+- `Marker.clusterGroup` isolates clustering by group on iOS and Android; custom
+  cluster components receive the group name. A group implicitly enables clustering
+  unless `cluster={false}` explicitly overrides it.
 - Experimental `ShaderLayer` from `/shaders`, with WGSL, optional compute/storage,
-  worklet scheduling and bounded shared world-tile output.
+  worklet scheduling and shared viewport output.
+
+- Expo SDK 56 config plugin and reproducible packed core custom-build consumer.
+  Debug/Release builds and simulator rendering/marker presses pass on both hosts.
+
+### Fixed
+
+- Camera fit requests reject sparse coordinate arrays before they serialize into
+  invalid native point payloads.
+
+- Shader reinitialization reuses a bundle rendering worker and exclusive idle GPU
+  devices, avoiding repeated native-context allocation. Device error dispatchers
+  release layer callbacks without retaining invalidated devices.
+- Android shader repaint callbacks ignore disposed maps and stale style/layer
+  ownership after remount or replacement.
+- Internal GeoJSON validation rejects sparse coordinate axes and nested geometry
+  arrays before they serialize into invalid native coordinates.
+
+- Updateable geographic scalar/vector shader grids, validity masks, sampling helpers,
+  fractional camera zoom and min/max zoom controls.
+- Blue wind trails with live speed, trail length and density controls, stable
+  local-coordinate motion and subpixel coverage.
+- Viewport-only ShaderLayer output with a 50% resolution default, offscreen guard
+  band, geographic projection helpers, and immediate native zoom-range hiding.
 
 ### Breaking changes
 
@@ -26,6 +52,8 @@ changes, not accepted production support or closed release gates.
 
 ### Known limits
 
-Physical-device Release testing, complete compatibility/accessibility acceptance,
-clean consumer builds and release ownership/licensing remain open. See the
+Physical-device Release testing is deferred to the maintainer. Complete
+compatibility/accessibility acceptance, optional GPU consumer integration and
+release ownership/licensing remain open. Core bare and Expo consumer checks have
+bounded build/simulator evidence; they do not establish hardware performance. See the
 [checklist](FEATURE_CHECKLIST.md) for the complete current scope.

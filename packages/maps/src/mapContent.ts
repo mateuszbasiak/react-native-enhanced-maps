@@ -2,7 +2,9 @@ import { Children, Fragment, isValidElement } from 'react';
 import normalizeColor from '@react-native/normalize-colors';
 import type { ReactNode } from 'react';
 import type { Coordinate } from './types';
-import { geodesicPath, geodesicPolygon } from './geodesic.js';
+import { geodesicPathInfo, geodesicPolygon } from './geodesic.ts';
+import { polylineGradient } from './polylineGradient.ts';
+import type { GradientStops } from './polylineGradient';
 
 export interface ShapePressEvent {
   readonly nativeEvent: {
@@ -24,12 +26,14 @@ interface ContentProps {
   readonly lineDashPattern?: readonly number[];
 }
 export interface PolylineProps extends ContentProps {
+  /** One color per original coordinate; overrides strokeColor. Incompatible with dash patterns. */
+  readonly strokeColors?: readonly string[];
   readonly geodesic?: boolean;
   readonly coordinates: readonly Coordinate[];
   readonly strokeColor?: string;
   readonly strokeWidth?: number;
 }
-export interface PolygonProps extends PolylineProps {
+export interface PolygonProps extends Omit<PolylineProps, 'strokeColors'> {
   readonly holes?: readonly (readonly Coordinate[])[];
   readonly fillColor?: string;
 }
@@ -64,6 +68,7 @@ interface BaseItem {
 export type RenderItem =
   | (BaseItem & {
       readonly type: 'polyline';
+      readonly strokeGradient: GradientStops | undefined;
       readonly coordinates: readonly Coordinate[];
       readonly strokeColor: string;
       readonly strokeWidth: number;
@@ -84,6 +89,7 @@ const coordinatesCache = new WeakMap<object, readonly Coordinate[]>();
 const ringCache = new WeakMap<object, readonly Coordinate[]>();
 const holesCache = new WeakMap<object, readonly (readonly Coordinate[])[]>();
 const noHoles: readonly (readonly Coordinate[])[] = [];
+const gradientColors = new WeakMap<readonly string[], readonly string[]>();
 function number(
   value: unknown,
   min: number,
@@ -122,6 +128,23 @@ function color(value: unknown, fallback: string): string {
   return '#' + rgba.toString(16).padStart(8, '0');
 }
 
+function strokeColors(
+  value: unknown,
+  count: number,
+): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length !== count)
+    throw new Error('strokeColors requires one color per input coordinate');
+  const cached = gradientColors.get(value);
+  if (cached) return cached;
+  const colors = Array.from({ length: count }, (_, i) => {
+    if (typeof value[i] !== 'string')
+      throw new TypeError('Gradient colors must be strings');
+    return color(value[i], '#0088ff');
+  });
+  gradientColors.set(value, colors);
+  return colors;
+}
 function coordinate(value: Coordinate): Coordinate {
   if (!value || typeof value !== 'object')
     throw new Error('Expected a coordinate');
@@ -280,13 +303,25 @@ export function compileMapContent(children: ReactNode): RenderScene {
           node.type === Circle
             ? circleRing(p.center, p.radius)
             : coordinates(p.coordinates, ring);
+        const colors =
+          node.type === Polyline
+            ? strokeColors(p.strokeColors, c.length)
+            : undefined;
+        if (node.type === Polyline) allowed.push('strokeColors');
+        if (colors && common.lineDashPattern)
+          throw new Error('Gradient strokes cannot use a dash pattern');
+        let vertexIndices: readonly number[] | undefined;
         let h = node.type === Polygon ? holes(p.holes) : noHoles;
         if (geodesic) {
           if (ring) {
             const polygon = geodesicPolygon(c, h);
             c = polygon.coordinates;
             h = polygon.holes;
-          } else c = geodesicPath(c);
+          } else {
+            const path = geodesicPathInfo(c);
+            c = path.coordinates;
+            vertexIndices = path.vertexIndices;
+          }
         }
         totalPoints += c.length;
         const strokeColor = color(p.strokeColor, '#0088ff'),
@@ -312,6 +347,9 @@ export function compileMapContent(children: ReactNode): RenderScene {
           items.push({
             ...common,
             type: 'polyline',
+            strokeGradient: colors
+              ? polylineGradient(c, colors, vertexIndices)
+              : undefined,
             coordinates: c,
             strokeColor,
             strokeWidth,

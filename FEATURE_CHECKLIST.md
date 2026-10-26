@@ -1,6 +1,6 @@
 # Project checklist
 
-Last reviewed: **2026-10-24**, against the current working tree.
+Last reviewed: **2026-10-25**, against the current working tree.
 
 Package-owned MapLibre Native on iOS/Android, React Native New Architecture only.
 The public API is component-based: `MapView`, `Marker`, `Polyline`, `Polygon`,
@@ -36,7 +36,10 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] Repeated lifecycle verification harness — Both simulators pass 100 strict remount/readiness/stale-ref/native-bounds cycles, with bounded results and cancellation checks. [Results and debugger limitation](docs/map-lifecycle-acceptance.md). Broader lifecycle/resource coverage remains below; physical-device validation is maintainer-owned follow-up.
 - [x] Shape color strings — Polyline/Polygon/Circle accept the pinned React Native string forms and normalize them before native transport. Contract/package/bundle checks and Debug simulator rendering/press smoke pass. [Contract and results](docs/shapes.md).
 
-- [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and separate native hole-picking defect](docs/shapes.md).
+- [x] Geodesic shape edges — Opt-in Polyline/Polygon great-circle geometry, holes, dateline continuity, angular subdivision and point limits are implemented. Compiler contracts and both simulators verify geometry/rendering and route presses. [Results and subsequent hole-picking fix](docs/shapes.md).
+- [x] Polyline gradient strokes — Per-original-vertex colors interpolate along native line distance, including geodesic subdivision. Contracts and both Debug simulators verify updates, solid fallback, remounts and presses. Gradient/dash combinations reject explicitly. [Contract and results](docs/shapes.md).
+- [x] Debug scenario sessions — Single-scenario selection, committed-generation readiness, bounded immutable records, explicit timeout/cancel/failure/skip and provenance fields. Broader semantic/visual/trace automation remains below. [Contract](docs/scenario-sessions.md).
+- [x] Bounded shader device recovery — Unexpected loss gets at most two serial replacements after cleanup; disposal cancels retries. Contracts and both Debug simulators verify injected recovery/exhaustion, produced/sampled output and zero final pools. [Policy and bounded results](docs/shader-layer.md).
 
 ## Map lifetime, camera and gestures
 
@@ -45,18 +48,18 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
 - [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.
-- [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
+- [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Explicit fit request validation now rejects sparse coordinate arrays before native dispatch, with host regression coverage. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
 - [ ] **GEST-01–03, GEST-06** — Complete native pan/zoom/rotate/tilt provenance, throttling, simultaneous recognition and cancellation under detach/navigation/stress. Background cancellation and subscription cycling have simulator evidence. [Gestures](docs/gestures.md).
 - [ ] **GEST-05, A11Y-05** — Marker touch ownership and hit order under multi-touch, nested scroll, bottom sheets, navigation, multiple maps and GPU touch-through. [Marker gestures](docs/marker-gestures.md).
 
 ## Markers, shapes and internal rendering
 
 - [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Decide dedicated image, dragging and callout APIs. [Marker sync evidence](docs/marker-coordinate-sync.md).
-- [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — Fix the reproduced pinned-SDK fill-query hits inside polygon holes, then complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Observed defect](docs/shapes.md).
-- [ ] **SHAPE-03** — React Native color strings and geodesic Polyline/Polygon edges (including holes) are implemented. Decide remaining gradient-stroke and dash-phase compatibility. [Shapes](docs/shapes.md).
+- [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed; complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Native fix and remaining geometry limits](docs/polygon-hole-picking.md).
+- [ ] **SHAPE-03** — React Native color strings, geodesic Polyline/Polygon edges (including holes) and per-vertex Polyline gradients are implemented. Decide remaining dash-phase compatibility. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
 - [ ] **SRC-04, SRC-07, ARCH-09** — Measure parsing/rebuild cost; design incremental updates, off-UI-thread work, cancellation and bounded queues where needed. Android currently uses synchronous source updates for alignment.
-- [ ] **SRC-05–06** — Broader malformed native input and geographic fixtures (wrapping, poles, holes, multi-geometries). Existing aggregate position and 4 MiB scene bounds remain in force. [Scene budgets](docs/scene-budgets.md).
+- [ ] **SRC-05–06** — Host-side GeoJSON validation now rejects sparse coordinates at every geometry depth, with malformed-axis/tuple/ring and dateline/pole/hole/multi-geometry serialization fixtures. The [shared native polygon-helper corpus](docs/polygon-hole-picking.md#shared-native-helper-corpus--2026-10-25) adds matching C++/Java hole/boundary/winding/world-copy/high-latitude and malformed-input checks. Complete malformed native transport and geographic rendering/picking coverage. Existing aggregate position and 4 MiB scene bounds remain in force. [Coverage and limits](docs/scene-budgets.md#malformed-geojson-and-geographic-fixtures).
 - [ ] **PICK-02–03, PICK-05** — Complete visibility/overlap and marker/shape/cluster routing coverage, hit-test cost and accessible alternatives; decide public hit-radius/multiple-hit requirements.
 
 ## Native marker clustering
@@ -76,14 +79,14 @@ their old fixtures describe internal/historical behavior, not the current public
 
 The current path is [ShaderLayer](docs/shader-layer.md): one WGSL program set on
 both platforms, optional compute/storage, packed uniforms, world Mercator tiles,
-a dedicated Worklets runtime and shared native atlas leases without pixel readback.
+a dedicated Worklets runtime and shared native viewport leases without pixel readback.
 Recorded simulator publications during main-JS stalls demonstrate scheduling
 independence. Android software-adapter diagnostics do not prove hardware acceptance.
 
-- [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and atlas resolution transitions. Planar Mercator/polar limits must remain explicit.
+- [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and viewport resolution changes. Planar Mercator/polar limits must remain explicit.
 - [ ] **GPU-09** — Stabilize the experimental WGSL/input/resource contract. Decide schema-typed authoring and streamed texture requirements separately from current packed uniforms/storage.
 - [ ] **GPU-10–11** — Evaluate native-fence handoff beyond current GPU-queue completion waits as a separate optimization. Physical-device scheduling, frame-age, backpressure, allocation and energy measurements are maintainer-owned deferred follow-up.
-- [ ] **GPU-12** — Stress initialization interruption, failed shader edits, pause/background/resume, style replacement, multiple maps/layers and idempotent disposal. Automatic device-loss recovery remains unimplemented.
+- [x] **GPU-12** — Bounded recovery, repeated loss/show-hide/remount stress, failed edits, pause/background/resume, style replacement, concurrent maps/layers and disposal are implemented and verified. [Lifetime evidence](docs/shader-lifetime-acceptance.md) covers native worker/device reuse and repeated stress; [clock and interruption acceptance](docs/shader-lifecycle-acceptance.md) adds both simulators' 100 interrupted initializations, seven controlled async boundaries, double-cleanup ownership and zero final output pools. Native allocation accounting and physical-device performance remain separate follow-up under PERF/GPU-15.
 - [ ] **GPU-13–14** — Validate capability/error degradation and composition limits, including label placement, controls/attribution and native marker ordering. Capability reports currently mark shaders unvalidated.
 - [ ] **PICK-04** — Decide GPU picking and ordering relative to ordinary content; supply interaction alternatives for visual-only effects.
 
@@ -91,9 +94,9 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 
 - [ ] **ARCH-08** — Consistent recoverable/fatal errors across map, source, command and GPU failures.
 - [ ] **PERF-06–07, PERF-10** — At least 100 lifecycle cycles, memory drift/resource bounds, large-content update/cancellation cost, poor-network/offline behavior, memory pressure and GPU failure resilience.
-- [ ] **PERF-08** — Core versus GPU npm/app binary sizes and clean/incremental build cost.
-- [ ] **TEST-03, TEST-10** — Verify current remote CI results. The [quality/bundle workflow](.github/workflows/check.yml) runs package checks. Native CI builds were intentionally removed in PR #13; record local native build evidence separately. Workflow presence alone is not a successful run.
-- [ ] **TEST-05–09, TEST-11** — Consolidate current component scenarios and automate selection/collection with readiness/timeouts. Record commit, platform/device/OS, SDK/RN, build mode, seed and pass/fail/skip; include semantic checks, controlled visual baselines, alignment and trace capture. Unavailable devices must not count as passes.
+- [ ] **PERF-08** — [Repeatable consumer footprint tooling](docs/consumer-footprint.md) measures the maps tarball, installed dependency payload and comparable core/core-plus-shader production JS bundles. Complete native app binary sizes and clean/incremental build cost; npm file payload is not native binary overhead.
+- [x] **TEST-03, TEST-10** — Remote main and PR package CI jobs, 128 passing tests, Codegen, packed declarations, both production bundles and uploaded artifacts are verified for the [recorded commits/runs](docs/remote-ci-acceptance.md). Later revisions need fresh CI results. Native CI builds were intentionally removed in PR #13; native build/runtime acceptance remains separate.
+- [ ] **TEST-05–09, TEST-11** — Debug selection/readiness collection and provenance records are implemented. Complete consolidated semantic assertions, pass/fail results, controlled visual baselines, alignment and trace capture. [Session contract](docs/scenario-sessions.md). Unavailable devices must not count as passes.
 - [ ] **TEST-12** — Verify Release consumers omit development diagnostic interfaces and sensitive data by default.
 - [ ] **A11Y-01–03, A11Y-06** — VoiceOver/TalkBack acceptance for markers, clusters and shapes, accessible navigation/selection, reduced motion and shader pause alternatives. iOS child-label/frame fixes have bounded simulator evidence only.
 
@@ -104,9 +107,9 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
 - [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.
-- [ ] **REL-05** — Complete optional GPU peer combinations outside the workspace; core packed integration is complete under REL-02.
-- [ ] **REL-04** — Expo config plugin and custom development/production builds; Expo Go is outside the native target.
-- [ ] **REL-06** — Reconcile public docs/examples with component exports and finish installation/API/capability references. Some source/layer docs still describe retired public APIs.
+- [ ] **REL-05** — The [optional-peer consumer matrix](docs/optional-peer-consumers.md) covers isolated normal-npm installs, packed declarations and iOS/Android production bundles with neither peer, either peer alone and both. Complete GPU-enabled native consumer Debug/Release builds and runtime acceptance; bundle-only success without Worklets is not shader support. Core packed integration is complete under REL-02.
+- [x] **REL-04** — Expo SDK 56 config plugin and isolated packed core consumer pass repeated prebuild, iOS/Android Debug/Release builds and simulator rendering/marker presses. Release starts with the Expo Metro server stopped. [Setup and results](docs/expo.md). Expo Go is outside the target; physical-device checks are maintainer-owned follow-up.
+- [x] **REL-06** — Current installation, API, capability and component-clustering references match public exports. Source/layer transport is explicitly private; prototype/provider scenarios are historical. Canonical repository links and the fixed hole-picking status are reconciled. [Documentation index](docs/README.md).
 - [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
 - [ ] **REL-11** — Validate npm prerelease and obtain explicit publishing approval.
 

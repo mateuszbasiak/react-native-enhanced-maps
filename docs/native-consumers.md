@@ -68,7 +68,9 @@ The generated root manifest constrains `react-native-reanimated` to 4.6.0 throug
 then succeeds, and none of Reanimated, Worklets or WebGPU is installed. This is an
 explicit resolver workaround, not a claim that broader Worklets versions work.
 Do not hide the conflict with `--legacy-peer-deps` or `--force`. GPU-enabled
-consumers require their own explicit peer installation and acceptance matrix.
+consumers require explicit peer installation. The [optional-peer matrix](optional-peer-consumers.md)
+checks isolated installation, declarations and JavaScript bundles; native GPU
+consumer builds and runtime acceptance remain separate.
 
 ## Bounded results, 2026-10-23
 
@@ -98,3 +100,13 @@ and signed-device checks are deferred to the maintainer and do not block core
 integration completion or this PR's readiness. Ownership/license and publication
 approval remain separate requirements. No hardware results are claimed and no
 package was published.
+
+## Source and compiled relative imports
+
+React Native consumers resolve the package's TypeScript source entry. Relative
+runtime imports must name source files that actually exist; do not use a `.js`
+specifier to refer to a `.ts` source and rely on an example-only Metro fallback.
+The geodesic helper uses an explicit `.ts` source import, and the pinned TypeScript
+compiler rewrites it to `.js` in emitted ESM. The workspace example uses ordinary
+Metro relative resolution so production bundling detects this class of consumer
+regression. Packed-consumer bundling remains a separate integration check.

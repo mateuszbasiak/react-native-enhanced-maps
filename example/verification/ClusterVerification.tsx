@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, {
   createContext,
   useContext,
@@ -72,6 +73,7 @@ type DebugGlobal = typeof globalThis & {
       clusters: {
         count: number;
         coordinate: ClusterComponentProps['coordinate'];
+        clusterGroup?: string;
       }[];
     };
     configure(options: {
@@ -80,11 +82,12 @@ type DebugGlobal = typeof globalThis & {
       present?: boolean;
       clustered?: boolean;
       moved?: boolean;
+      grouped?: boolean;
     }): void;
     remount(): void;
     reloadStyle(): void;
     animate(zoom: number): void;
-    capture(): ClusterComponentProps | undefined;
+    capture(clusterGroup?: string): ClusterComponentProps | undefined;
     inspect(expectedCount?: number): Promise<readonly ClusterMember[]>;
   };
 };
@@ -108,6 +111,7 @@ export default function ClusterVerification() {
     [],
   );
   const [count, setCount] = useState(3);
+  const [grouped, setGrouped] = useState(false);
   const [cluster, setCluster] = useState(true);
   const [custom, setCustom] = useState(true);
   const [present, setPresent] = useState(true);
@@ -150,10 +154,13 @@ export default function ClusterVerification() {
     const api = {
       snapshot: () => ({
         ...evidence.current,
-        clusters: [...handles.current].map(({ count, coordinate }) => ({
-          count,
-          coordinate,
-        })),
+        clusters: [...handles.current].map(
+          ({ count, coordinate, clusterGroup }) => ({
+            ...(clusterGroup === undefined ? {} : { clusterGroup }),
+            count,
+            coordinate,
+          }),
+        ),
       }),
       configure: (options: {
         count?: number;
@@ -161,6 +168,7 @@ export default function ClusterVerification() {
         present?: boolean;
         clustered?: boolean;
         moved?: boolean;
+        grouped?: boolean;
       }) => {
         if (options.count !== undefined) {
           if (
@@ -174,13 +182,18 @@ export default function ClusterVerification() {
         if (options.custom !== undefined) setCustom(options.custom);
         if (options.present !== undefined) setPresent(options.present);
         if (options.clustered !== undefined) setCluster(options.clustered);
+        if (options.grouped !== undefined) setGrouped(options.grouped);
         if (options.moved !== undefined) setMoved(options.moved);
       },
       remount: () => setGeneration((v) => v + 1),
       reloadStyle: () => setStyleEpoch((v) => v + 1),
       animate: (zoom: number) =>
         map.current?.animateCamera({ ...initialCamera, zoom }, 0),
-      capture: () => [...handles.current][0],
+      capture: (clusterGroup?: string) =>
+        [...handles.current].find(
+          (handle) =>
+            clusterGroup === undefined || handle.clusterGroup === clusterGroup,
+        ),
       inspect: async (expectedCount?: number) => {
         const handle = await waitForCluster(expectedCount);
         const members = await handle.getMembers();
@@ -212,49 +225,55 @@ export default function ClusterVerification() {
       >
         <View style={{ flex: 1 }}>
           <Text testID="cluster-status">{summary}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {[3, 1000, 10000].map((value) => (
+          <ExampleControls>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[3, 6, 1000, 10000].map((value) => (
+                <Button
+                  key={value}
+                  title={`${value} markers`}
+                  onPress={() => setCount(value)}
+                />
+              ))}
               <Button
-                key={value}
-                title={`${value} markers`}
-                onPress={() => setCount(value)}
+                title={cluster ? 'Disable clustering' : 'Enable clustering'}
+                onPress={() => setCluster((value) => !value)}
               />
-            ))}
-            <Button
-              title={cluster ? 'Disable clustering' : 'Enable clustering'}
-              onPress={() => setCluster((value) => !value)}
-            />
-            <Button
-              title={custom ? 'Default bubble' : 'Custom bubble'}
-              onPress={() => setCustom((value) => !value)}
-            />
-            <Button
-              title="Zoom 13"
-              onPress={() => map.current?.animateCamera(initialCamera, 0)}
-            />
-            <Button
-              title="Zoom 16"
-              onPress={() =>
-                map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
-              }
-            />
-            <Button
-              title="Move markers"
-              onPress={() => setMoved((value) => !value)}
-            />
-            <Button
-              title={present ? 'Remove markers' : 'Restore markers'}
-              onPress={() => setPresent((value) => !value)}
-            />
-            <Button
-              title="Reload style"
-              onPress={() => setStyleEpoch((value) => value + 1)}
-            />
-            <Button
-              title="Remount"
-              onPress={() => setGeneration((value) => value + 1)}
-            />
-          </View>
+              <Button
+                title={grouped ? 'Merge groups' : 'Separate groups'}
+                onPress={() => setGrouped((value) => !value)}
+              />
+              <Button
+                title={custom ? 'Default bubble' : 'Custom bubble'}
+                onPress={() => setCustom((value) => !value)}
+              />
+              <Button
+                title="Zoom 13"
+                onPress={() => map.current?.animateCamera(initialCamera, 0)}
+              />
+              <Button
+                title="Zoom 16"
+                onPress={() =>
+                  map.current?.animateCamera({ ...initialCamera, zoom: 16 }, 0)
+                }
+              />
+              <Button
+                title="Move markers"
+                onPress={() => setMoved((value) => !value)}
+              />
+              <Button
+                title={present ? 'Remove markers' : 'Restore markers'}
+                onPress={() => setPresent((value) => !value)}
+              />
+              <Button
+                title="Reload style"
+                onPress={() => setStyleEpoch((value) => value + 1)}
+              />
+              <Button
+                title="Remount"
+                onPress={() => setGeneration((value) => value + 1)}
+              />
+            </View>
+          </ExampleControls>
           <MapView
             key={generation}
             ref={map}
@@ -280,7 +299,8 @@ export default function ClusterVerification() {
                 <Marker
                   key={marker.id}
                   {...marker}
-                  cluster={cluster}
+                  {...(grouped && cluster ? {} : { cluster })}
+                  {...(grouped ? { clusterGroup: marker.data.status } : {})}
                   anchor={{ x: 0.5, y: 0.5 }}
                 >
                   <Pressable

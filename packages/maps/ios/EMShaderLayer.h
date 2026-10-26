@@ -1,4 +1,4 @@
-// Native shared atlas transport for worklet-driven ShaderLayer.
+// Native shared viewport transport for worklet-driven ShaderLayer.
 #if MLN_RENDER_BACKEND_METAL
 #import <IOSurface/IOSurfaceRef.h>
 #import <CoreVideo/CoreVideo.h>
@@ -12,6 +12,7 @@
 @public
   std::shared_ptr<enhancedmaps::ShaderOutputState> state;
   IOSurfaceRef surfaces[3];
+  int width,height;
   id<MTLTexture> textures[3];
 }
 @end
@@ -50,13 +51,13 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(diagnostics) {
   return @{@"produced":@(produced),@"sampled":@(sampled),@"pools":@(pools)};
 }
 #endif
-RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if(dimension!=1024) { reject(@"size",@"Shader atlas is fixed at 1024 pixels",nil);return; }
-  EMWebGPUOutputPool *pool=[EMWebGPUOutputPool new];
+RCT_EXPORT_METHOD(create:(double)width height:(double)height resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  if(!std::isfinite(width)||!std::isfinite(height)||width!=std::floor(width)||height!=std::floor(height)||width<1||height<1||width>4096||height>4096) { reject(@"size",@"Shader output dimensions must be 1 to 4096 pixels",nil);return; }
+  EMWebGPUOutputPool *pool=[EMWebGPUOutputPool new];pool->width=(int)width;pool->height=(int)height;
   NSMutableArray *handles=[NSMutableArray new];
   for(int i=0;i<3;i++) {
-    NSDictionary *properties=@{(id)kIOSurfaceWidth:@1024,(id)kIOSurfaceHeight:@1024,(id)kIOSurfaceBytesPerElement:@4,
-      (id)kIOSurfaceBytesPerRow:@(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow,1024*4)),(id)kIOSurfacePixelFormat:@(kCVPixelFormatType_32BGRA)};
+    NSDictionary *properties=@{(id)kIOSurfaceWidth:@(width),(id)kIOSurfaceHeight:@(height),(id)kIOSurfaceBytesPerElement:@4,
+      (id)kIOSurfaceBytesPerRow:@(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow,(size_t)width*4)),(id)kIOSurfacePixelFormat:@(kCVPixelFormatType_32BGRA)};
     pool->surfaces[i]=IOSurfaceCreate((__bridge CFDictionaryRef)properties);
     if(!pool->surfaces[i]) { reject(@"allocation",@"IOSurface allocation failed",nil);return; }
     [handles addObject:[NSString stringWithFormat:@"%llu",(unsigned long long)(uintptr_t)pool->surfaces[i]]];
@@ -66,13 +67,13 @@ RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)reso
     if(EMWebGPUPools().count>=4) { reject(@"budget",@"At most four shader layers",nil);return; }
     EMWebGPUPools()[key]=pool;
   }
-  resolve(@{@"id":key,@"handles":handles,@"format":@"bgra8unorm",@"size":@1024});
+  resolve(@{@"id":key,@"handles":handles,@"format":@"bgra8unorm",@"size":@(width),@"width":@(width),@"height":@(height)});
 }
 #if DEBUG
 RCT_EXPORT_METHOD(stats:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   EMWebGPUOutputPool *pool=EMWebGPUPool(key);if(!pool){reject(@"closed",@"Unknown output pool",nil);return;}
   std::lock_guard<std::mutex> lock(pool->state->mutex);
-  resolve(@{@"produced":@(pool->state->produced),@"sampled":@(pool->state->sampled),@"bytes":@(3*1024*1024*4)});
+  resolve(@{@"produced":@(pool->state->produced),@"sampled":@(pool->state->sampled),@"bytes":@(3*pool->width*pool->height*4)});
 }
 #endif
 RCT_EXPORT_METHOD(release:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
@@ -94,6 +95,8 @@ RCT_EXPORT_METHOD(release:(NSString *)key resolver:(RCTPromiseResolveBlock)resol
   EMWebGPUOutputPool *pool=self.pool;
   if(!pool || !self.renderEncoder)return;
   MLNBackendResource *resource=[map backendResource];
+  pool->state->updateView(&context.projectionMatrix.m00,context.zoomLevel,(int)resource.mtkView.drawableSize.width,(int)resource.mtkView.drawableSize.height);
+  if(!pool->state->isZoomVisible(context.zoomLevel))return;
   if(!_pipeline) {
     NSString *source=@(R"METAL(
 #include <metal_stdlib>
@@ -120,33 +123,28 @@ fragment float4 sharedFragment(O in [[stage_in]], texture2d<float> image [[textu
     MTLDepthStencilDescriptor *d=[MTLDepthStencilDescriptor new];d.depthCompareFunction=MTLCompareFunctionAlways;d.depthWriteEnabled=NO;
     _depth=[resource.device newDepthStencilStateWithDescriptor:d];
   }
-  int index;std::vector<enhancedmaps::ShaderTile> tiles;
-  pool->state->updateView(&context.projectionMatrix.m00,context.zoomLevel);
+  int index;enhancedmaps::ShaderCamera source,current;
+
   { std::lock_guard<std::mutex> lock(pool->state->mutex);
     index=pool->state->slots.beginRead();if(index<0)return;
     if(!pool->textures[index]) {
-      MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:1024 height:1024 mipmapped:NO];
+      MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:pool->width height:pool->height mipmapped:NO];
       d.usage=MTLTextureUsageShaderRead;d.storageMode=MTLStorageModeShared;
       pool->textures[index]=[resource.device newTextureWithDescriptor:d iosurface:pool->surfaces[index] plane:0];
     }
     if(!pool->textures[index]) { pool->state->slots.endRead(index);return; }
-    pool->state->sampled++;tiles=pool->state->tiles[index];
+    pool->state->sampled++;source=pool->state->cameras[index];current=pool->state->camera;
   }
-  const double *m=&context.projectionMatrix.m00;double world=512*std::pow(2,context.zoomLevel);
   id<MTLRenderCommandEncoder> encoder=self.renderEncoder;
   [encoder setRenderPipelineState:_pipeline];[encoder setDepthStencilState:_depth];[encoder setCullMode:MTLCullModeNone];
   [encoder setFragmentTexture:pool->textures[index] atIndex:0];
-  for(size_t tileIndex=0;tileIndex<tiles.size();tileIndex++) {
-    auto t=tiles[tileIndex];double n=std::pow(2,t.z);
-    struct Vertex { vector_float4 clip;vector_float2 uv; } vertices[4];
-    for(int i=0;i<4;i++) {
-      double x=(t.x+i%2)/n*world,y=(t.y+i/2)/n*world,v[4];
-      for(int r=0;r<4;r++)v[r]=m[r]*x+m[4+r]*y+m[12+r];
-      vertices[i].clip={(float)v[0],(float)v[1],(float)v[2],(float)v[3]};
-      vertices[i].uv={(float)((tileIndex%4*256+2+(i%2)*252)/1024.0),(float)((tileIndex/4*256+2+(i/2)*252)/1024.0)};
+  if(source.valid) {
+    float packed[24];if(enhancedmaps::shaderViewportQuad(source,current,packed)) {
+      struct Vertex { vector_float4 clip;vector_float2 uv; } vertices[4];
+      for(int i=0;i<4;i++){vertices[i].clip={packed[i*6],packed[i*6+1],0,packed[i*6+3]};vertices[i].uv={packed[i*6+4],packed[i*6+5]};}
+      [encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
+      [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
     }
-    [encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
-    [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
   }
   [self.commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) { { std::lock_guard<std::mutex> lock(pool->state->mutex);pool->state->slots.endRead(index); } }];
 }

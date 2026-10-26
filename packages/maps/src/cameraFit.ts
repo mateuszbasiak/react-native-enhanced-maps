@@ -10,22 +10,24 @@ export function fitRequest(
       coordinates.length > 1000)
   )
     throw new RangeError('Fit requires 1 to 1000 coordinates');
-  const coordinatesJSON =
-    coordinates === undefined
-      ? ''
-      : JSON.stringify(
-          coordinates.map((value) => {
-            if (
-              !value ||
-              !Number.isFinite(value.latitude) ||
-              !Number.isFinite(value.longitude) ||
-              Math.abs(value.latitude) > 90 ||
-              Math.abs(value.longitude) > 180
-            )
-              throw new RangeError('Invalid fit coordinate');
-            return [value.latitude, value.longitude];
-          }),
-        );
+  let coordinatesJSON = '';
+  if (coordinates !== undefined) {
+    const positions: [number, number][] = [];
+    // Visit every index: map() skips sparse entries that JSON turns into null.
+    for (let index = 0; index < coordinates.length; index++) {
+      const value = coordinates[index];
+      if (
+        !value ||
+        !Number.isFinite(value.latitude) ||
+        !Number.isFinite(value.longitude) ||
+        Math.abs(value.latitude) > 90 ||
+        Math.abs(value.longitude) > 180
+      )
+        throw new RangeError('Invalid fit coordinate');
+      positions.push([value.latitude, value.longitude]);
+    }
+    coordinatesJSON = JSON.stringify(positions);
+  }
   const padding = options.padding ?? 0;
   const edges =
     typeof padding === 'number'

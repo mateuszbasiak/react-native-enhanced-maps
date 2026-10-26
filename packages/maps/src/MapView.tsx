@@ -7,13 +7,12 @@ import React, {
   useState,
 } from 'react';
 import type { ElementRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PixelRatio } from 'react-native';
 import { Marker } from './Marker';
 import { DefaultCluster } from './DefaultCluster';
 import {
   collectMarkers,
   markerSourceID,
-  markerLayerID,
   parseMarkerLayout,
   resolveClusterMembers,
 } from './markerClustering';
@@ -134,23 +133,21 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       () =>
         compileScene([
           ...markerContent.content,
-          ...(markerContent.markers.size
-            ? [
-                <InternalSource
-                  key="em-clusters"
-                  id={markerSourceID}
-                  data={markerContent.data}
-                  revision={markerVersion.revision}
-                  cluster
-                >
-                  <InternalLayer
-                    id={markerLayerID}
-                    type="circle"
-                    style={{ circleRadius: 1, circleOpacity: 0 }}
-                  />
-                </InternalSource>,
-              ]
-            : []),
+          ...markerContent.groups.map((group) => (
+            <InternalSource
+              key={group.sourceId}
+              id={group.sourceId}
+              data={group.data}
+              revision={markerVersion.revision}
+              cluster
+            >
+              <InternalLayer
+                id={group.layerId}
+                type="circle"
+                style={{ circleRadius: 1, circleOpacity: 0 }}
+              />
+            </InternalSource>
+          )),
         ]),
       [markerContent, markerVersion.revision],
     );
@@ -173,13 +170,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         ? markerLayout.layout.features.map((feature) => {
             if (feature.clusterId === undefined)
               return markerContent.markers.get(feature.id);
+            const group = markerContent.groups.find(
+              (group) =>
+                group.sourceId === (feature.sourceId ?? markerSourceID),
+            )!;
             const coordinate = {
               latitude: feature.latitude,
               longitude: feature.longitude,
             };
             const layout = markerLayout.layout;
             const handle = clusterHandles.capture(
-              markerSourceID,
+              group.sourceId,
               `cluster:${feature.clusterId}`,
               {
                 cluster: true,
@@ -195,12 +196,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               activeLayout.current?.layout === layout &&
               activeStyle.current === styleRequest.revision;
             const clusterProps: ClusterComponentProps = {
+              ...(group.clusterGroup === undefined
+                ? {}
+                : { clusterGroup: group.clusterGroup }),
               count: feature.count!,
               coordinate,
               getMembers: () =>
                 resolveClusterMembers(
                   feature.count!,
-                  markerContent.markers,
+                  group.markers,
                   async (offset) => {
                     const page = (await queries.request(
                       'clusterLeaves',
@@ -327,9 +331,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       }),
       [readiness, queries, styleRequest.revision],
     );
+    const [shaderViewport, setShaderViewport] = useState({
+      width: 0,
+      height: 0,
+      pixelRatio: PixelRatio.get(),
+    });
     const shaderHost = useMemo(
       () => ({
         ready: shaderReadyRevision === styleRequest.revision,
+        viewport: shaderViewport,
         revision: styleRequest.revision,
         request(input: Record<string, string | number>) {
           if (!readiness.isReady(styleRequest.revision))
@@ -337,7 +347,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           return queries.request('shaderLayer', input, styleRequest.revision);
         },
       }),
-      [shaderReadyRevision, styleRequest.revision, readiness, queries],
+      [
+        shaderReadyRevision,
+        styleRequest.revision,
+        readiness,
+        queries,
+        shaderViewport,
+      ],
     );
     return (
       <MapContext.Provider value={true}>
@@ -346,6 +362,18 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
             {...settings}
             ref={nativeRef}
             style={props.style}
+            onLayout={({ nativeEvent: { layout } }) => {
+              const width = PixelRatio.getPixelSizeForLayoutSize(layout.width),
+                height = PixelRatio.getPixelSizeForLayoutSize(layout.height),
+                pixelRatio = PixelRatio.get();
+              setShaderViewport((previous) =>
+                previous.width === width &&
+                previous.height === height &&
+                previous.pixelRatio === pixelRatio
+                  ? previous
+                  : { width, height, pixelRatio },
+              );
+            }}
             testID={props.testID}
             styleURL={props.styleURL}
             styleRevision={styleRequest.revision}
@@ -364,8 +392,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 !layout ||
                 layout.features.some(
                   (feature) =>
-                    feature.clusterId === undefined &&
-                    !markerContent.markers.has(feature.id),
+                    !markerContent.groups.some(
+                      (group) =>
+                        group.sourceId ===
+                          (feature.sourceId ?? markerSourceID) &&
+                        (feature.clusterId !== undefined ||
+                          group.markers.has(feature.id)),
+                    ),
                 )
               )
                 return;

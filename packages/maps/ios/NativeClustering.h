@@ -14,7 +14,12 @@ static void EMStampClusterShape(MLNShape *shape,uint64_t revision) {
 }
 static NSDictionary *EMClusterOptions(NSDictionary *entry) {
   NSDictionary *cluster=entry[@"cluster"];
-  if(!cluster)return @{};
+  id rawMetrics=entry[@"lineMetrics"];
+  if(rawMetrics && CFGetTypeID((__bridge CFTypeRef)rawMetrics)!=CFBooleanGetTypeID())
+    @throw [NSException exceptionWithName:@"LineGradient" reason:@"Line metrics must be boolean" userInfo:nil];
+  BOOL metrics=rawMetrics?[rawMetrics boolValue]:NO;
+  if(metrics && cluster)@throw [NSException exceptionWithName:@"LineGradient" reason:@"Line metrics cannot use clustering" userInfo:nil];
+  if(!cluster)return metrics?@{MLNShapeSourceOptionLineDistanceMetrics:@YES}:@{};
   if(![cluster isKindOfClass:NSDictionary.class] || ![[NSSet setWithArray:cluster.allKeys] isEqualToSet:[NSSet setWithArray:@[@"radius",@"maxZoom",@"minPoints"]]])
     @throw [NSException exceptionWithName:@"Cluster" reason:@"Invalid cluster options" userInfo:nil];
   auto integer=[&](NSString *key,double minimum,double maximum) {

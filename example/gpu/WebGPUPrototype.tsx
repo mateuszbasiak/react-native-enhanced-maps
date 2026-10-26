@@ -1,11 +1,14 @@
-import React, { useRef, useState } from 'react';
+import ExampleControls from '../ExampleControls';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button, Text, TextInput, View, NativeModules } from 'react-native';
 import { MapView, Marker } from 'react-native-enhanced-maps';
 import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
+import type { ShaderFrame } from 'react-native-enhanced-maps/shaders';
 import type { MapViewRef } from 'react-native-enhanced-maps';
 import {
   shaderSource,
   windCompute,
+  windGrid,
   windVertex,
   windFragment,
 } from './webgpuShader';
@@ -18,6 +21,18 @@ export default function WebGPUPrototype() {
     'below-labels',
   );
   const [wind, setWind] = useState(false);
+  const [resolutionScale, setResolutionScale] = useState(0.5);
+  const [reverseWind, setReverseWind] = useState(false);
+  const [windSpeed, setWindSpeed] = useState(1);
+  const [longTrails, setLongTrails] = useState(false);
+  const [denseWind, setDenseWind] = useState(false);
+  const windData = useMemo(
+    () => ({
+      ...windGrid,
+      values: windGrid.values.map((value) => (reverseWind ? -value : value)),
+    }),
+    [reverseWind],
+  );
   const [paused, setPaused] = useState(false);
   const [effect, setEffect] = useState(0);
   const [amber, setAmber] = useState(false);
@@ -28,7 +43,53 @@ export default function WebGPUPrototype() {
   const [source, setSource] = useState(shaderSource);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('Waiting for ShaderLayer');
+  const evidence = useRef({ readyCount: 0, errors: [] as string[] });
+  const report = (error: { message: string }) => {
+    evidence.current.errors.push(error.message);
+    if (evidence.current.errors.length > 40) evidence.current.errors.shift();
+    setStatus(error.message);
+  };
+  useEffect(() => {
+    if (!__DEV__) return;
+    const target = globalThis as typeof globalThis & {
+      __enhancedMapsShaderRecovery?: Map<string, () => void>;
+      __enhancedMapsWebGPU?: unknown;
+    };
+    const api = {
+      snapshot: () => ({
+        ...evidence.current,
+        errors: [...evidence.current.errors],
+        diagnostics: NativeModules.EMShaderLayer?.diagnostics?.(),
+      }),
+      lose: () => {
+        const inject =
+          target.__enhancedMapsShaderRecovery?.get('animated-water');
+        if (!inject) throw new Error('Shader device is not available');
+        inject();
+      },
+      software: setAllowSoftwareAdapter,
+      visible: setVisible,
+      second: setSecond,
+      source: setSource,
+      remount: () => setGeneration((value) => value + 1),
+    };
+    target.__enhancedMapsWebGPU = api;
+    return () => {
+      if (target.__enhancedMapsWebGPU === api)
+        delete target.__enhancedMapsWebGPU;
+    };
+  }, []);
   const tint = amber ? [1, 0.45, 0.03, 0.85] : [0.04, 0.48, 0.95, 0.85];
+  const windUniforms = (frame: ShaderFrame) => {
+    'worklet';
+    return [
+      40 * 2 ** (12 - frame.zoom) * windSpeed,
+      longTrails ? 0.16 : 0.1,
+      1.2,
+      denseWind ? 0.8 : 0.45,
+      ...(amber ? [1, 0.45, 0.03, 0.95] : [0.02, 0.36, 0.95, 0.95]),
+    ];
+  };
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ padding: 8 }}>
@@ -36,145 +97,195 @@ export default function WebGPUPrototype() {
         {'\n'}
         {status}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button
+            title={
+              placement === 'below-labels' ? 'Above labels' : 'Below labels'
+            }
+            onPress={() =>
+              setPlacement((v) =>
+                v === 'below-labels' ? 'above-labels' : 'below-labels',
+              )
+            }
+          />
+          <Button
+            title={paused ? 'Resume' : 'Pause'}
+            onPress={() => setPaused((v) => !v)}
+          />
+          <Button
+            title={['Waves', 'Radar', 'Checkerboard'][effect]}
+            onPress={() => setEffect((v) => (v + 1) % 3)}
+          />
+          <Button
+            title={amber ? 'Blue' : 'Amber'}
+            onPress={() => setAmber((v) => !v)}
+          />
+          <Button
+            title={visible ? 'Hide layer' : 'Show layer'}
+            onPress={() => setVisible((v) => !v)}
+          />
+          <Button
+            title={second ? 'Remove second' : 'Second layer'}
+            onPress={() => setSecond((v) => !v)}
+          />
+          <Button
+            title="Tilt / rotate"
+            onPress={() => {
+              map.current?.animateCamera(
+                {
+                  center,
+                  zoom: 12,
+                  heading: tilted ? 0 : 45,
+                  pitch: tilted ? 0 : 50,
+                },
+                1000,
+              );
+              setTilted((v) => !v);
+            }}
+          />
+          <Button
+            title="Reload style"
+            onPress={() => setAlternateStyle((v) => !v)}
+          />
+          <Button title="Remount" onPress={() => setGeneration((v) => v + 1)} />
+          <Button
+            title={editing ? 'Close editor' : 'Edit WGSL'}
+            onPress={() => setEditing((v) => !v)}
+          />
+          <Button
+            title="Reset shader"
+            onPress={() => setSource(shaderSource)}
+          />
+        </View>
         <Button
-          title={placement === 'below-labels' ? 'Above labels' : 'Below labels'}
+          title={
+            allowSoftwareAdapter
+              ? 'Software diagnostics enabled'
+              : 'Allow software GPU (diagnostic)'
+          }
+          onPress={() => setAllowSoftwareAdapter((v) => !v)}
+        />
+        <Button
+          title={`Resolution: ${resolutionScale * 100}%`}
           onPress={() =>
-            setPlacement((v) =>
-              v === 'below-labels' ? 'above-labels' : 'below-labels',
-            )
+            setResolutionScale((v) => (v === 0.5 ? 0.75 : v === 0.75 ? 1 : 0.5))
           }
         />
         <Button
-          title={paused ? 'Resume' : 'Pause'}
-          onPress={() => setPaused((v) => !v)}
+          title={wind ? 'Procedural waves' : 'Wind particles (grid)'}
+          onPress={() => setWind((v) => !v)}
         />
+        {wind && (
+          <View>
+            <Button
+              title="Reverse wind data"
+              onPress={() => setReverseWind((v) => !v)}
+            />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              <Button
+                title={`Speed: ${windSpeed}×`}
+                onPress={() => setWindSpeed((v) => (v === 1 ? 2 : 1))}
+              />
+              <Button
+                title={longTrails ? 'Trails: long' : 'Trails: short'}
+                onPress={() => setLongTrails((v) => !v)}
+              />
+              <Button
+                title={denseWind ? 'Density: high' : 'Density: normal'}
+                onPress={() => setDenseWind((v) => !v)}
+              />
+            </View>
+          </View>
+        )}
+        {__DEV__ && (
+          <Button
+            title="Simulate device loss"
+            onPress={() => {
+              const target = globalThis as typeof globalThis & {
+                __enhancedMapsShaderRecovery?: Map<string, () => void>;
+              };
+              const inject =
+                target.__enhancedMapsShaderRecovery?.get('animated-water');
+              if (inject) inject();
+              else setStatus('Shader device is not available');
+            }}
+          />
+        )}
         <Button
-          title={['Waves', 'Radar', 'Checkerboard'][effect]}
-          onPress={() => setEffect((v) => (v + 1) % 3)}
-        />
-        <Button
-          title={amber ? 'Blue' : 'Amber'}
-          onPress={() => setAmber((v) => !v)}
-        />
-        <Button
-          title={visible ? 'Hide layer' : 'Show layer'}
-          onPress={() => setVisible((v) => !v)}
-        />
-        <Button
-          title={second ? 'Remove second' : 'Second layer'}
-          onPress={() => setSecond((v) => !v)}
-        />
-        <Button
-          title="Tilt / rotate"
+          title="Block JS 3s"
           onPress={() => {
-            map.current?.animateCamera(
-              {
-                center,
-                zoom: 12,
-                heading: tilted ? 0 : 45,
-                pitch: tilted ? 0 : 50,
-              },
-              1000,
+            const before = NativeModules.EMShaderLayer.diagnostics();
+            const end = Date.now() + 3000;
+            while (Date.now() < end) {
+              /* Worklet keeps submitting. */
+            }
+            const after = NativeModules.EMShaderLayer.diagnostics();
+            setStatus(
+              `${after.produced - before.produced} GPU frames published while main JS blocked for 3s`,
             );
-            setTilted((v) => !v);
           }}
         />
-        <Button
-          title="Reload style"
-          onPress={() => setAlternateStyle((v) => !v)}
-        />
-        <Button title="Remount" onPress={() => setGeneration((v) => v + 1)} />
-        <Button
-          title={editing ? 'Close editor' : 'Edit WGSL'}
-          onPress={() => setEditing((v) => !v)}
-        />
-        <Button title="Reset shader" onPress={() => setSource(shaderSource)} />
-      </View>
-      <Button
-        title={
-          allowSoftwareAdapter
-            ? 'Software diagnostics enabled'
-            : 'Allow software GPU (diagnostic)'
-        }
-        onPress={() => setAllowSoftwareAdapter((v) => !v)}
-      />
-      <Button
-        title={wind ? 'Procedural waves' : 'Wind particles'}
-        onPress={() => setWind((v) => !v)}
-      />
-      <Button
-        title="Block JS 3s"
-        onPress={() => {
-          const before = NativeModules.EMShaderLayer.diagnostics();
-          const end = Date.now() + 3000;
-          while (Date.now() < end) {
-            /* Worklet keeps submitting. */
-          }
-          const after = NativeModules.EMShaderLayer.diagnostics();
-          setStatus(
-            `${after.produced - before.produced} GPU frames published while main JS blocked for 3s`,
-          );
-        }}
-      />
-      <View style={{ flexDirection: 'row' }}>
-        <Button
-          title="World view"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 0, longitude: 0 },
-                zoom: 1,
-                heading: 0,
-                pitch: 0,
-              },
-              1200,
-            )
-          }
-        />
-        <Button
-          title="Dateline"
-          onPress={() =>
-            map.current?.animateCamera(
-              {
-                center: { latitude: 0, longitude: 179.9 },
-                zoom: 3,
-                heading: 0,
-                pitch: 0,
-              },
-              1200,
-            )
-          }
-        />
-        <Button
-          title="Local view"
-          onPress={() =>
-            map.current?.animateCamera(
-              { center, zoom: 12, heading: 0, pitch: 0 },
-              1200,
-            )
-          }
-        />
-      </View>
-      {editing && (
-        <TextInput
-          accessibilityLabel="WGSL source"
-          multiline
-          value={source}
-          onChangeText={setSource}
-          style={{ height: 140, fontSize: 10, borderWidth: 1 }}
-        />
-      )}
+        <View style={{ flexDirection: 'row' }}>
+          <Button
+            title="World view"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 0, longitude: 0 },
+                  zoom: 1,
+                  heading: 0,
+                  pitch: 0,
+                },
+                1200,
+              )
+            }
+          />
+          <Button
+            title="Dateline"
+            onPress={() =>
+              map.current?.animateCamera(
+                {
+                  center: { latitude: 0, longitude: 179.9 },
+                  zoom: 3,
+                  heading: 0,
+                  pitch: 0,
+                },
+                1200,
+              )
+            }
+          />
+          <Button
+            title="Local view"
+            onPress={() =>
+              map.current?.animateCamera(
+                { center, zoom: 12, heading: 0, pitch: 0 },
+                1200,
+              )
+            }
+          />
+        </View>
+        {editing && (
+          <TextInput
+            accessibilityLabel="WGSL source"
+            multiline
+            value={source}
+            onChangeText={setSource}
+            style={{ height: 140, fontSize: 10, borderWidth: 1 }}
+          />
+        )}
+      </ExampleControls>
       <MapView
         key={generation}
         ref={map}
         style={{ flex: 1 }}
         styleURL={`https://tiles.openfreemap.org/styles/${alternateStyle ? 'bright' : 'liberty'}`}
         initialCamera={{ center, zoom: 12, heading: 0, pitch: 0 }}
-        onError={(error) => setStatus(error.message)}
+        onError={report}
       >
         <ShaderLayer
           id="animated-water"
+          resolutionScale={resolutionScale}
           shaders={
             wind
               ? {
@@ -187,28 +298,35 @@ export default function WebGPUPrototype() {
           {...(wind
             ? {
                 simulation: {
-                  byteLength: 1024 * 32,
-                  workgroups: [16] as const,
+                  byteLength: 2048 * 128,
+                  workgroups: [32] as const,
                 },
-                vertexCount: 6,
-                instanceCount: 1024,
+                data: windData,
+                minZoom: 8,
+                maxZoom: 18,
+                vertexCount: 54,
+                instanceCount: 2048,
               }
             : {})}
           placement={placement}
           paused={paused}
           visible={visible}
-          uniforms={[effect, 0, 0, 0, ...tint]}
+          uniforms={wind ? windUniforms : [effect, 0, 0, 0, ...tint]}
           allowSoftwareAdapter={allowSoftwareAdapter}
-          onReady={() => setStatus('ShaderLayer ready')}
-          onError={(error) => setStatus(error.message)}
+          onReady={() => {
+            evidence.current.readyCount++;
+            setStatus('ShaderLayer ready');
+          }}
+          onError={report}
         />
         {second && (
           <ShaderLayer
             id="second-effect"
+            resolutionScale={resolutionScale}
             shaders={{ fragment: shaderSource }}
             uniforms={[1, 0, 0, 0, 1, 0.1, 0.3, 0.85]}
             allowSoftwareAdapter={allowSoftwareAdapter}
-            onError={(error) => setStatus(error.message)}
+            onError={report}
           />
         )}
         <Marker id="webgpu-anchor" coordinate={center}>

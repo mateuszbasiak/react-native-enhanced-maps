@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Platform, Text, View } from 'react-native';
 import { MapView } from 'react-native-enhanced-maps';
@@ -160,18 +161,20 @@ export default function LifecycleVerification() {
   return (
     <View style={{ flex: 1 }}>
       <Text testID="lifecycle-status">{summary}</Text>
-      <Button
-        title="Run 100 remount cycles"
-        onPress={() => {
-          void run.current().catch(() => {});
-        }}
-      />
-      <Button
-        title="Cancel lifecycle run"
-        onPress={() => {
-          cancelled.current = true;
-        }}
-      />
+      <ExampleControls>
+        <Button
+          title="Run 100 remount cycles"
+          onPress={() => {
+            void run.current().catch(() => {});
+          }}
+        />
+        <Button
+          title="Cancel lifecycle run"
+          onPress={() => {
+            cancelled.current = true;
+          }}
+        />
+      </ExampleControls>
       <MapView
         key={generation}
         ref={map}

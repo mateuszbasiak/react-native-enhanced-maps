@@ -145,3 +145,151 @@ test('getMembers lazily pages through members, resolves original data and reject
     /Duplicate/,
   );
 });
+
+test('cluster groups partition colocated markers and preserve opt-out and default behavior', async () => {
+  const { collectMarkers } = await load();
+  const result = collectMarkers(
+    [
+      marker('boat-a', { cluster: true, clusterGroup: 'boats' }),
+      marker('boat-b', { cluster: true, clusterGroup: 'boats' }),
+      marker('marina', { cluster: true, clusterGroup: 'marinas' }),
+      marker('default', { cluster: true }),
+      marker('selected', { cluster: false, clusterGroup: 'boats' }),
+    ],
+    Marker,
+  );
+  assert.deepEqual(
+    result.groups.map((g) => [
+      g.clusterGroup,
+      g.data.features.map((f) => f.id),
+    ]),
+    [
+      [undefined, ['default']],
+      ['boats', ['boat-a', 'boat-b']],
+      ['marinas', ['marina']],
+    ],
+  );
+  assert.equal(new Set(result.groups.map((g) => g.sourceId)).size, 3);
+  assert.equal(result.content.length, 1);
+  const changed = collectMarkers(
+    [marker('a', { cluster: true, clusterGroup: 'one' })],
+    Marker,
+  );
+  const moved = collectMarkers(
+    [marker('a', { cluster: true, clusterGroup: 'two' })],
+    Marker,
+  );
+  assert.notEqual(changed.signature, moved.signature);
+  for (const clusterGroup of ['', ' ', 1, null, 'x'.repeat(513)])
+    assert.throws(
+      () =>
+        collectMarkers(marker('a', { cluster: true, clusterGroup }), Marker),
+      /clusterGroup/,
+    );
+});
+
+test('layout IDs scope equal native cluster IDs to their group source', async () => {
+  const { parseMarkerLayout } = await load();
+  const features = [1, 2].map((group) => ({
+    id: `em-cluster:${group}:14`,
+    sourceId: `em-marker-clusters:${group}`,
+    latitude: 54,
+    longitude: 18,
+    clusterId: 14,
+    count: 2,
+  }));
+  const layout = { sourceRevision: 3, indexRevision: 8, features };
+  assert.deepEqual(parseMarkerLayout(JSON.stringify(layout), 3), layout);
+  for (const sourceId of [
+    'public-source',
+    'em-marker-clusters:0',
+    'em-marker-clusters:01',
+    'em-marker-clusters:65',
+  ]) {
+    assert.equal(
+      parseMarkerLayout(
+        JSON.stringify({ ...layout, features: [{ ...features[0], sourceId }] }),
+        3,
+      ),
+      undefined,
+    );
+  }
+});
+
+test('group names remain exact, sources are deterministic, and group resources are bounded', async () => {
+  const { collectMarkers } = await load();
+  const markers = ['boats', 'Boats', ' boats', '__proto__'].map(
+    (clusterGroup, i) => marker(String(i), { cluster: true, clusterGroup }),
+  );
+  const forward = collectMarkers(markers, Marker);
+  const reverse = collectMarkers([...markers].reverse(), Marker);
+  assert.equal(forward.groups.length, 4);
+  assert.equal(forward.signature, reverse.signature);
+  const groups = Array.from({ length: 64 }, (_, i) =>
+    marker(String(i), { cluster: true, clusterGroup: String(i) }),
+  );
+  assert.equal(collectMarkers(groups, Marker).groups.length, 64);
+  assert.throws(
+    () =>
+      collectMarkers([...groups, marker('default', { cluster: true })], Marker),
+    /group limit/,
+  );
+});
+
+test('clusterGroup enables clustering unless cluster explicitly overrides it', async () => {
+  const { collectMarkers } = await load();
+  const result = collectMarkers(
+    [
+      marker('independent'),
+      marker('default', { cluster: true }),
+      marker('implicit', { clusterGroup: 'boats' }),
+      marker('explicit', { cluster: true, clusterGroup: 'boats' }),
+      marker('disabled', { cluster: false, clusterGroup: 'boats' }),
+      marker('disabled-default', { cluster: false }),
+    ],
+    Marker,
+  );
+  assert.deepEqual(
+    [...result.markers.keys()],
+    ['default', 'implicit', 'explicit'],
+  );
+  assert.deepEqual(
+    result.content.map((node) => node.props.id),
+    ['independent', 'disabled', 'disabled-default'],
+  );
+  assert.deepEqual(
+    result.groups.map((group) => [
+      group.clusterGroup,
+      group.data.features.map((feature) => feature.id),
+    ]),
+    [
+      [undefined, ['default']],
+      ['boats', ['implicit', 'explicit']],
+    ],
+  );
+  const implicit = collectMarkers(
+    marker('a', { clusterGroup: 'boats' }),
+    Marker,
+  );
+  const explicit = collectMarkers(
+    marker('a', { cluster: true, clusterGroup: 'boats' }),
+    Marker,
+  );
+  const disabled = collectMarkers(
+    marker('a', { cluster: false, clusterGroup: 'boats' }),
+    Marker,
+  );
+  assert.equal(implicit.signature, explicit.signature);
+  assert.notEqual(implicit.signature, disabled.signature);
+  assert.throws(
+    () =>
+      collectMarkers(
+        marker('a', {
+          clusterGroup: 'boats',
+          coordinate: { latitude: 86, longitude: 0 },
+        }),
+        Marker,
+      ),
+    /latitude/,
+  );
+});

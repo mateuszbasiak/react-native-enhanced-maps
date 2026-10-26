@@ -115,3 +115,12 @@ The guard fails without printing bundle excerpts. It verifies literal namespace
 exclusion in production JavaScript; it is not a general secret scanner, native
 export audit or proof of all Release-consumer privacy requirements. Native bridge
 checks above remain separate, and the broader TEST-12 audit remains open.
+
+## Debug scenario sessions
+
+Use `__enhancedMapsScenarios.select(id)` and `collect(metadata, timeoutMs)` to
+select one example fixture and collect a bounded readiness record. Reselecting
+remounts the fixture; superseded sessions cancel. Supported readiness adapters,
+caller-supplied source/native provenance, timeout/skip semantics and limits are
+documented in [scenario sessions](scenario-sessions.md). A readiness record is
+not a semantic acceptance pass. The interface is absent from production bundles.

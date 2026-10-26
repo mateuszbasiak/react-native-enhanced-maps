@@ -1,15 +1,13 @@
 # GeoJSON source revisions
 
-`GeoJSONSource` accepts an optional `revision`, a nonnegative JavaScript safe integer.
-Revisions identify immutable full data replacements for a source ID within one map.
+This is an internal transport contract, not an application-facing source API.
+The package root does not export `GeoJSONSource` or source revision props.
+Applications replace immutable shape/marker props; see [public components](../packages/maps/docs/api.md).
 
-```tsx
-<GeoJSONSource id="fleet" data={fleet} revision={fleetRevision}>
-  <Layer id="fleet-dots" type="circle" style={{ circleRadius: 5 }} />
-</GeoJSONSource>
-```
+Private source descriptors may supply `revision`, a nonnegative JavaScript safe
+integer identifying an immutable full data replacement within one map.
 
-Increase `fleetRevision` whenever the data changes. A higher revision may replace
+Internal producers increase `revision` whenever the data changes. A higher revision may replace
 its data, including replacing it with an empty collection. Equal revision and
 unchanged serialized data permit style, ordering, visibility and callback changes.
 Native comparison operates on normalized JSON rather than JavaScript object identity.
@@ -24,7 +22,7 @@ same revision, or no longer supplies its revision. The map reports a recoverable
 Rejected batches do not advance any source's revision. SDK exceptions after resource
 mutation are not transactional; this guarantee specifically covers revision rejection.
 
-Omitting `revision` preserves unversioned replacement behavior for existing callers.
+Omitting `revision` preserves unversioned replacement behavior for internal producers.
 An unversioned source can opt in by supplying a revision. Generated Polyline,
 Polygon and Circle sources stay unversioned. Revisions do not version marker props.
 

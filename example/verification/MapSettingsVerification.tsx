@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from 'react-native';
 import { MapView } from 'react-native-enhanced-maps';
@@ -83,71 +84,77 @@ export default function MapSettingsVerification() {
   return (
     <View style={{ flex: 1 }}>
       <Text testID="settings-status">{status}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {(
-          [
-            'scrollEnabled',
-            'zoomEnabled',
-            'rotateEnabled',
-            'pitchEnabled',
-            'showsCompass',
-          ] as const
-        ).map((name) => (
+      <ExampleControls>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {(
+            [
+              'scrollEnabled',
+              'zoomEnabled',
+              'rotateEnabled',
+              'pitchEnabled',
+              'showsCompass',
+            ] as const
+          ).map((name) => (
+            <Button
+              key={name}
+              title={`${name}: ${settings[name] === false ? 'off' : 'on'}`}
+              onPress={() =>
+                setSettings((value) => ({
+                  ...value,
+                  [name]: value[name] === false,
+                }))
+              }
+            />
+          ))}
           <Button
-            key={name}
-            title={`${name}: ${settings[name] === false ? 'off' : 'on'}`}
+            title="Zoom range 10–12"
             onPress={() =>
-              setSettings((value) => ({
-                ...value,
-                [name]: value[name] === false,
+              setSettings((v) => ({ ...v, minZoomLevel: 10, maxZoomLevel: 12 }))
+            }
+          />
+          <Button
+            title="Zoom range 2–4"
+            onPress={() =>
+              setSettings((v) => ({ ...v, minZoomLevel: 2, maxZoomLevel: 4 }))
+            }
+          />
+          <Button
+            title="Request zoom 20"
+            onPress={() =>
+              map.current?.animateCamera({ ...camera, zoom: 20 }, 0)
+            }
+          />
+          <Button
+            title="Request zoom 1"
+            onPress={() =>
+              map.current?.animateCamera({ ...camera, zoom: 1 }, 0)
+            }
+          />
+          <Button
+            title="Asymmetric padding"
+            onPress={() =>
+              setSettings((v) => ({
+                ...v,
+                mapPadding: {
+                  top: 40,
+                  right: 20,
+                  bottom: 30,
+                  left: 60,
+                } satisfies MapPadding,
               }))
             }
           />
-        ))}
-        <Button
-          title="Zoom range 10–12"
-          onPress={() =>
-            setSettings((v) => ({ ...v, minZoomLevel: 10, maxZoomLevel: 12 }))
-          }
-        />
-        <Button
-          title="Zoom range 2–4"
-          onPress={() =>
-            setSettings((v) => ({ ...v, minZoomLevel: 2, maxZoomLevel: 4 }))
-          }
-        />
-        <Button
-          title="Request zoom 20"
-          onPress={() => map.current?.animateCamera({ ...camera, zoom: 20 }, 0)}
-        />
-        <Button
-          title="Request zoom 1"
-          onPress={() => map.current?.animateCamera({ ...camera, zoom: 1 }, 0)}
-        />
-        <Button
-          title="Asymmetric padding"
-          onPress={() =>
-            setSettings((v) => ({
-              ...v,
-              mapPadding: {
-                top: 40,
-                right: 20,
-                bottom: 30,
-                left: 60,
-              } satisfies MapPadding,
-            }))
-          }
-        />
-        <Button
-          title="Clear padding"
-          onPress={() => setSettings((v) => ({ ...v, mapPadding: 0 }))}
-        />
-        <Button
-          title="Invalid viewport padding"
-          onPress={() => setSettings((v) => ({ ...v, mapPadding: 10000 }))}
-        />
-        <Button title="Reset settings" onPress={() => setSettings(initial)} />
-      </View>
+          <Button
+            title="Clear padding"
+            onPress={() => setSettings((v) => ({ ...v, mapPadding: 0 }))}
+          />
+          <Button
+            title="Invalid viewport padding"
+            onPress={() => setSettings((v) => ({ ...v, mapPadding: 10000 }))}
+          />
+          <Button title="Reset settings" onPress={() => setSettings(initial)} />
+        </View>
+      </ExampleControls>
       <View
         style={height === null ? { flex: 1 } : { height }}
         onLayout={({ nativeEvent }) => {

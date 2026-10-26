@@ -1,3 +1,4 @@
+import ExampleControls from '../ExampleControls';
 import React, {
   useCallback,
   useEffect,
@@ -196,67 +197,69 @@ export default function CustomMarkersPrototype() {
   if (stacking) return <MarkerStackingDemo onBack={() => setStacking(false)} />;
   return (
     <View style={styles.root}>
-      <View style={styles.toolbar}>
-        <Text style={styles.heading}>Live custom component markers</Text>
-        <Text testID="custom-marker-status">
-          {status} · camera idle {idle} · standard child handlers
-        </Text>
-        <View style={styles.row}>
-          <Button
-            title="Change props"
-            onPress={() => {
-              setRevision((v) => v + 1);
-              setPink((v) => !v);
-            }}
-          />
-          <Button
-            title={expanded ? 'Shrink child' : 'Expand child'}
-            onPress={() => setExpanded((v) => !v)}
-          />
-          <Button
-            title={live ? 'Stop timer' : 'Start timer'}
-            onPress={() => setLive((v) => !v)}
-          />
-          <Button
-            title={animate ? 'Stop pulse' : 'Animate child'}
-            onPress={() => setAnimate((v) => !v)}
-          />
-          <Button title="Move marker" onPress={() => setMoved((v) => !v)} />
-          <Button
-            title="Camera path"
-            disabled={status !== 'Ready'}
-            onPress={() => {
-              const step = ++cameraStep.current % 3;
-              camera.current?.animateCamera(
-                {
-                  center: {
-                    latitude: initial.center[1],
-                    longitude: initial.center[0],
+      <ExampleControls>
+        <View style={styles.toolbar}>
+          <Text style={styles.heading}>Live custom component markers</Text>
+          <Text testID="custom-marker-status">
+            {status} · camera idle {idle} · standard child handlers
+          </Text>
+          <View style={styles.row}>
+            <Button
+              title="Change props"
+              onPress={() => {
+                setRevision((v) => v + 1);
+                setPink((v) => !v);
+              }}
+            />
+            <Button
+              title={expanded ? 'Shrink child' : 'Expand child'}
+              onPress={() => setExpanded((v) => !v)}
+            />
+            <Button
+              title={live ? 'Stop timer' : 'Start timer'}
+              onPress={() => setLive((v) => !v)}
+            />
+            <Button
+              title={animate ? 'Stop pulse' : 'Animate child'}
+              onPress={() => setAnimate((v) => !v)}
+            />
+            <Button title="Move marker" onPress={() => setMoved((v) => !v)} />
+            <Button
+              title="Camera path"
+              disabled={status !== 'Ready'}
+              onPress={() => {
+                const step = ++cameraStep.current % 3;
+                camera.current?.animateCamera(
+                  {
+                    center: {
+                      latitude: initial.center[1],
+                      longitude: initial.center[0],
+                    },
+                    zoom: initial.zoom,
+                    heading: step * 70,
+                    pitch: step ? 45 : 0,
                   },
-                  zoom: initial.zoom,
-                  heading: step * 70,
-                  pitch: step ? 45 : 0,
-                },
-                2000,
-              );
-            }}
-          />
-          <Button
-            title={mounted ? 'Remove markers' : 'Add markers'}
-            onPress={() => {
-              setMounted((v) => !v);
-            }}
-          />
-          <Button
-            title="Remount map"
-            onPress={() => {
-              setStatus('Loading map…');
-              setGeneration((v) => v + 1);
-            }}
-          />
-          <Button title="Test zIndex" onPress={() => setStacking(true)} />
+                  2000,
+                );
+              }}
+            />
+            <Button
+              title={mounted ? 'Remove markers' : 'Add markers'}
+              onPress={() => {
+                setMounted((v) => !v);
+              }}
+            />
+            <Button
+              title="Remount map"
+              onPress={() => {
+                setStatus('Loading map…');
+                setGeneration((v) => v + 1);
+              }}
+            />
+            <Button title="Test zIndex" onPress={() => setStacking(true)} />
+          </View>
         </View>
-      </View>
+      </ExampleControls>
       <MapView
         ref={camera}
         key={generation}
