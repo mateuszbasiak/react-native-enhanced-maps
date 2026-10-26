@@ -6,9 +6,9 @@ marker children. No separate clustering dependency or public source/layer API is
 required.
 
 ```tsx
-import { MapView, Marker } from 'react-native-enhanced-maps';
+import { MapView, Marker } from 'react-native-maplibre-maps';
 import { Text, Pressable } from 'react-native';
-import type { ClusterComponentProps } from 'react-native-enhanced-maps';
+import type { ClusterComponentProps } from 'react-native-maplibre-maps';
 
 function FleetCluster({ count, expand }: ClusterComponentProps) {
   return (

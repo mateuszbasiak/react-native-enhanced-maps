@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { MapView, Marker, Circle } from 'react-native-enhanced-maps';
+import { MapView, Marker, Circle } from 'react-native-maplibre-maps';
 export default function App() {
   const [ready, setReady] = useState(false);
   const [presses, setPresses] = useState(0);

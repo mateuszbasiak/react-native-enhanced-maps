@@ -1,6 +1,6 @@
 const requireBlock = `# @generated begin enhanced-maps-require
 maps_plugin = Pod::Executable.execute_command('node', ['-p',
-  'require.resolve("react-native-enhanced-maps/app.plugin", {paths: [process.argv[1]]})',
+  'require.resolve("react-native-maplibre-maps/app.plugin", {paths: [process.argv[1]]})',
   __dir__]).strip
 require File.join(File.dirname(maps_plugin), 'maplibre-spm')
 # @generated end enhanced-maps-require

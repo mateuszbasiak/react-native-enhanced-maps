@@ -8,13 +8,13 @@ import React, {
   useState,
 } from 'react';
 import { Button, Pressable, Text, View } from 'react-native';
-import { MapView, Marker } from 'react-native-enhanced-maps';
+import { MapView, Marker } from 'react-native-maplibre-maps';
 import type {
   CameraEvent,
   ClusterComponentProps,
   ClusterMember,
   MapViewRef,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 
 const Inspection = createContext<(members: readonly ClusterMember[]) => void>(
   () => {},

@@ -8,8 +8,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MapView, Polygon } from 'react-native-enhanced-maps';
-import type { Coordinate, MapViewRef } from 'react-native-enhanced-maps';
+import { MapView, Polygon } from 'react-native-maplibre-maps';
+import type { Coordinate, MapViewRef } from 'react-native-maplibre-maps';
 const outer = [
   { latitude: -2, longitude: -2 },
   { latitude: -2, longitude: 2 },

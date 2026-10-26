@@ -11,7 +11,7 @@ test('native maps are discoverable on both platforms by a consumer CLI', () => {
       { cwd: 'example', encoding: 'utf8' },
     ),
   );
-  const maps = config.dependencies['react-native-enhanced-maps'];
+  const maps = config.dependencies['react-native-maplibre-maps'];
   assert(
     maps,
     'CLI must discover maps rather than silently omitting the native dependency',

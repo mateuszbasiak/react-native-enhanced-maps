@@ -1,4 +1,4 @@
-import type { ShaderGrid } from 'react-native-enhanced-maps/shaders';
+import type { ShaderGrid } from 'react-native-maplibre-maps/shaders';
 /** Synthetic sampled field demonstrates the input format; not a forecast. */
 export const windGrid: ShaderGrid = {
   width: 16,

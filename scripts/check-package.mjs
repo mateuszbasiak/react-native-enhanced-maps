@@ -111,7 +111,7 @@ execFileSync(
 );
 writeFileSync(
   path.join(consumer, 'consumer.ts'),
-  `import type { Camera, MapViewProps } from 'react-native-enhanced-maps';\nimport { ShaderLayer } from 'react-native-enhanced-maps/shaders';\nvoid ShaderLayer;\ndeclare const camera: Camera;\nconst props: MapViewProps = { styleURL: 'https://example.com/style.json', initialCamera: camera };\nvoid props;\n`,
+  `import type { Camera, MapViewProps } from 'react-native-maplibre-maps';\nimport { ShaderLayer } from 'react-native-maplibre-maps/shaders';\nvoid ShaderLayer;\ndeclare const camera: Camera;\nconst props: MapViewProps = { styleURL: 'https://example.com/style.json', initialCamera: camera };\nvoid props;\n`,
 );
 execFileSync(
   process.execPath,

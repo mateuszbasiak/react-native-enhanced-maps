@@ -88,7 +88,7 @@ const manifest = {
   dependencies: {
     react: original.dependencies.react,
     'react-native': original.dependencies['react-native'],
-    'react-native-enhanced-maps': `file:./${pack.filename}`,
+    'react-native-maplibre-maps': `file:./${pack.filename}`,
   },
   devDependencies,
   overrides: resolverOverrides,
@@ -109,7 +109,7 @@ writeFileSync(
   path.join(output, 'App.tsx'),
   `import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { MapView, Marker, Circle } from 'react-native-enhanced-maps';
+import { MapView, Marker, Circle } from 'react-native-maplibre-maps';
 export default function App() {
   const [status, setStatus] = useState('Packed map loading');
   return <View style={{flex:1}}><Text testID="packed-status">{status}</Text><MapView onMapReady={() => setStatus('Packed map ready')} onError={error => setStatus('Packed map error: '+error.code)} style={{flex:1}} styleURL="https://tiles.openfreemap.org/styles/liberty" initialCamera={{center:{latitude:54.37,longitude:18.66},zoom:12,heading:0,pitch:0}}>
@@ -140,7 +140,7 @@ replace('android/app/build.gradle', (s) =>
 replace('ios/Podfile', (s) =>
   s.replace(
     "require_relative '../../packages/maps/maplibre-spm'",
-    "require_relative '../node_modules/react-native-enhanced-maps/maplibre-spm'",
+    "require_relative '../node_modules/react-native-maplibre-maps/maplibre-spm'",
   ),
 );
 replace('ios/EnhancedMapsExample.xcodeproj/project.pbxproj', (s) =>

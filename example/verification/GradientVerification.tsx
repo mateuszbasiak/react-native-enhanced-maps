@@ -8,12 +8,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MapView, Polyline } from 'react-native-enhanced-maps';
+import { MapView, Polyline } from 'react-native-maplibre-maps';
 import type {
   Coordinate,
   MapViewRef,
   ShapePressEvent,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 const flat = [
   { latitude: 0, longitude: -12 },
   { latitude: 0, longitude: -4 },

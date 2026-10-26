@@ -42,11 +42,14 @@ changes, not accepted production support or closed release gates.
 
 ### Breaking changes
 
+- Rename the package from `react-native-enhanced-maps` to
+  `react-native-maplibre-maps`; update imports and Expo plugin configuration.
+
 - Apple/Google provider experiments and TypeGPU raster/readback integration retired.
 - Public `GeoJSONSource`, `Layer` and source-oriented cluster query APIs retired.
   Use geographic shape children for ordinary content; use `Marker.cluster` and
   `MapView.clusterComponent` for clustering. Sources/layers remain internal.
-- Import shader support from `react-native-enhanced-maps/shaders` and install its
+- Import shader support from `react-native-maplibre-maps/shaders` and install its
   optional WebGPU/Worklets peers. See [current package API](packages/maps/README.md)
   and [shader contract](docs/shader-layer.md).
 

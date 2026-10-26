@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MapView, Circle, Marker } from 'react-native-enhanced-maps';
+import { MapView, Circle, Marker } from 'react-native-maplibre-maps';
 import type {
   CameraEvent,
   MapCapabilities,
@@ -20,7 +20,7 @@ import type {
   MapBounds,
   Coordinate,
   MapViewRef,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 
 type Snapshot = {
   schemaVersion: 1;

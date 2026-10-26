@@ -35,8 +35,8 @@ operations reject explicitly; there is no CPU-readback fallback.
 Proposed imports:
 
 ```ts
-import MapView from 'react-native-enhanced-maps';
-import { GpuLayer, defineGpuLayer } from '@react-native-enhanced-maps/gpu';
+import MapView from 'react-native-maplibre-maps';
+import { GpuLayer, defineGpuLayer } from '@react-native-maplibre-maps/gpu';
 ```
 
 The GPU companion requires tested, pinned-compatible `react-native-webgpu` and

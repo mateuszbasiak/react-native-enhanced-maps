@@ -19,7 +19,7 @@ end
 
 test('Expo Podfile adds the package hook without replacing native setup', () => {
   const result = configurePodfile(podfile);
-  assert(result.includes('react-native-enhanced-maps/app.plugin'));
+  assert(result.includes('react-native-maplibre-maps/app.plugin'));
   assert(result.includes('EnhancedMaps.post_install(installer)'));
   for (const line of podfile.trimEnd().split('\n'))
     assert(result.includes(line));

@@ -16,7 +16,7 @@ Add the plugin by package name:
 ```json
 {
   "expo": {
-    "plugins": ["react-native-enhanced-maps"]
+    "plugins": ["react-native-maplibre-maps"]
   }
 }
 ```
@@ -81,7 +81,7 @@ of the separate optional-GPU consumer matrix.
 
 ## Bounded verification, 2026-10-24–25
 
-The installed tarball resolves through `plugins: ["react-native-enhanced-maps"]`.
+The installed tarball resolves through `plugins: ["react-native-maplibre-maps"]`.
 Two SDK 56 prebuilds produced an identical Podfile and Ruby syntax checking passed.
 Pure-transform contracts cover integration order, native setup preservation,
 idempotence, CRLF and rejected malformed/ambiguous edits. Full local CI passed

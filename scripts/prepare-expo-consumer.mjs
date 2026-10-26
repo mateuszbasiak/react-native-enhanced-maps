@@ -56,7 +56,7 @@ const manifest = {
     'expo-dev-client': '56.0.28',
     react: '19.2.3',
     'react-native': '0.85.3',
-    'react-native-enhanced-maps': `file:./${maps}`,
+    'react-native-maplibre-maps': `file:./${maps}`,
   },
   devDependencies: {
     '@babel/core': '^7.25.2',
@@ -80,7 +80,7 @@ writeFileSync(
         version: '1.0.0',
         ios: { bundleIdentifier: 'org.enhancedmaps.expoconsumer' },
         android: { package: 'com.enhancedmaps.expoconsumer' },
-        plugins: ['react-native-enhanced-maps'],
+        plugins: ['react-native-maplibre-maps'],
       },
     },
     null,

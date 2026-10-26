@@ -864,7 +864,7 @@ Babel preset. No native code changed during this cleanup.
 
 ## World ShaderLayer and Worklets (2026-10-23)
 
-The shared-output renderer now lives behind the optional `react-native-enhanced-maps/shaders` entry point. It publishes a bounded world tile atlas from a dedicated Worklets runtime through synchronous native JSI handles. Compute state belongs to the layer, not individual tiles; the wind example stores particle positions and tail endpoints in one persistent storage buffer.
+The shared-output renderer now lives behind the optional `react-native-maplibre-maps/shaders` entry point. It publishes a bounded world tile atlas from a dedicated Worklets runtime through synchronous native JSI handles. Compute state belongs to the layer, not individual tiles; the wind example stores particle positions and tail endpoints in one persistent storage buffer.
 
 Validation includes tile coverage/wrapping/budgets, native slot/metadata ownership and close behavior, revision-scoped teardown, and a mocked worklet submission test proving one compute update per atlas and preservation across tile changes/backpressure. Both native Debug builds and both production example bundles pass. A separate core-only Metro bundle rejects WebGPU/Worklets imports in its resolver and still passes.
 
