@@ -16,11 +16,11 @@ export const windGrid: ShaderGrid = {
     i % 16 < 2 && Math.floor(i / 16) < 2 ? 0 : 1,
   ),
 };
-/** Procedural shader evaluated in continuous world coordinates, unchanged across tiles/platforms. */
+/** Procedural shader evaluated in continuous world coordinates, unchanged across cameras/platforms. */
 export const shaderSource = /* wgsl */ `
 struct Uniforms { params:vec4f, tint:vec4f };
 @group(0) @binding(1) var<uniform> uniforms:Uniforms;
-@fragment fn fragmentMain(@location(0) uv:vec2f,@location(1) world:vec2f)->@location(0) vec4f {
+@fragment fn fragmentMain(@location(0) @interpolate(linear) uv:vec2f,@location(1) world:vec2f)->@location(0) vec4f {
  let p=world*4096.0;
  let bend=0.15*sin(p.x*6.2831853-frame.time*0.7);
  let wave=pow(0.5+0.5*sin((p.y+bend)*25.1327412-p.x*6.2831853-frame.time*3.0),12.0);
@@ -107,26 +107,30 @@ struct ParticleVertex {
  if(p.seed==0.0 || lengthSquared<1e-24) {
   out.position=vec4f(2,2,0,1);out.alpha=0;out.side=0;out.world=p.origin;return out;
  }
- let normal=vec2f(-direction.y,direction.x)*inverseSqrt(lengthSquared);
  let along=1.0-(f32(segment)+1.0-corner.x)/9.0;
- let pixel=1.0/(512.0*exp2(frame.zoom));
  let width=display.params.z*(0.5+0.5*along);
- let halfWidth=pixel*width;
- // Cover adjacent atlas samples even when the desired line is sub-texel thin.
- let quadWidth=halfWidth+frame.tileScale/frame.resolution.x;
- let offset=mix(a,b,corner.x)+normal*corner.y*quadWidth;
- let world=p.origin+offset;
  let lifetime=smoothstep(0.0,0.6,p.age)*(1.0-smoothstep(p.timing.y-1.2,p.timing.y,p.age));
  let visible=select(0.0,1.0,f32(instance)/f32(arrayLength(&particles))<display.params.w);
- out.position=mapRelativeTilePosition(p.origin,offset);
  out.alpha=pow(along,1.15)*lifetime*p.seed*visible*smoothstep(8.0,10.0,frame.zoom);
- out.side=corner.y*quadWidth/halfWidth;out.world=world;return out;
+
+  let head=mapRelativeScreenPosition(p.origin,b);let tail=mapRelativeScreenPosition(p.origin,a);
+  if(head.w<=0.0 || tail.w<=0.0) {out.position=vec4f(2,2,0,1);out.alpha=0;return out;}
+  let d=(head.xy/head.w-tail.xy/tail.w)*frame.resolution*vec2f(0.5,-0.5);
+  if(dot(d,d)<1e-12) {out.position=vec4f(2,2,0,1);out.alpha=0;return out;}
+  let n=vec2f(-d.y,d.x)*inverseSqrt(dot(d,d));
+  let halfPixels=width*frame.pixelRatio;
+  let padded=halfPixels+1.0;
+  var clip=mapRelativeScreenPosition(p.origin,mix(a,b,corner.x));
+  clip=vec4f(clip.xy+n*vec2f(1,-1)*corner.y*padded*2.0/frame.resolution*clip.w,clip.zw);
+  out.position=clip;out.side=corner.y*padded/halfPixels;
+  out.world=mapWorldPosition(vec2f(clip.x/clip.w*0.5+0.5,0.5-clip.y/clip.w*0.5));
+ return out;
 }`;
 export const windFragment = /* wgsl */ `
 struct WindDisplay { params:vec4f, tint:vec4f };
 @group(0) @binding(1) var<uniform> display:WindDisplay;
 // Analytic box-filter coverage keeps subpixel lines stable as they move
-// between atlas pixels, and rejects NaN/invalid interpolation before storage.
+// between output pixels, and rejects NaN/invalid interpolation before storage.
 fn windCoverage(alpha:f32,side:f32,opacity:f32,filterWidth:f32)->f32 {
  if(!(alpha>=0.0 && alpha<=1.0) || !(opacity>=0.0 && opacity<=1.0) ||
     !(side>=-1e20 && side<=1e20) || !(filterWidth>0.0 && filterWidth<1e20)) { return 0.0; }

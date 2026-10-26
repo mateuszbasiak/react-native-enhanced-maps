@@ -6,6 +6,7 @@ import type { Synchronizable } from 'react-native-worklets';
 import { createShaderControlChannel } from './shaderControl';
 import type { ShaderControlChannel } from './shaderControl';
 import { ShaderMapContext } from './shaderContext';
+import { shaderViewportPadding } from './shaderViewport';
 import { getShaderRuntime } from './shaderRuntime';
 import { shaderDevices } from './shaderDevice';
 import type { ShaderDeviceLease } from './shaderDevice';
@@ -14,7 +15,7 @@ import {
   defaultShaderVertex,
   packShaderGrid,
   shaderPrelude,
-  shaderAtlasSize,
+  shaderFrameByteLength,
   shaderGridPrelude,
   validateShaderOptions,
 } from './shaderContract';
@@ -25,13 +26,15 @@ interface Pool {
   handles: string[];
   format: GPUTextureFormat;
   size: number;
+  width: number;
+  height: number;
 }
 interface Bridge {
   install(): boolean;
-  create(size: number): Promise<Pool>;
+  create(width: number, height: number): Promise<Pool>;
   release(id: string): Promise<void>;
 }
-/** World-anchored tiles with one persistent layer-wide simulation, submitted on a dedicated worklet runtime. */
+/** World-anchored viewport with one persistent layer-wide simulation, submitted on a dedicated worklet runtime. */
 export function ShaderLayer(props: ShaderLayerProps) {
   validateShaderOptions(props);
   const host = useContext(ShaderMapContext);
@@ -44,14 +47,16 @@ export function ShaderLayer(props: ShaderLayerProps) {
   const serial = useRef<Promise<void>>(Promise.resolve());
   const controlRef = useRef<ShaderControlChannel | null>(null);
   const gridRef = useRef<Synchronizable<ShaderGridPacket> | null>(null);
+  const nativeRef = useRef<ShaderNativeHandle | null>(null);
   const {
     id,
     shaders,
     beforeId,
     placement = 'below-labels',
+    resolutionScale = 0.5,
     visible = true,
     allowSoftwareAdapter = false,
-    vertexCount = 3,
+    vertexCount = props.shaders.vertex ? 3 : 6,
     instanceCount = 1,
   } = props;
   const {
@@ -66,6 +71,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
   const initialData = JSON.stringify(props.simulation?.initialData ?? []);
   const workgroups = JSON.stringify(props.simulation?.workgroups ?? [1]);
   useEffect(() => {
+    nativeRef.current?.setZoomRange(props.minZoom, props.maxZoom);
     const control = controlRef.current;
     if (control)
       control.update({
@@ -83,6 +89,17 @@ export function ShaderLayer(props: ShaderLayerProps) {
   }, [grid]);
   useEffect(() => {
     if (!host.ready || !visible) return;
+    if (!host.viewport || host.viewport.width < 1 || host.viewport.height < 1)
+      return;
+    const viewport = {
+      ...host.viewport,
+      scale: resolutionScale,
+      pixelRatio: host.viewport.pixelRatio * resolutionScale,
+      padding: shaderViewportPadding(
+        Math.ceil(host.viewport.width * resolutionScale),
+        Math.ceil(host.viewport.height * resolutionScale),
+      ),
+    };
     let stopped = false;
     let localControl: ShaderControlChannel | undefined;
     let localGrid: Synchronizable<ShaderGridPacket> | undefined;
@@ -192,12 +209,17 @@ export function ShaderLayer(props: ShaderLayerProps) {
         }
         if (stopped || attemptStopped)
           throw new Error('Shader attempt stopped');
-        pool = await bridge.create(shaderAtlasSize);
+        pool = await bridge.create(
+          Math.ceil(viewport.width * viewport.scale) + 2 * viewport.padding,
+          Math.ceil(viewport.height * viewport.scale) + 2 * viewport.padding,
+        );
         const native = (
           globalThis as unknown as {
             __enhancedMapsShader: { open(id: string): ShaderNativeHandle };
           }
         ).__enhancedMapsShader.open(pool.id);
+        nativeRef.current = native;
+        native.setZoomRange(latest.current.minZoom, latest.current.maxZoom);
         for (const handle of pool.handles) {
           const memory = device.importSharedTextureMemory({
             handle: BigInt(handle),
@@ -206,7 +228,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
             outputs.push({
               memory,
               texture: memory.createTexture({
-                size: [pool.size, pool.size],
+                size: [pool.width, pool.height],
                 format: pool.format,
                 usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT,
               }),
@@ -250,8 +272,8 @@ export function ShaderLayer(props: ShaderLayerProps) {
                   : renderVisibility,
                 buffer: {
                   type: 'uniform',
-                  hasDynamicOffset: true,
-                  minBindingSize: 64,
+
+                  minBindingSize: shaderFrameByteLength,
                 },
               },
               {
@@ -306,7 +328,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
           primitive: { topology: 'triangle-list' },
         });
         const builtin = device.createBuffer({
-          size: 4096,
+          size: shaderFrameByteLength,
           usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
         });
         buffers.push(builtin);
@@ -336,7 +358,10 @@ export function ShaderLayer(props: ShaderLayerProps) {
           device!.createBindGroup({
             layout: bindingLayout,
             entries: [
-              { binding: 0, resource: { buffer: builtin, size: 64 } },
+              {
+                binding: 0,
+                resource: { buffer: builtin, size: shaderFrameByteLength },
+              },
               { binding: 1, resource: { buffer: user } },
               { binding: 2, resource: { buffer: storage } },
               { binding: 3, resource: { buffer: gridPlaceholder } },
@@ -401,7 +426,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
             'worklet';
             runShaderFrames({
               device: device!,
-              atlasSize: shaderAtlasSize,
+              viewport,
               outputs,
               pipeline,
               group: groupForWorklet,
@@ -429,6 +454,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
         if (controlRef.current === localControl) {
           controlRef.current = null;
           gridRef.current = null;
+          nativeRef.current = null;
         }
         if (__DEV__) {
           const target = globalThis as typeof globalThis & {
@@ -528,6 +554,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
     computeEntryPoint,
     beforeId,
     placement,
+    resolutionScale,
     visible,
     allowSoftwareAdapter,
     byteLength,

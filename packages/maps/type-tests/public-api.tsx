@@ -191,6 +191,7 @@ const shaders = (
         '@fragment fn fragmentMain() -> @location(0) vec4f { return vec4f(0); }',
     }}
     data={shaderGrid}
+    resolutionScale={0.75}
     minZoom={8.5}
     maxZoom={18}
     uniforms={(frame) => {

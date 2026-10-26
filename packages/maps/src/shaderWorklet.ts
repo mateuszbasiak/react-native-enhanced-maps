@@ -2,13 +2,14 @@
 import { installWebGPU } from 'react-native-webgpu';
 import type { GPUSharedTextureMemory } from 'react-native-webgpu';
 import type { Synchronizable } from 'react-native-worklets';
-import { packShaderUniforms } from './shaderContract';
+import { packShaderUniforms, shaderFrameByteLength } from './shaderContract';
 import type { ShaderFrame, ShaderGridPacket } from './shaderContract';
-import { selectShaderTiles } from './shaderTiles';
+import { expandShaderCamera, scaleShaderCamera } from './shaderViewport';
 export interface ShaderNativeHandle {
   acquire(): number;
-  publish(slot: number, tiles: number[]): boolean;
-  view(): number[];
+  setZoomRange(minZoom?: number, maxZoom?: number): void;
+  camera(): number[];
+  publishViewport(slot: number, camera: number[]): boolean;
   stats(): { produced: number; sampled: number; error: string };
 }
 export interface ShaderControl {
@@ -21,7 +22,13 @@ export interface ShaderControl {
   uniforms: readonly number[] | ((frame: ShaderFrame) => readonly number[]);
 }
 export interface ShaderWorkletConfig {
-  atlasSize: number;
+  viewport: {
+    width: number;
+    height: number;
+    pixelRatio: number;
+    padding?: number;
+    scale?: number;
+  };
   handle: ShaderNativeHandle;
   control: Synchronizable<ShaderControl>;
   device: GPUDevice;
@@ -63,9 +70,7 @@ export async function runShaderFrames(
     handle,
     control,
   } = config;
-  const tileSize = config.atlasSize / 4;
-  const tileInterior = tileSize - 4;
-  const clock = new Float32Array(16 * 64),
+  const clock = new Float32Array(40),
     packet = new Float32Array(1024);
   let time = 0,
     last = Date.now(),
@@ -88,7 +93,25 @@ export async function runShaderFrames(
         last = now;
         continue;
       }
-      const view = handle.view();
+      let camera = handle.camera();
+      if (
+        camera.length !== 27 ||
+        camera[5] !== config.viewport.width ||
+        camera[6] !== config.viewport.height
+      ) {
+        last = now;
+        continue;
+      }
+      if (camera && config.viewport.scale)
+        camera = scaleShaderCamera(camera, config.viewport.scale);
+      if (camera && config.viewport.padding) {
+        camera = expandShaderCamera(camera, config.viewport.padding);
+        if (!camera.length) {
+          last = now;
+          continue;
+        }
+      }
+      const view = camera.slice(0, 5);
       const inRange =
         view[4]! >= (state.minZoom ?? -Infinity) &&
         view[4]! < (state.maxZoom ?? Infinity);
@@ -96,8 +119,6 @@ export async function runShaderFrames(
         last = now;
         if (hidden) continue;
       }
-      const tiles = selectShaderTiles(view);
-      if (!tiles.length) continue;
       const slot = handle.acquire();
       if (slot < 0) continue;
       last = now;
@@ -119,7 +140,10 @@ export async function runShaderFrames(
             device.createBindGroup({
               layout,
               entries: [
-                { binding: 0, resource: { buffer: builtin, size: 64 } },
+                {
+                  binding: 0,
+                  resource: { buffer: builtin, size: shaderFrameByteLength },
+                },
                 { binding: 1, resource: { buffer: user } },
                 { binding: 2, resource: { buffer: resources.storage } },
                 { binding: 3, resource: { buffer: next } },
@@ -142,8 +166,8 @@ export async function runShaderFrames(
       const frame = {
         time,
         delta: step,
-        width: tileInterior,
-        height: tileInterior,
+        width: camera[5]!,
+        height: camera[6]!,
         zoom: view[4]!,
       };
       const values = !inRange
@@ -153,31 +177,30 @@ export async function runShaderFrames(
           : state.uniforms;
       packet.fill(0);
       packet.set(packShaderUniforms(values));
-      for (let i = 0; i < tiles.length; i++) {
-        const tile = tiles[i]!,
-          scale = 1 / 2 ** tile.z;
-        clock.set(
-          [
-            time,
-            step,
-            tileInterior,
-            tileInterior,
-            tile.x * scale,
-            tile.y * scale,
-            scale,
-            tile.z,
-            view[0]!,
-            view[1]!,
-            view[2]!,
-            view[3]!,
-            view[4]!,
-            0,
-            0,
-            0,
-          ],
-          i * 64,
-        );
-      }
+      clock.set([
+        time,
+        step,
+        frame.width,
+        frame.height,
+        camera[7]!,
+        camera[8]!,
+        0,
+        0,
+        view[0]!,
+        view[1]!,
+        view[2]!,
+        view[3]!,
+        view[4]!,
+        config.viewport.pixelRatio,
+        0,
+        0,
+      ]);
+      // Row-major native homographies -> padded column-major WGSL mat3x3.
+      for (let matrix = 0; matrix < 2; matrix++)
+        for (let col = 0; col < 3; col++)
+          for (let row = 0; row < 3; row++)
+            clock[16 + matrix * 12 + col * 4 + row] =
+              camera[9 + matrix * 9 + row * 3 + col]!;
       const output = outputs[slot]!;
       output.memory.beginAccess(output.texture, false);
       let ended = false;
@@ -188,7 +211,7 @@ export async function runShaderFrames(
         if (compute && !state.paused && inRange) {
           const pass = encoder.beginComputePass();
           pass.setPipeline(compute.pipeline);
-          pass.setBindGroup(0, computeGroup!, [0]);
+          pass.setBindGroup(0, computeGroup!);
           pass.dispatchWorkgroups(
             compute.workgroups[0],
             compute.workgroups[1] ?? 1,
@@ -207,12 +230,10 @@ export async function runShaderFrames(
           ],
         });
         pass.setPipeline(pipeline);
-        for (let i = 0; inRange && i < tiles.length; i++) {
-          const x = (i % 4) * tileSize,
-            y = Math.floor(i / 4) * tileSize;
-          pass.setViewport(x, y, tileSize, tileSize, 0, 1);
-          pass.setScissorRect(x, y, tileSize, tileSize);
-          pass.setBindGroup(0, group, [i * 256]);
+        if (inRange) {
+          pass.setViewport(0, 0, frame.width, frame.height, 0, 1);
+          pass.setScissorRect(0, 0, frame.width, frame.height);
+          pass.setBindGroup(0, group);
           pass.draw(config.vertexCount, config.instanceCount);
         }
         pass.end();
@@ -231,12 +252,7 @@ export async function runShaderFrames(
         }
       }
       if (control.getBlocking().stopped) break;
-      if (
-        !handle.publish(
-          slot,
-          tiles.flatMap((t) => [t.x, t.y, t.z]),
-        )
-      )
+      if (!handle.publishViewport(slot, camera))
         throw new Error('Shader output publication rejected');
       hidden = !inRange;
       if (++frames % 60 === 0) {

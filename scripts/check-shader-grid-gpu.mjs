@@ -8,7 +8,6 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import {
   shaderPrelude,
-  shaderTileInterior,
   shaderGridPrelude,
   defaultShaderVertex,
   packShaderGrid,
@@ -141,7 +140,6 @@ try {
     shaderSources,
     cases,
     windData,
-    rasterInterior,
   ) {
     const adapter = await navigator.gpu?.requestAdapter();
     if (!adapter) throw new Error('No WebGPU adapter');
@@ -174,8 +172,8 @@ try {
                 : GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
               buffer: {
                 type: 'uniform',
-                hasDynamicOffset: true,
-                minBindingSize: 64,
+
+                minBindingSize: 160,
               },
             },
             ...[1, 2, 3, 4].map((binding) => ({
@@ -252,24 +250,43 @@ try {
             Math.PI) /
         2;
       const x = (18.665 + 180) / 360;
-      const clock = new Float32Array([
+      const clock = new Float32Array(40);
+      clock.set([
         0,
         1 / 60,
-        rasterInterior,
-        rasterInterior,
+        1200,
+        800,
+        Math.fround(x),
+        Math.fround(y),
         0,
         0,
-        1 / 4096,
-        12,
         x - 0.0001,
         y - 0.0001,
         x + 0.0001,
         y + 0.0001,
         12,
-        0,
+        2,
         0,
         0,
       ]);
+      const setCamera = (zoom) => {
+        const width = 1200,
+          height = 800,
+          ratio = 2,
+          pixelWorld = 1 / (512 * 2 ** zoom);
+        const sx = 2 / ((pixelWorld * width) / ratio),
+          sy = -2 / ((pixelWorld * height) / ratio);
+        clock[2] = width;
+        clock[3] = height;
+        clock[4] = Math.fround(x);
+        clock[5] = Math.fround(y);
+        clock[12] = zoom;
+        clock[13] = ratio;
+        clock.set([sx, 0, 0, 0, 0, sy, 0, 0, 0, 0, 1, 0], 16);
+        clock.set([1 / sx, 0, 0, 0, 0, 1 / sy, 0, 0, 0, 0, 1, 0], 28);
+        return sx;
+      };
+      setCamera(12);
       const frameBuffer = makeBuffer(clock, GPUBufferUsage.UNIFORM);
       const particlesBuffer = makeBuffer(
         new Float32Array(32),
@@ -306,7 +323,7 @@ try {
         for (let i = 0; i < count; i++) {
           const pass = encoder.beginComputePass();
           pass.setPipeline(particlePipeline);
-          pass.setBindGroup(0, particleGroup, [0]);
+          pass.setBindGroup(0, particleGroup);
           pass.dispatchWorkgroups(1);
           pass.end();
         }
@@ -362,14 +379,8 @@ try {
       // Exercise the real vertex function as a compute helper to measure a
       // half-screen-pixel shift before rasterization at high camera zoom.
       const zoom = 17.5,
-        tileZoom = 17,
         pixel = 1 / (512 * 2 ** zoom),
-        tileScale = 1 / 2 ** tileZoom;
-      clock[4] = Math.floor(x / tileScale) * tileScale;
-      clock[5] = Math.floor(y / tileScale) * tileScale;
-      clock[6] = tileScale;
-      clock[7] = tileZoom;
-      clock[12] = zoom;
+        projectionScale = setCamera(zoom);
       device.queue.writeBuffer(frameBuffer, 0, clock);
       const preciseParticles = new Float32Array(128);
       for (let i = 0; i < 4; i++) {
@@ -458,9 +469,7 @@ try {
           'Zero-length particle trails produce unstable vertex output: ' +
             JSON.stringify(projected),
         );
-      const expectedShift =
-        (((pixel * 0.5) / tileScale) * 2 * rasterInterior) /
-        (rasterInterior + 4);
+      const expectedShift = pixel * 0.5 * projectionScale;
       if (Math.abs(projected[2] - expectedShift) > 0.000001)
         throw new Error(
           'High-zoom subpixel motion collapses during projection: ' +
@@ -471,6 +480,42 @@ try {
           'Trail history jumps between sample updates: ' +
             JSON.stringify(projected),
         );
+      // The same particle function must retain half a physical pixel of motion
+      // in a rectangular viewport, across fractional camera zoom levels.
+      for (const cameraZoom of [9.75, 12.5, 17.5]) {
+        const sx = setCamera(cameraZoom);
+        device.queue.writeBuffer(frameBuffer, 0, clock);
+        const e = device.createCommandEncoder(),
+          p = e.beginComputePass();
+        p.setPipeline(precisionPipeline);
+        p.setBindGroup(0, precisionGroup);
+        p.setBindGroup(1, precisionResultGroup);
+        p.dispatchWorkgroups(1);
+        p.end();
+        e.copyBufferToBuffer(precisionOutput, 0, particleReadback, 0, 48);
+        device.queue.submit([e.finish()]);
+        await particleReadback.mapAsync(GPUMapMode.READ);
+        const result = [
+          ...new Float32Array(particleReadback.getMappedRange()).slice(0, 12),
+        ];
+        particleReadback.unmap();
+        const expected = pixel * 0.5 * sx;
+        if (
+          !result.every(Number.isFinite) ||
+          Math.abs(result[2] - expected) > 1e-6 ||
+          result[7] !== 0
+        )
+          throw new Error(
+            'Viewport precision/degenerate regression: ' +
+              JSON.stringify({ cameraZoom, result, expected }),
+          );
+      }
+
+      results.push({
+        name: 'rectangular viewport particle projection across fractional zoom levels',
+        actual: [1],
+        expected: [1],
+      });
       preciseBuffer.destroy();
       precisionOutput.destroy();
       particleReadback.destroy();
@@ -480,6 +525,110 @@ try {
         name: 'high-zoom half-pixel projection and smooth trail sampling',
         actual: [projected[2]],
         expected: [expectedShift],
+      });
+      // Procedural shaders need correct ground coordinates inside a pitched
+      // viewport too, not just correct positions at geometry vertices.
+      const pitchedClock = new Float32Array(40);
+      pitchedClock.set([0, 0, 16, 16, 0.5, 0.5, 0, 0, 0, 0, 1, 1, 4, 1, 0, 0]);
+      pitchedClock.set([5, 0, 0, 0, 0, 5, -2, 0, 0, 0, 1, 0], 16);
+      pitchedClock.set([0.2, 0, 0, 0, 0, 0.2, 0.4, 0, 0, 0, 1, 0], 28);
+      const pitchedFrame = makeBuffer(pitchedClock, GPUBufferUsage.UNIFORM);
+      const pitchedTexture = device.createTexture({
+        size: [16, 16],
+        format: 'rgba32float',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+      });
+      const pitchedPipeline = await device.createRenderPipelineAsync({
+        layout: 'auto',
+        vertex: {
+          module: device.createShaderModule({ code: prelude + vertex }),
+          entryPoint: 'vertexMain',
+        },
+        fragment: {
+          module: device.createShaderModule({
+            code:
+              prelude +
+              '@fragment fn fragmentMain(@location(0) @interpolate(linear) uv:vec2f,@location(1) world:vec2f)->@location(0) vec4f{return vec4f(world,uv);}',
+          }),
+          entryPoint: 'fragmentMain',
+          targets: [{ format: 'rgba32float' }],
+        },
+        primitive: { topology: 'triangle-list' },
+      });
+      const pitchedGroup = device.createBindGroup({
+        layout: pitchedPipeline.getBindGroupLayout(0),
+        entries: [{ binding: 0, resource: { buffer: pitchedFrame } }],
+      });
+      const pitchedRead = device.createBuffer({
+        size: 4096,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      const pe = device.createCommandEncoder(),
+        pp = pe.beginRenderPass({
+          colorAttachments: [
+            {
+              view: pitchedTexture.createView(),
+              clearValue: [0, 0, 0, 0],
+              loadOp: 'clear',
+              storeOp: 'store',
+            },
+          ],
+        });
+      pp.setPipeline(pitchedPipeline);
+      pp.setBindGroup(0, pitchedGroup);
+      pp.draw(6);
+      pp.end();
+      pe.copyTextureToBuffer(
+        { texture: pitchedTexture },
+        { buffer: pitchedRead, bytesPerRow: 256 },
+        [16, 16],
+      );
+      device.queue.submit([pe.finish()]);
+      await pitchedRead.mapAsync(GPUMapMode.READ);
+      const pixels = new Float32Array(pitchedRead.getMappedRange());
+      for (const [px, py] of [
+        [2, 2],
+        [8, 8],
+        [13, 12],
+      ]) {
+        const nx = (px + 0.5) / 8 - 1,
+          ny = 1 - (py + 0.5) / 8,
+          divisor = 1 + 0.4 * ny;
+        const expected = [
+          0.5 + (0.2 * nx) / divisor,
+          0.5 + (0.2 * ny) / divisor,
+        ];
+        const actual = [
+          pixels[(py * 16 + px) * 4],
+          pixels[(py * 16 + px) * 4 + 1],
+        ];
+        if (actual.some((v, i) => Math.abs(v - expected[i]) > 1e-6))
+          throw new Error(
+            'Pitched procedural interpolation regression: ' +
+              JSON.stringify({ px, py, actual, expected }),
+          );
+      }
+      for (const [px, py] of [
+        [2, 2],
+        [8, 8],
+        [13, 12],
+      ]) {
+        const u = pixels[(py * 16 + px) * 4 + 2],
+          v = pixels[(py * 16 + px) * 4 + 3];
+        if (
+          Math.abs(u - (px + 0.5) / 16) > 1e-6 ||
+          Math.abs(v - (py + 0.5) / 16) > 1e-6
+        )
+          throw new Error('Viewport screen UV interpolation regression');
+      }
+      pitchedRead.unmap();
+      pitchedRead.destroy();
+      pitchedFrame.destroy();
+      pitchedTexture.destroy();
+      results.push({
+        name: 'pitched viewport procedural world-coordinate interpolation',
+        actual: [1],
+        expected: [1],
       });
       const coverageHelper = shaderSources[3].match(
         /fn windCoverage[\s\S]*?(?=@fragment)/,
@@ -592,7 +741,7 @@ try {
           device.queue.writeBuffer(b, 0, data);
           return b;
         };
-        const frame = new Float32Array(16);
+        const frame = new Float32Array(40);
         frame[12] = 6.25;
         const builtin = buffer(frame, GPUBufferUsage.UNIFORM);
         const values = buffer(
@@ -646,7 +795,7 @@ try {
     } finally {
       device.destroy();
     }
-  }.toString()})(${JSON.stringify(shaderPrelude + shaderGridPrelude)},${JSON.stringify(defaultShaderVertex)},${JSON.stringify([shaders.shaderSource, shaders.windCompute, shaders.windVertex, shaders.windFragment])},${JSON.stringify(cases)},${JSON.stringify(packShaderGrid(shaders.windGrid))},${JSON.stringify(shaderTileInterior)})`;
+  }.toString()})(${JSON.stringify(shaderPrelude + shaderGridPrelude)},${JSON.stringify(defaultShaderVertex)},${JSON.stringify([shaders.shaderSource, shaders.windCompute, shaders.windVertex, shaders.windFragment])},${JSON.stringify(cases)},${JSON.stringify(packShaderGrid(shaders.windGrid))})`;
   const result = await send('Runtime.evaluate', {
     expression,
     awaitPromise: true,

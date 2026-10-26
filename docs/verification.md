@@ -982,3 +982,34 @@ The isolated PR branch against current main passes all 256 repository tests,
 production example bundles on both platforms, and the software WebGPU sampling,
 projection, trail and coverage regressions. Initialization cancellation and
 callback-ownership tests retain the current recovery/lifecycle behavior.
+
+## Viewport ShaderLayer (2026-10-26)
+
+ShaderLayer now renders only a viewport; the atlas allocation, tile selection,
+tile metadata, compositor loops and rendering-mode switch were removed.
+Rectangular shared textures carry geographic camera snapshots atomically, and
+native composition reprojects completed output into the current camera. A guard
+band of 25% of the shorter output dimension supplies offscreen coverage at the
+same raster density. Large jumps can still outpace finite coverage.
+
+The default resolutionScale is 0.5 (25% of full-resolution pixel count). The
+example offers 50%, 75% and 100% comparisons. Native composition enforces
+inclusive minZoom and exclusive maxZoom independently of worklet publication.
+
+Both arm64 native Debug builds passed and were installed on iPhone 17 Pro / iOS
+26.1 and Android API 36, with explicit Android software GPU diagnostic opt-in.
+Blue trails were inspected at fractional zoom, pitch and rotation. Production
+and native sampling counters advanced with one pool per app.
+
+All 256 repository tests pass, including guard-band density, resolution scaling,
+zoom visibility, initialization cancellation and persistent simulation. Software
+WebGPU checks pass for fractional-zoom particle projection and pitched procedural
+world/UV interpolation at interior raster pixels. Production bundles pass on
+both platforms. Read-only review found no remaining concrete blockers.
+
+Resizing or changing resolutionScale currently recreates simulation resources.
+Fragment shaders reading built-in UV must match its @interpolate(linear)
+annotation. WGSL now uses worldOrigin and screen projection helpers; the old tile
+fields and helpers were removed. Rebuild native apps for the rectangular output
+transport and native zoom gate. Physical-device performance/energy validation
+remains maintainer-owned follow-up.

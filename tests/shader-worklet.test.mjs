@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-test('worklet updates shared simulation once per atlas, retains it across tile changes and accumulates backpressure time', async () => {
+test('viewport renders once at physical resolution and publishes its captured camera across backpressure', async () => {
   const url = new URL('../packages/maps/lib/shaderWorklet.js', import.meta.url);
   const code = readFileSync(url, 'utf8')
     .replace(
@@ -106,7 +106,7 @@ test('worklet updates shared simulation once per atlas, retains it across tile c
     };
     await runShaderFrames({
       device,
-      atlasSize: 1024,
+      viewport: { width: 800, height: 600, pixelRatio: 2, padding: 128 },
       outputs,
       builtin,
       user,
@@ -117,16 +117,18 @@ test('worklet updates shared simulation once per atlas, retains it across tile c
       instanceCount: 10,
       control: { getBlocking: () => control },
       handle: {
-        view() {
-          return published
-            ? [0.8, 0.4, 0.82, 0.42, 6]
-            : [0.49, 0.49, 0.51, 0.51, 6];
-        },
         acquire() {
           return ++acquired === 1 ? -1 : published;
         },
-        publish(_slot, tiles) {
-          assert.ok(tiles.length > 3 && tiles.length <= 48);
+        camera() {
+          return [
+            0.49, 0.49, 0.51, 0.51, 6, 800, 600, 0.5, 0.5, 100, 0, 0, 0, -100,
+            0, 0, 0, 1, 0.01, 0, 0, 0, -0.01, 0, 0, 0, 1,
+          ];
+        },
+        publishViewport(_slot, camera) {
+          assert.equal(camera.length, 27);
+          assert.deepEqual(camera.slice(5, 7), [1056, 856]);
           published++;
           if (published === 2) control.stopped = true;
           return true;
@@ -143,18 +145,18 @@ test('worklet updates shared simulation once per atlas, retains it across tile c
   assert.equal(published, 2);
   assert.equal(compute, 2);
   assert.equal(submissions, 2);
-  assert.ok(draws > compute);
+  assert.equal(draws, compute);
   assert.ok(Math.abs(clocks[0][1] - 0.04) < 1e-7);
   assert.ok(Math.abs(clocks[1][0] - 0.06) < 1e-7);
-  assert.notEqual(clocks[0][4], clocks[1][4]);
+  assert.equal(clocks[0][4], 0.5);
   assert.ok(viewports.length > 0);
-  assert.ok(viewports.every((v) => v[2] === 256 && v[3] === 256));
-  assert.ok(viewports.every((v) => v[0] + v[2] <= 1024 && v[1] + v[3] <= 1024));
+  assert.ok(viewports.every((v) => v[2] === 1056 && v[3] === 856));
+  assert.ok(viewports.every((v) => v[0] === 0 && v[1] === 0));
   assert.equal(frames.length, 2);
   assert.ok(
-    frames.every((frame) => frame.width === 252 && frame.height === 252),
+    frames.every((frame) => frame.width === 1056 && frame.height === 856),
   );
-  assert.deepEqual(clocks[0].slice(2, 4), [252, 252]);
+  assert.deepEqual(clocks[0].slice(2, 4), [1056, 856]);
 });
 
 test('zoom hides stale output, freezes simulation and applies grid replacement on reentry', async () => {
@@ -279,7 +281,7 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
     };
     await runShaderFrames({
       device,
-      atlasSize: 1024,
+      viewport: { width: 800, height: 600, pixelRatio: 2 },
       builtin,
       user,
       pipeline: {},
@@ -311,15 +313,37 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
       ],
       control: { getBlocking: () => control },
       handle: {
-        view: () => [
+        camera: () => [
           0.49,
           0.49,
           0.51,
           0.51,
           tick === 1 ? 6.25 : tick < 5 ? 10 : 5,
+          800,
+          600,
+          0.5,
+          0.5,
+          100,
+          0,
+          0,
+          0,
+          -100,
+          0,
+          0,
+          0,
+          1,
+          0.01,
+          0,
+          0,
+          0,
+          -0.01,
+          0,
+          0,
+          0,
+          1,
         ],
         acquire: () => 0,
-        publish() {
+        publishViewport() {
           published++;
           return true;
         },

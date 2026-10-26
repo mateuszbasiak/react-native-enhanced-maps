@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { shaderViewportPadding } from '../packages/maps/lib/shaderViewport.js';
 import { createShaderControlChannel } from '../packages/maps/lib/shaderControl.js';
 import {
   runShaderRecovery,
@@ -79,6 +80,7 @@ function fixture(boundary) {
   };
   const host = {
     ready: true,
+    viewport: { width: 800, height: 600, pixelRatio: 2 },
     request: async ({ action }) => {
       await gate(action);
     },
@@ -118,7 +120,13 @@ function fixture(boundary) {
           install: () => true,
           create: async () => {
             await gate('pool');
-            return { id: 'pool', handles: ['1'], format: 'rgba8unorm' };
+            return {
+              id: 'pool',
+              handles: ['1'],
+              format: 'rgba8unorm',
+              width: 800,
+              height: 600,
+            };
           },
           release: async () => events.push('release:pool'),
         },
@@ -126,6 +134,7 @@ function fixture(boundary) {
     },
     './shaderContext': { ShaderMapContext: {} },
     './shaderControl': { createShaderControlChannel },
+    './shaderViewport': { shaderViewportPadding },
     './shaderRuntime': { getShaderRuntime: (create) => create() },
     './shaderDevice': {
       shaderDevices: {
@@ -143,7 +152,7 @@ function fixture(boundary) {
     './shaderContract': {
       validateShaderOptions: () => {},
       packShaderGrid: () => ({ metadata: [], values: [] }),
-      shaderAtlasSize: 1024,
+      shaderFrameByteLength: 160,
       shaderGridPrelude: '',
       defaultShaderVertex: 'vertex',
       shaderPrelude: '',
@@ -190,7 +199,7 @@ function fixture(boundary) {
     __DEV__: true,
     setTimeout,
     clearTimeout,
-    __enhancedMapsShader: { open: () => ({}) },
+    __enhancedMapsShader: { open: () => ({ setZoomRange() {} }) },
     require: (name) => {
       assert.ok(name in modules, `Unexpected dependency ${name}`);
       return modules[name];

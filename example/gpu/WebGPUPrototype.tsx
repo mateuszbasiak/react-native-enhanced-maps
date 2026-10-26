@@ -21,6 +21,7 @@ export default function WebGPUPrototype() {
     'below-labels',
   );
   const [wind, setWind] = useState(false);
+  const [resolutionScale, setResolutionScale] = useState(0.5);
   const [reverseWind, setReverseWind] = useState(false);
   const [windSpeed, setWindSpeed] = useState(1);
   const [longTrails, setLongTrails] = useState(false);
@@ -166,6 +167,12 @@ export default function WebGPUPrototype() {
           onPress={() => setAllowSoftwareAdapter((v) => !v)}
         />
         <Button
+          title={`Resolution: ${resolutionScale * 100}%`}
+          onPress={() =>
+            setResolutionScale((v) => (v === 0.5 ? 0.75 : v === 0.75 ? 1 : 0.5))
+          }
+        />
+        <Button
           title={wind ? 'Procedural waves' : 'Wind particles (grid)'}
           onPress={() => setWind((v) => !v)}
         />
@@ -278,6 +285,7 @@ export default function WebGPUPrototype() {
       >
         <ShaderLayer
           id="animated-water"
+          resolutionScale={resolutionScale}
           shaders={
             wind
               ? {
@@ -314,6 +322,7 @@ export default function WebGPUPrototype() {
         {second && (
           <ShaderLayer
             id="second-effect"
+            resolutionScale={resolutionScale}
             shaders={{ fragment: shaderSource }}
             uniforms={[1, 0, 0, 0, 1, 0.1, 0.3, 0.85]}
             allowSoftwareAdapter={allowSoftwareAdapter}

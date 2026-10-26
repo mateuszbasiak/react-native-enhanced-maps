@@ -1,7 +1,4 @@
-/** Four-by-four tile atlas, triple-buffered at 12 MiB per layer. */
-export const shaderAtlasSize = 1024;
-export const shaderTileSize = shaderAtlasSize / 4;
-export const shaderTileInterior = shaderTileSize - 4;
+export const shaderFrameByteLength = 160;
 export interface ShaderPrograms {
   readonly vertex?: string;
   readonly fragment: string;
@@ -11,10 +8,11 @@ export interface ShaderPrograms {
   readonly computeEntryPoint?: string;
 }
 export interface ShaderFrame {
-  /** Actual fractional camera zoom, independent of atlas tile zoom. */
+  /** Actual fractional camera zoom. */
   readonly zoom: number;
   readonly time: number;
   readonly delta: number;
+  /** Physical output pixels: scaled viewport dimensions, including the offscreen guard band. */
   readonly width: number;
   readonly height: number;
 }
@@ -138,6 +136,8 @@ export function packShaderGrid(data: ShaderGrid | undefined): ShaderGridPacket {
 export interface ShaderLayerProps {
   readonly id: string;
   readonly coverage?: 'world';
+  /** Viewport raster density relative to device pixels; 0.25–1, default 0.5. */
+  readonly resolutionScale?: number;
   readonly shaders: ShaderPrograms;
   /** Replace immutably to upload a new grid without resetting simulation. */
   readonly data?: ShaderGrid;
@@ -162,24 +162,26 @@ export interface ShaderLayerProps {
 export const shaderPrelude = /* wgsl */ `
 struct MapShaderFrame {
  time:f32, delta:f32, resolution:vec2f,
- tileOrigin:vec2f, tileScale:f32, tileZoom:f32,
+ worldOrigin:vec2f, padding0:vec2f,
  viewMin:vec2f, viewMax:vec2f,
- zoom:f32, padding0:f32, padding1:f32, padding2:f32,
+ zoom:f32, pixelRatio:f32, padding1:vec2f,
+ worldToClip:mat3x3f, clipToWorld:mat3x3f,
 };
 @group(0) @binding(0) var<uniform> frame:MapShaderFrame;
-fn mapWorldPosition(uv:vec2f)->vec2f { return frame.tileOrigin + ((uv*(frame.resolution+vec2f(4))-vec2f(2))/frame.resolution)*frame.tileScale; }
-fn mapTilePosition(world:vec2f)->vec4f {
- var p=world;
- p.x += round(frame.tileOrigin.x+frame.tileScale*0.5-p.x);
- let uv=((p-frame.tileOrigin)/frame.tileScale*frame.resolution+vec2f(2))/(frame.resolution+vec2f(4));
- return vec4f(uv.x*2.0-1.0,1.0-uv.y*2.0,0.0,1.0);
+fn mapWorldPosition(uv:vec2f)->vec2f {
+ let p=frame.clipToWorld*vec3f(uv.x*2.0-1.0,1.0-uv.y*2.0,1.0);
+ return frame.worldOrigin+p.xy/p.z;
 }
-// Keep small local offsets separate until after subtracting the tile origin.
-fn mapRelativeTilePosition(origin:vec2f,offset:vec2f)->vec4f {
- var relative=origin-frame.tileOrigin;
- relative.x+=round(frame.tileScale*0.5-relative.x-offset.x);
- let uv=((relative+offset)/frame.tileScale*frame.resolution+vec2f(2))/(frame.resolution+vec2f(4));
- return vec4f(uv.x*2.0-1.0,1.0-uv.y*2.0,0.0,1.0);
+fn mapScreenPosition(world:vec2f)->vec4f {
+ var relative=world-frame.worldOrigin;relative.x-=round(relative.x);
+ let p=frame.worldToClip*vec3f(relative,1);
+ return vec4f(p.xy,0,p.z);
+}
+// Subtract the binary-aligned camera origin before adding small local offsets.
+fn mapRelativeScreenPosition(origin:vec2f,offset:vec2f)->vec4f {
+ var relative=origin-frame.worldOrigin;relative.x-=round(relative.x+offset.x);
+ let p=frame.worldToClip*vec3f(relative+offset,1);
+ return vec4f(p.xy,0,p.z);
 }
 fn mapLngLat(world:vec2f)->vec2f { return vec2f(fract(world.x)*360.0-180.0,atan(sinh(3.14159265359*(1.0-2.0*world.y)))*57.2957795131); }
 `;
@@ -236,12 +238,14 @@ fn mapSampleGrid(world:vec2f)->MapGridSample {
 }
 `;
 export const defaultShaderVertex = /* wgsl */ `
-struct MapShaderVertex { @builtin(position) position:vec4f, @location(0) uv:vec2f, @location(1) world:vec2f };
+struct MapShaderVertex { @builtin(position) position:vec4f, @location(0) @interpolate(linear) uv:vec2f, @location(1) world:vec2f };
 @vertex fn vertexMain(@builtin(vertex_index) index:u32)->MapShaderVertex {
- let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3))[index];
- var out:MapShaderVertex;out.position=vec4f(p,0,1);
+ let p=array<vec2f,6>(vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(-1,1),vec2f(1,-1),vec2f(1,1))[index];
+ var out:MapShaderVertex;
  let uv=vec2f((p.x+1)*0.5,(1-p.y)*0.5);
- out.uv=(uv*(frame.resolution+vec2f(4))-vec2f(2))/frame.resolution;out.world=mapWorldPosition(uv);return out;
+ // Actual viewport corners avoid the ground horizon outside an oversized triangle.
+ let ground=frame.clipToWorld*vec3f(p,1);let w=1.0/ground.z;
+ out.position=vec4f(p*w,0,w);out.uv=uv;out.world=mapWorldPosition(uv);return out;
 }`;
 export function packShaderUniforms(values: readonly number[]): Float32Array {
   'worklet';
@@ -268,6 +272,13 @@ export function validateShaderLayer(p: ShaderLayerProps): ShaderLayerProps {
 }
 /** Validate changing layer options separately from potentially large immutable grids. */
 export function validateShaderOptions(p: ShaderLayerProps): ShaderLayerProps {
+  if (
+    p.resolutionScale !== undefined &&
+    (!Number.isFinite(p.resolutionScale) ||
+      p.resolutionScale < 0.25 ||
+      p.resolutionScale > 1)
+  )
+    throw new RangeError('Shader resolutionScale must be between 0.25 and 1');
   for (const zoom of [p.minZoom, p.maxZoom])
     if (zoom !== undefined && !Number.isFinite(zoom))
       throw new RangeError('Shader zoom limits must be finite');

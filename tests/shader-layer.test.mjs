@@ -157,11 +157,17 @@ test('grid validation rejects sparse samples, masks and bounds', () => {
     );
 });
 
-test('shader atlas uses 1024-pixel raster output within a 12 MiB triple-buffer budget', async () => {
-  const { shaderAtlasSize, shaderTileSize, shaderTileInterior } =
+test('viewport resolution scale rejects invalid density and accepts comparison settings', async () => {
+  const { validateShaderOptions } =
     await import('../packages/maps/lib/shaderContract.js');
-  assert.equal(shaderAtlasSize, 1024);
-  assert.equal(shaderTileSize, 256);
-  assert.equal(shaderTileInterior, 252);
-  assert.equal(shaderAtlasSize * shaderAtlasSize * 4 * 3, 12 * 1024 * 1024);
+  const props = { id: 'viewport', shaders: { fragment: 'fragment' } };
+  for (const resolutionScale of [0.25, 0.5, 0.75, 1])
+    assert.doesNotThrow(() =>
+      validateShaderOptions({ ...props, resolutionScale }),
+    );
+  for (const resolutionScale of [0, -1, 0.249, 1.01, NaN, Infinity])
+    assert.throws(
+      () => validateShaderOptions({ ...props, resolutionScale }),
+      /resolutionScale/,
+    );
 });
