@@ -113,6 +113,209 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [x] **REL-09–10** — Changelog/versioning, prerelease/provenance/credential policy, bug/security reporting and maintenance policy are documented. [Release policy](docs/release-policy.md). Ownership, licensing and publishing approval remain under their own IDs.
 - [ ] **REL-11** — Validate npm prerelease and obtain explicit publishing approval.
 
+## SeaPeople migration requirements
+
+Target: replace `react-native-maps` and `react-native-map-clustering` and render
+forecast fields/particles through the package GPU shaders. Extend existing
+components, clustering, projection, fitting and shapes where needed.
+
+The supplied migration requirements are tracked below with SP IDs. Parenthesized
+IDs link shared work to existing tasks; this does not reopen completed generic
+features or imply every listed capability is absent. Unchecked items include
+migration-specific contracts and validation as well as implementation gaps.
+The runtime decision must respect the current Fabric-only target: document the
+required SeaPeople upgrade unless native compatibility is demonstrated; legacy
+architecture support is not assumed. Physical-device validation remains separate
+maintainer follow-up and does not block implemented feature completion.
+
+### P0 — Runtime and Expo integration
+
+- [ ] **SP-01** (ARCH-11, REL-07) — Decide the supported SeaPeople runtime baseline.
+  - SeaPeople currently uses Expo 54, RN 0.81.5, React 19.1,
+    and disables the New Architecture.
+  - Package currently targets RN 0.85.x / React 19.2.3 and Fabric.
+  - Either validate package support for SeaPeople's baseline or document
+    the required app upgrade.
+  - Validate native compatibility; changing peer ranges is insufficient.
+
+- [ ] **SP-02** (REL-04–05) — Provide reproducible Expo integration.
+  - Config plugin for required native setup, including iOS post-install.
+  - Document optional shader dependencies and Babel configuration.
+  - Verify clean development and production builds on both platforms.
+  - Ensure core maps work without optional GPU dependencies.
+
+### P0 — Forecast resources for ShaderLayer
+
+- [x] **SP-03** (GPU-09) — Add updateable GPU forecast resources.
+  - Implemented bounded geographic scalar/vector grids with masks and nearest/bilinear sampling; updates preserve simulation.
+  - Actual camera zoom is exposed to shaders/worklets; `minZoom`/`maxZoom` control visibility and simulation.
+  - Support sampled scalar fields and vector fields.
+  - Define dimensions, geographic extent/projection, channel layout,
+    units, encoding, interpolation, and missing-data masks.
+  - Support initial upload, replacement, and disposal.
+  - Allow resource changes without recreating particle simulation.
+  - Keep per-frame rendering and simulation off the React/JS bridge.
+
+- [ ] **SP-04** (GPU-09, GPU-12) — Support tiled forecast coverage.
+  - Define tile identity, placement, wrapping, and boundary sampling.
+  - Handle adjacent tiles without visible seams.
+  - Define behavior for missing, loading, failed, and obsolete tiles.
+  - Bound GPU memory and release resources no longer needed.
+  - Expose enough viewport information to request relevant coverage.
+
+- [ ] **SP-05** (GPU-09, GPU-12) — Support forecast-time interpolation.
+  - Bind two forecast frames and an interpolation fraction.
+  - Swap frames atomically; reject stale asynchronous uploads.
+  - Define behavior when only one frame is available.
+  - Keep forecast time separate from particle simulation time.
+  - Support rapid timeline scrubbing without resource accumulation.
+
+- [ ] **SP-06** (GPU-09, GPU-13–14) — Support palette and display updates.
+  - Palette, value range, opacity, and product changes.
+  - Avoid pipeline/simulation recreation for ordinary input changes.
+  - Preserve no-data transparency and premultiplied-alpha behavior.
+
+- [ ] **SP-07** (GPU-09) — Add a real-data weather example.
+  - Scalar field rendered with a palette.
+  - Compute particles advected using actual forecast vectors.
+  - Correct vector units, direction convention, and Mercator scaling.
+  - Particle continuity across tiles and the antimeridian.
+  - Explicit reset/reseed behavior for product/model changes.
+  - Pause animation while allowing static forecast display.
+
+### P0 — Camera and viewport contract
+
+- [ ] **SP-08** (CAM-01–02) — Expose authoritative camera reads.
+  - Current center, zoom, heading, and pitch.
+  - Defined readiness, style-reload, and disposal behavior.
+
+- [ ] **SP-09** (CAM-04, CAM-06, CAM-08) — Define camera command completion and interruption.
+  - Distinguish command acceptance from completed animation.
+  - Report cancellation/interruption and exact no-op behavior.
+  - Preserve gesture/application/SDK origin information.
+
+- [ ] **SP-10** (CAM-09–10, COMPAT-01–02) — Support region-based migration through documented helpers.
+  - Convert center plus latitude/longitude deltas to camera/bounds.
+  - Account for viewport size, padding, and dateline crossing.
+  - Helpers may live in SeaPeople; RN Maps API aliases are optional.
+
+- [ ] **SP-11** (CAM-09–10) — Validate viewport queries and coordinate fitting.
+  - Persistent padding and fit padding interaction.
+  - Bottom sheets, resize, rotation, pitch, and wrapped bounds.
+  - Stable pointForCoordinate / coordinateForPoint round trips.
+
+### P0 — Marker interaction and animation
+
+- [ ] **SP-12** (COMPAT-03–04, GEST-05) — Provide a documented marker press mechanism.
+  - Current MarkerProps has no onPress.
+  - Either expose marker-level presses or document child Pressable usage.
+  - Define marker/map press propagation and overlap hit order.
+
+- [ ] **SP-13** (COMPAT-10–11, GEST-05) — Add draggable markers for SeaPeople's track editor.
+  - Drag start, coordinate updates, drag end, and cancellation.
+  - Coordinate payloads and map-gesture arbitration.
+  - Correct behavior with bottom sheets and navigation.
+
+- [ ] **SP-14** (COMPAT-03–04, COMPAT-10–11) — Support efficient animated marker coordinates.
+  - Moving boats and trip playback.
+  - Document the supported Reanimated/worklet integration or alternative.
+  - Avoid recapturing unchanged Android marker content unnecessarily.
+
+- [ ] **SP-15** (COMPAT-03–04) — Validate existing anchor, offset, and zIndex behavior.
+  - Dynamic avatar sizes, selection scaling, and async image loading.
+  - Define offset units and interaction with anchor.
+  - Verify visual position and touch target remain aligned.
+
+- [ ] **SP-16** (COMPAT-10–11) — Decide the callout strategy.
+  - SeaPeople needs an interactive place-suggestion callout.
+  - Native callout parity is optional if a projected React overlay works.
+  - Document positioning, dismissal, and press behavior.
+
+### P0 — Location display and tracking
+
+- [ ] **SP-17** (COMPAT-07, A11Y-04) — Define a user-location integration contract.
+  - Prefer accepting app-owned location data; SeaPeople already tracks it.
+  - Display/update the user marker and optional heading/accuracy.
+  - Define follow behavior and interruption by user gestures.
+  - Avoid starting a second location watcher implicitly.
+  - Document permission ownership and unavailable-location behavior.
+
+### P1 — Snapshots
+
+- [ ] **SP-18** (COMPAT-05–06, COMPAT-08–09) — Add map image export.
+  - Include basemap and route geometry.
+  - Define output dimensions, format, file lifetime, and failure behavior.
+  - Provide a reliable render-ready condition.
+  - Document whether markers and shader layers are included.
+  - Verify whether a mounted visible map is required.
+  - Weather capture can be separate from initial route-share support.
+
+### P1 — Shapes and clustering
+
+- [ ] **SP-19** (SRC-05–06) — Validate geometry budgets against SeaPeople workloads.
+  - Current shape collection limit: 64 shapes / 10,000 total points.
+  - Check long trips, route-intelligence overlays, and weather contours.
+  - Raise limits or document simplification/batching requirements.
+  - Keep budget failures observable and predictable.
+
+- [ ] **SP-20** (SHAPE-03) — Document stroke compatibility.
+  - Validate dash lengths, caps, joins, opacity, and geodesic behavior.
+  - Per-vertex strokeColors is not required for the current solid-red
+    share snapshot; SeaPeople can use strokeColor instead.
+
+- [ ] **SP-21** (CLUSTER-01–07) — Validate existing clustering against SeaPeople scenarios.
+  - People, grouped boats, businesses, places, and independent hails.
+  - `clusterGroup` enables clustering unless `cluster={false}`; validate migration
+    from the current clustering wrapper.
+  - Custom cluster presses, expansion, updates, and selected markers.
+  - Overlapping groups, zoom boundaries, and dateline behavior.
+
+### P1 — Map styles and composition
+
+- [ ] **SP-22** (MAP-07–09, REL-06) — Document standard, dark, satellite, and hybrid style integration.
+  - App supplies production styles/tiles.
+  - Define behavior during style changes and failed loads.
+  - Restore shapes, markers, clusters, and shaders after reload.
+  - Keep attribution visible and compatible with app controls.
+
+- [ ] **SP-23** (GPU-13–14, GEST-05) — Verify weather composition.
+  - Field below labels; readable markers and route overlays.
+  - Correct premultiplied-alpha blending.
+  - Document shader placement relative to shapes and native annotations.
+  - Validate touch-through to maps, markers, and controls.
+
+### P1 — GPU resilience and acceptance
+
+- [ ] **SP-24** (ARCH-07–08, GPU-12–14) — Make unsupported/failed GPU rendering detectable.
+  - Capability and error reporting.
+  - Recoverable retry or documented remount path.
+  - Ordinary map remains usable when weather rendering fails.
+  - Document Android API 26+ shader-sharing requirement.
+
+- [ ] **SP-25** (GPU-12) — Validate lifecycle and resource ownership.
+  - Background/resume, navigation, rapid mount/unmount, style changes.
+  - Forecast/model changes and shader compilation failures.
+  - Cancellation of obsolete uploads and bounded resource cleanup.
+
+- [ ] **SP-26** (GPU-05–08, GPU-18) — Validate weather alignment and output quality.
+  - Pan, zoom, rotation, pitch, padding, and resize.
+  - Tile transitions, wide views, high zoom, and antimeridian.
+  - Measure viewport-resolution quality and temporary coverage gaps.
+
+### First integration acceptance target
+
+- [ ] **SP-AC-01** — SeaPeople builds with the package on iOS and Android.
+- [ ] **SP-AC-02** — Explore map shows existing custom markers and native clusters.
+- [ ] **SP-AC-03** — Real forecast wind colors and particles render below labels.
+- [ ] **SP-AC-04** — Weather stays geographically aligned during map interaction.
+- [ ] **SP-AC-05** — Timeline changes update forecast data without resetting particles
+      unnecessarily or showing mismatched forecast frames.
+- [ ] **SP-AC-06** — Existing timeline, model picker, legend, and point forecasts work.
+
+Keep forecast fetching, caching, model/product selection, point sampling,
+and SeaPeople UI outside the generic maps package. Add generic rendering
+resources to the package and put the GustKit adapter in an integration layer.
+
 ## Future discovery (outside accepted v1 scope)
 
 - **DISC-01–04** — Mapbox gap inventory; vector tiles, feature state/transitions, richer data-driven styling and advanced text/sprites/fonts beyond the agreed initial scope.
@@ -140,6 +343,7 @@ These checks do not block feature completion or feature PR readiness. The mainta
 will perform them later and make any resulting tweaks. They are not recorded as passes.
 
 - [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
+- [ ] **SP-27** (GPU-15, PERF-02–05, PERF-09) — Record maintainer-owned Release performance on both physical platforms: frame time, dropped frames, memory, forecast upload latency and battery. Compare equivalent real forecast scenes with the current SeaPeople renderer; keep simulator evidence separate. These measurements do not block implemented feature completion.
 - [ ] **GPU-15** — Physical-device Release frame time, alignment, memory, dependency-size and build-cost budgets.
 - [ ] **PERF-02–05, PERF-09** — Choose physical reference devices and numeric budgets; compare equivalent native-only/pinned RN Maps scenarios. Measure frame-time percentiles, dropped frames, UI responsiveness and busy-JS behavior with repeatable artifacts.
 - [ ] **GATE-04** — Physical-device Release performance, stability, accessibility and size budgets pass.
@@ -159,3 +363,8 @@ and Git history. This review does not claim new native builds or runtime results
 complete after appropriate automated/build/simulator checks. Physical-device tests
 and resulting tweaks are maintainer-owned follow-up, not feature blockers. No
 hardware measurements or publication approval are implied.
+
+2026-10-25: Added the supplied SeaPeople migration requirements with SP IDs,
+references to shared existing work and first-integration acceptance checks.
+Real-weather device measurements remain maintainer-owned follow-up. This review
+claims no new implementation, runtime validation or hardware measurements.
