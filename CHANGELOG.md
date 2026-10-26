@@ -15,7 +15,7 @@ changes, not accepted production support or closed release gates.
   cluster components receive the group name. A group implicitly enables clustering
   unless `cluster={false}` explicitly overrides it.
 - Experimental `ShaderLayer` from `/shaders`, with WGSL, optional compute/storage,
-  worklet scheduling and bounded shared world-tile output.
+  worklet scheduling and shared viewport output.
 
 - Expo SDK 56 config plugin and reproducible packed core custom-build consumer.
   Debug/Release builds and simulator rendering/marker presses pass on both hosts.
@@ -32,6 +32,13 @@ changes, not accepted production support or closed release gates.
   ownership after remount or replacement.
 - Internal GeoJSON validation rejects sparse coordinate axes and nested geometry
   arrays before they serialize into invalid native coordinates.
+
+- Updateable geographic scalar/vector shader grids, validity masks, sampling helpers,
+  fractional camera zoom and min/max zoom controls.
+- Blue wind trails with live speed, trail length and density controls, stable
+  local-coordinate motion and subpixel coverage.
+- Viewport-only ShaderLayer output with a 50% resolution default, offscreen guard
+  band, geographic projection helpers, and immediate native zoom-range hiding.
 
 ### Breaking changes
 

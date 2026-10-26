@@ -1,12 +1,14 @@
 import ExampleControls from '../ExampleControls';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button, Text, TextInput, View, NativeModules } from 'react-native';
 import { MapView, Marker } from 'react-native-enhanced-maps';
 import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
+import type { ShaderFrame } from 'react-native-enhanced-maps/shaders';
 import type { MapViewRef } from 'react-native-enhanced-maps';
 import {
   shaderSource,
   windCompute,
+  windGrid,
   windVertex,
   windFragment,
 } from './webgpuShader';
@@ -19,6 +21,18 @@ export default function WebGPUPrototype() {
     'below-labels',
   );
   const [wind, setWind] = useState(false);
+  const [resolutionScale, setResolutionScale] = useState(0.5);
+  const [reverseWind, setReverseWind] = useState(false);
+  const [windSpeed, setWindSpeed] = useState(1);
+  const [longTrails, setLongTrails] = useState(false);
+  const [denseWind, setDenseWind] = useState(false);
+  const windData = useMemo(
+    () => ({
+      ...windGrid,
+      values: windGrid.values.map((value) => (reverseWind ? -value : value)),
+    }),
+    [reverseWind],
+  );
   const [paused, setPaused] = useState(false);
   const [effect, setEffect] = useState(0);
   const [amber, setAmber] = useState(false);
@@ -66,6 +80,16 @@ export default function WebGPUPrototype() {
     };
   }, []);
   const tint = amber ? [1, 0.45, 0.03, 0.85] : [0.04, 0.48, 0.95, 0.85];
+  const windUniforms = (frame: ShaderFrame) => {
+    'worklet';
+    return [
+      40 * 2 ** (12 - frame.zoom) * windSpeed,
+      longTrails ? 0.16 : 0.1,
+      1.2,
+      denseWind ? 0.8 : 0.45,
+      ...(amber ? [1, 0.45, 0.03, 0.95] : [0.02, 0.36, 0.95, 0.95]),
+    ];
+  };
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ padding: 8 }}>
@@ -143,9 +167,37 @@ export default function WebGPUPrototype() {
           onPress={() => setAllowSoftwareAdapter((v) => !v)}
         />
         <Button
-          title={wind ? 'Procedural waves' : 'Wind particles'}
+          title={`Resolution: ${resolutionScale * 100}%`}
+          onPress={() =>
+            setResolutionScale((v) => (v === 0.5 ? 0.75 : v === 0.75 ? 1 : 0.5))
+          }
+        />
+        <Button
+          title={wind ? 'Procedural waves' : 'Wind particles (grid)'}
           onPress={() => setWind((v) => !v)}
         />
+        {wind && (
+          <View>
+            <Button
+              title="Reverse wind data"
+              onPress={() => setReverseWind((v) => !v)}
+            />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              <Button
+                title={`Speed: ${windSpeed}×`}
+                onPress={() => setWindSpeed((v) => (v === 1 ? 2 : 1))}
+              />
+              <Button
+                title={longTrails ? 'Trails: long' : 'Trails: short'}
+                onPress={() => setLongTrails((v) => !v)}
+              />
+              <Button
+                title={denseWind ? 'Density: high' : 'Density: normal'}
+                onPress={() => setDenseWind((v) => !v)}
+              />
+            </View>
+          </View>
+        )}
         {__DEV__ && (
           <Button
             title="Simulate device loss"
@@ -233,6 +285,7 @@ export default function WebGPUPrototype() {
       >
         <ShaderLayer
           id="animated-water"
+          resolutionScale={resolutionScale}
           shaders={
             wind
               ? {
@@ -245,17 +298,20 @@ export default function WebGPUPrototype() {
           {...(wind
             ? {
                 simulation: {
-                  byteLength: 1024 * 32,
-                  workgroups: [16] as const,
+                  byteLength: 2048 * 128,
+                  workgroups: [32] as const,
                 },
-                vertexCount: 6,
-                instanceCount: 1024,
+                data: windData,
+                minZoom: 8,
+                maxZoom: 18,
+                vertexCount: 54,
+                instanceCount: 2048,
               }
             : {})}
           placement={placement}
           paused={paused}
           visible={visible}
-          uniforms={[effect, 0, 0, 0, ...tint]}
+          uniforms={wind ? windUniforms : [effect, 0, 0, 0, ...tint]}
           allowSoftwareAdapter={allowSoftwareAdapter}
           onReady={() => {
             evidence.current.readyCount++;
@@ -266,6 +322,7 @@ export default function WebGPUPrototype() {
         {second && (
           <ShaderLayer
             id="second-effect"
+            resolutionScale={resolutionScale}
             shaders={{ fragment: shaderSource }}
             uniforms={[1, 0, 0, 0, 1, 0.1, 0.3, 0.85]}
             allowSoftwareAdapter={allowSoftwareAdapter}

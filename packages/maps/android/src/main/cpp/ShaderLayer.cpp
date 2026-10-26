@@ -24,6 +24,7 @@ auto releaseBuffer=reinterpret_cast<ReleaseBuffer>(dlsym(RTLD_DEFAULT,"AHardware
 struct Pool {
   std::shared_ptr<enhancedmaps::ShaderOutputState> state=std::make_shared<enhancedmaps::ShaderOutputState>();
   AHardwareBuffer* buffers[3]{};
+  int width=0,height=0;
 
   ~Pool() { for(auto* b:buffers)if(b)releaseBuffer(b); }
 };
@@ -73,15 +74,16 @@ public:
     } catch(const std::exception& e) { std::lock_guard<std::mutex> lock(pool->state->mutex);pool->state->error=e.what(); }
   }
   void render(const mln::style::CustomLayerRenderParameters& p) override {
-    pool->state->updateView(p.projectionMatrix.data(),p.zoom);
+    GLint viewport[4];glGetIntegerv(GL_VIEWPORT,viewport);
+    pool->state->updateView(p.projectionMatrix.data(),p.zoom,viewport[2],viewport[3]);
     poll();
     // A busy consumer needs another GL-context poll even when the producer cannot acquire.
     // Once outstanding reads drain, only publication or camera changes request frames.
     if(!reads.empty()){std::function<void()> repaint;{std::lock_guard<std::mutex> lock(pool->state->mutex);repaint=pool->state->repaint;}if(repaint)repaint();}
-    if(!program || reads.size()>=8)return;
-    int index;std::vector<enhancedmaps::ShaderTile> tiles;
+    if(!program || reads.size()>=8 || !pool->state->isZoomVisible(p.zoom))return;
+    int index;enhancedmaps::ShaderCamera source,current;
     bool drawSubmitted=false;
-    { std::lock_guard<std::mutex> lock(pool->state->mutex);index=pool->state->slots.beginRead();if(index>=0)tiles=pool->state->tiles[index]; }
+    { std::lock_guard<std::mutex> lock(pool->state->mutex);index=pool->state->slots.beginRead();if(index>=0){source=pool->state->cameras[index];current=pool->state->camera;} }
     if(index<0)return;
     try {
       glActiveTexture(GL_TEXTURE0);
@@ -106,17 +108,11 @@ public:
       glEnableVertexAttribArray(1);glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,6*sizeof(float),(void*)(4*sizeof(float)));
       glDisable(GL_DEPTH_TEST);glDepthMask(GL_FALSE);glDisable(GL_STENCIL_TEST);glDisable(GL_CULL_FACE);
       glEnable(GL_BLEND);glBlendEquation(GL_FUNC_ADD);glBlendFunc(GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
-      double world=512*std::pow(2,p.zoom);
-      for(size_t tileIndex=0;tileIndex<tiles.size();tileIndex++) {
-        auto t=tiles[tileIndex];double n=std::pow(2,t.z);float vertices[24];
-        for(int i=0;i<4;i++) {
-          double x=(t.x+i%2)/n*world,y=(t.y+i/2)/n*world;
-          for(int row=0;row<4;row++)vertices[i*6+row]=(float)(p.projectionMatrix[row]*x+p.projectionMatrix[4+row]*y+p.projectionMatrix[12+row]);
-          vertices[i*6+4]=(tileIndex%4*256+2+(i%2)*252)/1024.f;
-          vertices[i*6+5]=(tileIndex/4*256+2+(i/2)*252)/1024.f;
+      if(source.valid) {
+        float vertices[24];if(enhancedmaps::shaderViewportQuad(source,current,vertices)) {
+          glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STREAM_DRAW);
+          glDrawArrays(GL_TRIANGLE_STRIP,0,4);drawSubmitted=true;
         }
-        glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STREAM_DRAW);
-        glDrawArrays(GL_TRIANGLE_STRIP,0,4);drawSubmitted=true;
       }
       GLsync done=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);glFlush();
       if(!done)throw std::runtime_error("GLES consumer fence failed");
@@ -151,35 +147,29 @@ public:
   }
 };
 }
-extern "C" JNIEXPORT jstring JNICALL Java_com_enhancedmaps_SharedOutputNative_create(JNIEnv* env,jclass,jint size) {
+extern "C" JNIEXPORT jstring JNICALL Java_com_enhancedmaps_SharedOutputNative_create(JNIEnv* env,jclass,jint width,jint height) {
  try {
   if(!allocateBuffer || !releaseBuffer)throw std::runtime_error("AHardwareBuffer requires Android 26+");
-  if(size!=1024)throw std::invalid_argument("Prototype output is fixed at 1024 pixels");
-  auto pool=std::make_shared<Pool>();
+  if(width<1||height<1||width>4096||height>4096)throw std::invalid_argument("Shader output dimensions must be 1 to 4096 pixels");
+  auto pool=std::make_shared<Pool>();pool->width=width;pool->height=height;
   for(int i=0;i<3;i++) {
-    AHardwareBuffer_Desc d{};d.width=d.height=1024;d.layers=1;d.format=AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
+    AHardwareBuffer_Desc d{};d.width=width;d.height=height;d.layers=1;d.format=AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
     d.usage=AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE|AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT;
     if(allocateBuffer(&d,&pool->buffers[i])!=0)throw std::runtime_error("Writable AHardwareBuffer allocation failed");
   }
   std::lock_guard<std::mutex> lock(registryMutex);if(registry.size()>=4)throw std::runtime_error("At most four prototype pools");
   std::string id=std::to_string(++nextID);registry[id]=pool;
-  std::string result="{\"id\":\""+id+"\",\"format\":\"rgba8unorm\",\"size\":1024,\"handles\":[";
+  std::string result="{\"id\":\""+id+"\",\"format\":\"rgba8unorm\",\"size\":"+std::to_string(width)+",\"width\":"+std::to_string(width)+",\"height\":"+std::to_string(height)+",\"handles\":[";
   for(int i=0;i<3;i++) { if(i)result+=",";result+="\""+std::to_string((uintptr_t)pool->buffers[i])+"\""; }
   result+="]}";return env->NewStringUTF(result.c_str());
  } catch(const std::exception& e) { fail(env,e);return nullptr; }
-}
-extern "C" JNIEXPORT jint JNICALL Java_com_enhancedmaps_SharedOutputNative_acquire(JNIEnv* env,jclass,jstring key) {
- try { auto pool=find(string(env,key));std::lock_guard<std::mutex> lock(pool->state->mutex);return pool->state->slots.acquire(); }catch(const std::exception& e) { fail(env,e);return -1; }
-}
-extern "C" JNIEXPORT jboolean JNICALL Java_com_enhancedmaps_SharedOutputNative_publish(JNIEnv* env,jclass,jstring key,jint slot) {
- try { auto pool=find(string(env,key));std::lock_guard<std::mutex> lock(pool->state->mutex);bool accepted=pool->state->slots.publish(slot);if(accepted)pool->state->produced++;return accepted; }catch(const std::exception& e) { fail(env,e);return false; }
 }
 extern "C" JNIEXPORT void JNICALL Java_com_enhancedmaps_SharedOutputNative_release(JNIEnv* env,jclass,jstring key) {
  try { std::string id=string(env,key);std::lock_guard<std::mutex> registryLock(registryMutex);auto it=registry.find(id);if(it!=registry.end()) { auto pool=it->second;std::lock_guard<std::mutex> lock(pool->state->mutex);pool->state->closed=true;pool->state->slots.close();pool->state->repaint=nullptr;registry.erase(it); } }catch(const std::exception& e) { fail(env,e); }
 }
 extern "C" JNIEXPORT jstring JNICALL Java_com_enhancedmaps_SharedOutputNative_stats(JNIEnv* env,jclass,jstring key) {
  try { auto pool=find(string(env,key));std::lock_guard<std::mutex> lock(pool->state->mutex);
-  std::string result="{\"produced\":"+std::to_string(pool->state->produced)+",\"sampled\":"+std::to_string(pool->state->sampled)+",\"slots\":3,\"bytes\":3145728,\"error\":\""+escape(pool->state->error)+"\"}";return env->NewStringUTF(result.c_str());
+  std::string result="{\"produced\":"+std::to_string(pool->state->produced)+",\"sampled\":"+std::to_string(pool->state->sampled)+",\"slots\":3,\"bytes\":"+std::to_string(3*pool->width*pool->height*4)+",\"error\":\""+escape(pool->state->error)+"\"}";return env->NewStringUTF(result.c_str());
  }catch(const std::exception& e) { fail(env,e);return nullptr; }
 }
 namespace {

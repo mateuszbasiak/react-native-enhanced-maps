@@ -898,3 +898,118 @@ this change. Wider privacy and clean-Release-consumer acceptance remain open.
 
 Physical-device Release testing was explicitly deferred to the maintainer on
 2026-10-23. No physical-device gate is closed by these compilation checks.
+
+## Shader geographic grids and zoom controls (2026-10-25)
+
+Updateable scalar/vector grid resources now carry geographic bounds, projection,
+channel layout, units, nearest/bilinear interpolation and validity masks. Grid
+replacement changes bindings without recreating the persistent simulation.
+Fractional camera zoom is available to WGSL and uniform worklets; inclusive
+`minZoom` and exclusive `maxZoom` clear stale output and freeze simulation outside
+the range while retaining state for reentry.
+
+Verification passed: full `npm run check` (contract/native helper tests,
+TypeScript, lint, formatting, Codegen and packed consumer declarations), production
+Metro bundles for iOS and Android, and `node scripts/check-shader-grid-gpu.mjs`
+against a temporary local Chrome software WebGPU adapter. The GPU check compiles
+all example stages, creates their render/compute pipelines, and numerically checks
+bilinear/nearest sampling, dateline wrapping, outside coverage, masked samples,
+zero-weight missing neighbours, scalar fields, single nodes and removed data.
+Worklet tests cover hiding/reentry, fractional zoom, frozen hidden time,
+simulation binding preservation, one-time grid uploads and buffer disposal.
+
+The optional GPU check requires a Chrome CDP endpoint on localhost port 9227; start
+an isolated test instance with `--headless --enable-unsafe-webgpu
+--use-angle=swiftshader --remote-debugging-port=9227
+--user-data-dir=/tmp/shader-grid-chrome`, then build and run the script. Software
+WebGPU is numerical/API verification, not hardware performance acceptance. These
+checks do not claim native app simulator or physical-device runtime validation for
+this extension. Physical-device checks remain maintainer-owned follow-up. Tiled
+forecast loading and forecast-time interpolation remain unimplemented.
+
+## Native shader grids and blue wind streaks (2026-10-26)
+
+Current Debug builds passed for arm64 iOS simulator and Android emulator. iOS ran
+on iPhone 17 Pro / iOS 26.1; Android ran on EnhancedMapsVerification / API 36 arm64.
+Android required the explicit software-GPU diagnostic opt-in. Build recovery
+refreshed CocoaPods integration after the package/directory rename and cleared
+generated Xcode caches containing the old absolute path.
+
+Simulator inspection found that 12 m/s forecast steps at 60 Hz rounded away in
+absolute float32 world positions, leaving zero-length trails. A real WebGPU compute
+regression reproduced the frozen positions; origin-relative integration fixes it.
+The regression checks movement, ten-point trail history, reversal after live grid
+replacement, and stable particle origins.
+
+Both simulators rendered the blue tapered streaks. Zoom-range checks on both
+platforms observed no new publications at 7.5 (below minZoom 8) or exactly 18
+(exclusive maxZoom), continued publications at 8 and 17.9, and resumed publications
+after return to 12. Display speed, trail length and density update through uniforms.
+
+Live reversal with a uniform worklet also exposed callback round-trip serialization:
+reading a worklet callback back from Synchronizable on RN and writing that rebound
+copy could turn it into a remote function. Shader controls now keep an RN-owned
+packet and publish patches without reading callbacks back. A regression covers
+callback identity across pause, active, grid-version, replacement and stop updates.
+
+Local evidence lives under `artifacts/shader-layer/`: native build logs,
+`grid-check.log`, and simulator screenshots. The optional numerical/pipeline GPU
+regression is `scripts/check-shader-grid-gpu.mjs`. These are simulator checks, not
+physical-device throughput or energy acceptance; physical-device validation remains
+maintainer-owned follow-up.
+
+High-zoom follow-up reproduced loss of a half-pixel shift in the real vertex
+shader at zoom 17.5. `mapRelativeTilePosition` now subtracts the tile origin before
+adding local offsets. GPU checks verify the expected subpixel shift, smooth trail
+sample interpolation, finite degenerate-vertex output, rejection of invalid
+interpolation, and stable integrated stroke coverage across subpixel phases.
+An iOS layer-hidden comparison confirmed the white dots belonged to the particle
+layer. Invalid interpolation and zero-length segments are now rejected; subsequent
+iOS and Android simulator inspection showed blue strokes without those white
+speckles. Raster softness from 252² tile interiors remains a documented quality
+limit; this change does not claim native-resolution particle output.
+
+## Shader atlas final configuration (2026-10-26)
+
+The final atlas remains 1024² with 252² interiors and two-pixel gutters. Shared
+native constants and frame-derived WGSL mappings keep dimensions aligned. Each
+triple-buffered pool uses 12 MiB. Both arm64 Debug builds passed; rebuilt apps were
+installed and blue wind trails rendered on iPhone 17 Pro / iOS 26.1 and Android
+API 36 (explicit software GPU diagnostic opt-in). Physical-device validation
+remains maintainer-owned follow-up.
+
+The isolated PR branch against current main passes all 256 repository tests,
+production example bundles on both platforms, and the software WebGPU sampling,
+projection, trail and coverage regressions. Initialization cancellation and
+callback-ownership tests retain the current recovery/lifecycle behavior.
+
+## Viewport ShaderLayer (2026-10-26)
+
+ShaderLayer now renders only a viewport; the atlas allocation, tile selection,
+tile metadata, compositor loops and rendering-mode switch were removed.
+Rectangular shared textures carry geographic camera snapshots atomically, and
+native composition reprojects completed output into the current camera. A guard
+band of 25% of the shorter output dimension supplies offscreen coverage at the
+same raster density. Large jumps can still outpace finite coverage.
+
+The default resolutionScale is 0.5 (25% of full-resolution pixel count). The
+example offers 50%, 75% and 100% comparisons. Native composition enforces
+inclusive minZoom and exclusive maxZoom independently of worklet publication.
+
+Both arm64 native Debug builds passed and were installed on iPhone 17 Pro / iOS
+26.1 and Android API 36, with explicit Android software GPU diagnostic opt-in.
+Blue trails were inspected at fractional zoom, pitch and rotation. Production
+and native sampling counters advanced with one pool per app.
+
+All 256 repository tests pass, including guard-band density, resolution scaling,
+zoom visibility, initialization cancellation and persistent simulation. Software
+WebGPU checks pass for fractional-zoom particle projection and pitched procedural
+world/UV interpolation at interior raster pixels. Production bundles pass on
+both platforms. Read-only review found no remaining concrete blockers.
+
+Resizing or changing resolutionScale currently recreates simulation resources.
+Fragment shaders reading built-in UV must match its @interpolate(linear)
+annotation. WGSL now uses worldOrigin and screen projection helpers; the old tile
+fields and helpers were removed. Rebuild native apps for the rectangular output
+transport and native zoom gate. Physical-device performance/energy validation
+remains maintainer-owned follow-up.

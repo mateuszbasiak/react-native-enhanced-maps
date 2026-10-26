@@ -79,14 +79,14 @@ their old fixtures describe internal/historical behavior, not the current public
 
 The current path is [ShaderLayer](docs/shader-layer.md): one WGSL program set on
 both platforms, optional compute/storage, packed uniforms, world Mercator tiles,
-a dedicated Worklets runtime and shared native atlas leases without pixel readback.
+a dedicated Worklets runtime and shared native viewport leases without pixel readback.
 Recorded simulator publications during main-JS stalls demonstrate scheduling
 independence. Android software-adapter diagnostics do not prove hardware acceptance.
 
-- [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and atlas resolution transitions. Planar Mercator/polar limits must remain explicit.
+- [ ] **GPU-05–08, GPU-18** — Quantify projection/alignment during pan, zoom, rotation, high pitch, padding, resize and animation; cover high zoom, wrapping, horizon gaps and viewport resolution changes. Planar Mercator/polar limits must remain explicit.
 - [ ] **GPU-09** — Stabilize the experimental WGSL/input/resource contract. Decide schema-typed authoring and streamed texture requirements separately from current packed uniforms/storage.
 - [ ] **GPU-10–11** — Evaluate native-fence handoff beyond current GPU-queue completion waits as a separate optimization. Physical-device scheduling, frame-age, backpressure, allocation and energy measurements are maintainer-owned deferred follow-up.
-- [x] **GPU-12** — Bounded recovery, repeated loss/show-hide/remount stress, failed edits, pause/background/resume, style replacement, concurrent maps/layers and disposal are implemented and verified. [Lifetime evidence](docs/shader-lifetime-acceptance.md) covers native worker/device reuse and repeated stress; [clock and interruption acceptance](docs/shader-lifecycle-acceptance.md) adds both simulators' 100 interrupted initializations, seven controlled async boundaries, double-cleanup ownership and zero final atlas pools. Native allocation accounting and physical-device performance remain separate follow-up under PERF/GPU-15.
+- [x] **GPU-12** — Bounded recovery, repeated loss/show-hide/remount stress, failed edits, pause/background/resume, style replacement, concurrent maps/layers and disposal are implemented and verified. [Lifetime evidence](docs/shader-lifetime-acceptance.md) covers native worker/device reuse and repeated stress; [clock and interruption acceptance](docs/shader-lifecycle-acceptance.md) adds both simulators' 100 interrupted initializations, seven controlled async boundaries, double-cleanup ownership and zero final output pools. Native allocation accounting and physical-device performance remain separate follow-up under PERF/GPU-15.
 - [ ] **GPU-13–14** — Validate capability/error degradation and composition limits, including label placement, controls/attribution and native marker ordering. Capability reports currently mark shaders unvalidated.
 - [ ] **PICK-04** — Decide GPU picking and ordering relative to ordinary content; supply interaction alternatives for visual-only effects.
 

@@ -3,6 +3,8 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { shaderViewportPadding } from '../packages/maps/lib/shaderViewport.js';
+import { createShaderControlChannel } from '../packages/maps/lib/shaderControl.js';
 import {
   runShaderRecovery,
   releaseShaderResources,
@@ -78,6 +80,7 @@ function fixture(boundary) {
   };
   const host = {
     ready: true,
+    viewport: { width: 800, height: 600, pixelRatio: 2 },
     request: async ({ action }) => {
       await gate(action);
     },
@@ -96,6 +99,7 @@ function fixture(boundary) {
   const modules = {
     react: {
       useContext: () => host,
+      useMemo: (factory) => factory(),
       useEffect: (effect) => effects.push(effect),
       useRef: (current) => {
         const ref = { current };
@@ -116,13 +120,21 @@ function fixture(boundary) {
           install: () => true,
           create: async () => {
             await gate('pool');
-            return { id: 'pool', handles: ['1'], format: 'rgba8unorm' };
+            return {
+              id: 'pool',
+              handles: ['1'],
+              format: 'rgba8unorm',
+              width: 800,
+              height: 600,
+            };
           },
           release: async () => events.push('release:pool'),
         },
       },
     },
     './shaderContext': { ShaderMapContext: {} },
+    './shaderControl': { createShaderControlChannel },
+    './shaderViewport': { shaderViewportPadding },
     './shaderRuntime': { getShaderRuntime: (create) => create() },
     './shaderDevice': {
       shaderDevices: {
@@ -138,7 +150,10 @@ function fixture(boundary) {
     },
     './shaderRecovery': { runShaderRecovery, releaseShaderResources },
     './shaderContract': {
-      validateShaderLayer: () => {},
+      validateShaderOptions: () => {},
+      packShaderGrid: () => ({ metadata: [], values: [] }),
+      shaderFrameByteLength: 160,
+      shaderGridPrelude: '',
       defaultShaderVertex: 'vertex',
       shaderPrelude: '',
     },
@@ -150,22 +165,23 @@ function fixture(boundary) {
     'react-native-worklets': {
       isWorkletFunction: (fn) => fn === original,
       createSynchronizable: (value) => {
-        control = {
+        const synchronized = {
           value,
           setBlocking: (update) => {
-            // Match pinned Worklets: a function deserialized onto JS is a remote
-            // wrapper, not the original worklet. Updates must restore ownership.
-            const previous = {
-              ...control.value,
-              uniforms: () => {
-                throw new Error('Remote Function');
-              },
-            };
-            control.value = update(previous);
-            if (control.value.stopped) finished.resolve();
+            synchronized.value =
+              typeof update === 'function'
+                ? update({
+                    ...synchronized.value,
+                    uniforms: () => {
+                      throw new Error('Remote Function');
+                    },
+                  })
+                : update;
+            if (synchronized.value.stopped) finished.resolve();
           },
         };
-        return control;
+        if ('uniforms' in value) control = synchronized;
+        return synchronized;
       },
       createWorkletRuntime: () => ({}),
       scheduleOnRuntime: (_, worklet) => worklet(),
@@ -183,7 +199,7 @@ function fixture(boundary) {
     __DEV__: true,
     setTimeout,
     clearTimeout,
-    __enhancedMapsShader: { open: () => ({}) },
+    __enhancedMapsShader: { open: () => ({ setZoomRange() {} }) },
     require: (name) => {
       assert.ok(name in modules, `Unexpected dependency ${name}`);
       return modules[name];
@@ -192,13 +208,14 @@ function fixture(boundary) {
   new vm.Script(compiled).runInContext(context);
   context.exports.ShaderLayer(props);
   effects[0]();
-  const dispose = effects[1]();
+  effects[1]();
+  const dispose = effects[2]();
   return {
     reached: reached.promise,
     release: proceed.resolve,
     dispose,
     events,
-    settled: () => refs[1].current,
+    settled: () => refs[2].current,
     activity: (state) => listener(state),
     uniforms: () => control.value.uniforms,
     original,

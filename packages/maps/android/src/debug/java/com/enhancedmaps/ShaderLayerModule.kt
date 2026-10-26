@@ -6,9 +6,7 @@ import org.json.JSONObject
 class ShaderLayerModule(context:ReactApplicationContext):ShaderLayerModuleBase(context) {
   // RN scans declared methods on this concrete class, so keep bridge exports here.
   @ReactMethod(isBlockingSynchronousMethod=true) override fun install()=super.install()
-  @ReactMethod override fun create(size:Double,promise:Promise)=super.create(size,promise)
-  @ReactMethod override fun acquire(key:String,promise:Promise)=super.acquire(key,promise)
-  @ReactMethod override fun publish(key:String,slot:Double,promise:Promise)=super.publish(key,slot,promise)
+  @ReactMethod override fun create(width:Double,height:Double,promise:Promise)=super.create(width,height,promise)
   @ReactMethod override fun release(key:String,promise:Promise)=super.release(key,promise)
   @ReactMethod(isBlockingSynchronousMethod=true) fun diagnostics():WritableMap {
     val s=JSONObject(SharedOutputNative.totals());return Arguments.createMap().apply {putInt("produced",s.getInt("produced"));putInt("sampled",s.getInt("sampled"));putInt("pools",s.getInt("pools"))}

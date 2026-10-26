@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 import type { ElementRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PixelRatio } from 'react-native';
 import { Marker } from './Marker';
 import { DefaultCluster } from './DefaultCluster';
 import {
@@ -331,9 +331,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       }),
       [readiness, queries, styleRequest.revision],
     );
+    const [shaderViewport, setShaderViewport] = useState({
+      width: 0,
+      height: 0,
+      pixelRatio: PixelRatio.get(),
+    });
     const shaderHost = useMemo(
       () => ({
         ready: shaderReadyRevision === styleRequest.revision,
+        viewport: shaderViewport,
         revision: styleRequest.revision,
         request(input: Record<string, string | number>) {
           if (!readiness.isReady(styleRequest.revision))
@@ -341,7 +347,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           return queries.request('shaderLayer', input, styleRequest.revision);
         },
       }),
-      [shaderReadyRevision, styleRequest.revision, readiness, queries],
+      [
+        shaderReadyRevision,
+        styleRequest.revision,
+        readiness,
+        queries,
+        shaderViewport,
+      ],
     );
     return (
       <MapContext.Provider value={true}>
@@ -350,6 +362,18 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
             {...settings}
             ref={nativeRef}
             style={props.style}
+            onLayout={({ nativeEvent: { layout } }) => {
+              const width = PixelRatio.getPixelSizeForLayoutSize(layout.width),
+                height = PixelRatio.getPixelSizeForLayoutSize(layout.height),
+                pixelRatio = PixelRatio.get();
+              setShaderViewport((previous) =>
+                previous.width === width &&
+                previous.height === height &&
+                previous.pixelRatio === pixelRatio
+                  ? previous
+                  : { width, height, pixelRatio },
+              );
+            }}
             testID={props.testID}
             styleURL={props.styleURL}
             styleRevision={styleRequest.revision}
