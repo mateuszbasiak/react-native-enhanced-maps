@@ -185,7 +185,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     if(disposed || !isAttachedToWindow || readyStyleRevision!=styleRevision) return
     val nativeMap=map ?: return
     try {
-      val layout=MarkerClusterLayout.read(nativeMap,acceptedScene,clusterIndexRevision,width,height) ?: return
+      val markerExtent=markers.maxOfOrNull { marker ->
+        val (w,h)=marker.getContentSize()
+        maxOf(w*maxOf(marker.anchorX,1f-marker.anchorX)+kotlin.math.abs(marker.offsetX),h*maxOf(marker.anchorY,1f-marker.anchorY)+kotlin.math.abs(marker.offsetY))
+      } ?: 0f
+      val layout=MarkerClusterLayout.read(nativeMap,acceptedScene,clusterIndexRevision,width,height,markerExtent,resources.displayMetrics.density) ?: return
       if(layout==lastMarkerLayout) return
       lastMarkerLayout=layout
       emit("topMarkerClusters",Arguments.createMap().apply { putString("layoutJSON",layout);putDouble("styleRevision",readyStyleRevision) })
