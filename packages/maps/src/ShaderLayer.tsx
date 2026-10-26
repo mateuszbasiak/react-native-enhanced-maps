@@ -1,8 +1,10 @@
 /// <reference types="@webgpu/types" />
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import { AppState, NativeModules } from 'react-native';
 import type { GPUSharedTextureMemory } from 'react-native-webgpu';
 import type { Synchronizable } from 'react-native-worklets';
+import { createShaderControlChannel } from './shaderControl';
+import type { ShaderControlChannel } from './shaderControl';
 import { ShaderMapContext } from './shaderContext';
 import { getShaderRuntime } from './shaderRuntime';
 import { shaderDevices } from './shaderDevice';
@@ -10,15 +12,14 @@ import type { ShaderDeviceLease } from './shaderDevice';
 import { runShaderRecovery, releaseShaderResources } from './shaderRecovery';
 import {
   defaultShaderVertex,
+  packShaderGrid,
   shaderPrelude,
-  validateShaderLayer,
+  shaderAtlasSize,
+  shaderGridPrelude,
+  validateShaderOptions,
 } from './shaderContract';
-import type { ShaderLayerProps } from './shaderContract';
-import type {
-  ShaderControl,
-  ShaderNativeHandle,
-  ShaderWorkletConfig,
-} from './shaderWorklet';
+import type { ShaderLayerProps, ShaderGridPacket } from './shaderContract';
+import type { ShaderNativeHandle, ShaderWorkletConfig } from './shaderWorklet';
 interface Pool {
   id: string;
   handles: string[];
@@ -32,13 +33,17 @@ interface Bridge {
 }
 /** World-anchored tiles with one persistent layer-wide simulation, submitted on a dedicated worklet runtime. */
 export function ShaderLayer(props: ShaderLayerProps) {
-  validateShaderLayer(props);
+  validateShaderOptions(props);
   const host = useContext(ShaderMapContext);
   if (!host) throw new Error('ShaderLayer must be a MapView child');
+  const grid = useMemo(() => packShaderGrid(props.data), [props.data]);
+  const latestGrid = useRef(grid);
+  latestGrid.current = grid;
   const latest = useRef(props);
   latest.current = props;
   const serial = useRef<Promise<void>>(Promise.resolve());
-  const controlRef = useRef<Synchronizable<ShaderControl> | null>(null);
+  const controlRef = useRef<ShaderControlChannel | null>(null);
+  const gridRef = useRef<Synchronizable<ShaderGridPacket> | null>(null);
   const {
     id,
     shaders,
@@ -63,32 +68,34 @@ export function ShaderLayer(props: ShaderLayerProps) {
   useEffect(() => {
     const control = controlRef.current;
     if (control)
-      control.setBlocking((previous) => ({
-        ...previous,
+      control.update({
         paused: props.paused ?? false,
         uniforms: props.uniforms ?? [],
-      }));
-  }, [props.paused, props.uniforms]);
+        minZoom: props.minZoom,
+        maxZoom: props.maxZoom,
+      });
+  }, [props.paused, props.uniforms, props.minZoom, props.maxZoom]);
+  useEffect(() => {
+    gridRef.current?.setBlocking(grid);
+    controlRef.current?.update((previous) => ({
+      gridVersion: (previous.gridVersion ?? 0) + 1,
+    }));
+  }, [grid]);
   useEffect(() => {
     if (!host.ready || !visible) return;
     let stopped = false;
-    let localControl: Synchronizable<ShaderControl> | undefined;
+    let localControl: ShaderControlChannel | undefined;
+    let localGrid: Synchronizable<ShaderGridPacket> | undefined;
     let cancelRetryWait: (() => void) | undefined;
     const stop = () => {
       stopped = true;
       cancelRetryWait?.();
-      localControl?.setBlocking((previous) => ({ ...previous, stopped: true }));
+      localControl?.update({ stopped: true });
     };
     let active = AppState.currentState === 'active';
     const subscription = AppState.addEventListener('change', (state) => {
       active = state === 'active';
-      localControl?.setBlocking((previous) => ({
-        ...previous,
-        active,
-        // Reading a worklet back on JS produces a remote-function wrapper.
-        // Always serialize the original callback when updating activity.
-        uniforms: latest.current.uniforms ?? [],
-      }));
+      localControl?.update({ active });
     });
     const run = async () => {
       if (stopped) return false;
@@ -99,10 +106,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
       let deviceLease: ShaderDeviceLease | undefined;
       const stopAttempt = () => {
         attemptStopped = true;
-        localControl?.setBlocking((previous) => ({
-          ...previous,
-          stopped: true,
-        }));
+        localControl?.update({ stopped: true });
       };
       let pool: Pool | undefined,
         device: GPUDevice | undefined,
@@ -139,12 +143,20 @@ export function ShaderLayer(props: ShaderLayerProps) {
           throw new Error(
             'ShaderLayer native JSI transport unavailable; rebuild the app',
           );
-        localControl = worklets.createSynchronizable<ShaderControl>({
-          stopped: false,
-          active,
-          paused: latest.current.paused ?? false,
-          uniforms,
-        });
+        localControl = createShaderControlChannel(
+          {
+            stopped: false,
+            active,
+            paused: latest.current.paused ?? false,
+            uniforms,
+            minZoom: latest.current.minZoom,
+            maxZoom: latest.current.maxZoom,
+            gridVersion: 0,
+          },
+          worklets.createSynchronizable,
+        );
+        localGrid = worklets.createSynchronizable(latestGrid.current);
+        gridRef.current = localGrid;
         controlRef.current = localControl;
         const lost = (info: Pick<GPUDeviceLostInfo, 'reason' | 'message'>) => {
           if (info.reason !== 'destroyed' && !stopped && !attemptStopped) {
@@ -180,7 +192,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
         }
         if (stopped || attemptStopped)
           throw new Error('Shader attempt stopped');
-        pool = await bridge.create(1024);
+        pool = await bridge.create(shaderAtlasSize);
         const native = (
           globalThis as unknown as {
             __enhancedMapsShader: { open(id: string): ShaderNativeHandle };
@@ -194,7 +206,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
             outputs.push({
               memory,
               texture: memory.createTexture({
-                size: [1024, 1024],
+                size: [pool.size, pool.size],
                 format: pool.format,
                 usage: gpu.GPUTextureUsage.RENDER_ATTACHMENT,
               }),
@@ -206,7 +218,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
         }
         const module = async (code: string) => {
           const value = device!.createShaderModule({
-            code: shaderPrelude + code,
+            code: shaderPrelude + shaderGridPrelude + code,
           });
           const info = await value.getCompilationInfo();
           const errors = info.messages.filter(
@@ -239,7 +251,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
                 buffer: {
                   type: 'uniform',
                   hasDynamicOffset: true,
-                  minBindingSize: 48,
+                  minBindingSize: 64,
                 },
               },
               {
@@ -255,6 +267,20 @@ export function ShaderLayer(props: ShaderLayerProps) {
                   ? gpu.GPUShaderStage.COMPUTE
                   : renderVisibility,
                 buffer: { type: computing ? 'storage' : 'read-only-storage' },
+              },
+              {
+                binding: 3,
+                visibility: computing
+                  ? gpu.GPUShaderStage.COMPUTE
+                  : renderVisibility,
+                buffer: { type: 'read-only-storage' },
+              },
+              {
+                binding: 4,
+                visibility: computing
+                  ? gpu.GPUShaderStage.COMPUTE
+                  : renderVisibility,
+                buffer: { type: 'uniform' },
               },
             ],
           });
@@ -297,18 +323,30 @@ export function ShaderLayer(props: ShaderLayerProps) {
         const initial: number[] = JSON.parse(initialData);
         if (initial.length)
           device.queue.writeBuffer(storage, 0, new Float32Array(initial));
+        const gridPlaceholder = device.createBuffer({
+          size: 16,
+          usage: gpu.GPUBufferUsage.STORAGE | gpu.GPUBufferUsage.COPY_DST,
+        });
+        const gridMetadata = device.createBuffer({
+          size: 48,
+          usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
+        });
+        buffers.push(gridPlaceholder, gridMetadata);
         const group = (bindingLayout: GPUBindGroupLayout) =>
           device!.createBindGroup({
             layout: bindingLayout,
             entries: [
-              { binding: 0, resource: { buffer: builtin, size: 48 } },
+              { binding: 0, resource: { buffer: builtin, size: 64 } },
               { binding: 1, resource: { buffer: user } },
               { binding: 2, resource: { buffer: storage } },
+              { binding: 3, resource: { buffer: gridPlaceholder } },
+              { binding: 4, resource: { buffer: gridMetadata } },
             ],
           });
         let computeConfig: ShaderWorkletConfig['compute'];
+        let computeLayout: GPUBindGroupLayout | undefined;
         if (cs) {
-          const computeLayout = layout(true);
+          computeLayout = layout(true);
           computeConfig = {
             pipeline: await device.createComputePipelineAsync({
               layout: device.createPipelineLayout({
@@ -344,7 +382,17 @@ export function ShaderLayer(props: ShaderLayerProps) {
           }),
         );
         latest.current.onReady?.();
+        const controlForWorklet = localControl.synchronizable;
         const groupForWorklet = group(renderLayout);
+        const gridResources = {
+          data: localGrid!,
+          renderLayout,
+          computeLayout,
+          storage,
+          metadata: gridMetadata,
+          storageUsage:
+            gpu.GPUBufferUsage.STORAGE | gpu.GPUBufferUsage.COPY_DST,
+        };
         const { scheduleOnRuntime, scheduleOnRN } = worklets;
         await new Promise<void>((resolve, reject) => {
           const finished = () => resolve();
@@ -353,15 +401,17 @@ export function ShaderLayer(props: ShaderLayerProps) {
             'worklet';
             runShaderFrames({
               device: device!,
+              atlasSize: shaderAtlasSize,
               outputs,
               pipeline,
               group: groupForWorklet,
               builtin,
               user,
               handle: native,
-              control: localControl!,
+              control: controlForWorklet,
               vertexCount,
               instanceCount,
+              gridResources,
               ...(computeConfig ? { compute: computeConfig } : {}),
             }).then(
               () => scheduleOnRN(finished),
@@ -376,7 +426,10 @@ export function ShaderLayer(props: ShaderLayerProps) {
       } catch (error) {
         if (!attemptStopped) report(error);
       } finally {
-        if (controlRef.current === localControl) controlRef.current = null;
+        if (controlRef.current === localControl) {
+          controlRef.current = null;
+          gridRef.current = null;
+        }
         if (__DEV__) {
           const target = globalThis as typeof globalThis & {
             __enhancedMapsShaderRecovery?: Map<string, () => void>;

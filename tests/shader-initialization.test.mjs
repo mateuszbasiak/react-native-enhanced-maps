@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { createShaderControlChannel } from '../packages/maps/lib/shaderControl.js';
 import {
   runShaderRecovery,
   releaseShaderResources,
@@ -96,6 +97,7 @@ function fixture(boundary) {
   const modules = {
     react: {
       useContext: () => host,
+      useMemo: (factory) => factory(),
       useEffect: (effect) => effects.push(effect),
       useRef: (current) => {
         const ref = { current };
@@ -123,6 +125,7 @@ function fixture(boundary) {
       },
     },
     './shaderContext': { ShaderMapContext: {} },
+    './shaderControl': { createShaderControlChannel },
     './shaderRuntime': { getShaderRuntime: (create) => create() },
     './shaderDevice': {
       shaderDevices: {
@@ -138,7 +141,10 @@ function fixture(boundary) {
     },
     './shaderRecovery': { runShaderRecovery, releaseShaderResources },
     './shaderContract': {
-      validateShaderLayer: () => {},
+      validateShaderOptions: () => {},
+      packShaderGrid: () => ({ metadata: [], values: [] }),
+      shaderAtlasSize: 1024,
+      shaderGridPrelude: '',
       defaultShaderVertex: 'vertex',
       shaderPrelude: '',
     },
@@ -150,22 +156,23 @@ function fixture(boundary) {
     'react-native-worklets': {
       isWorkletFunction: (fn) => fn === original,
       createSynchronizable: (value) => {
-        control = {
+        const synchronized = {
           value,
           setBlocking: (update) => {
-            // Match pinned Worklets: a function deserialized onto JS is a remote
-            // wrapper, not the original worklet. Updates must restore ownership.
-            const previous = {
-              ...control.value,
-              uniforms: () => {
-                throw new Error('Remote Function');
-              },
-            };
-            control.value = update(previous);
-            if (control.value.stopped) finished.resolve();
+            synchronized.value =
+              typeof update === 'function'
+                ? update({
+                    ...synchronized.value,
+                    uniforms: () => {
+                      throw new Error('Remote Function');
+                    },
+                  })
+                : update;
+            if (synchronized.value.stopped) finished.resolve();
           },
         };
-        return control;
+        if ('uniforms' in value) control = synchronized;
+        return synchronized;
       },
       createWorkletRuntime: () => ({}),
       scheduleOnRuntime: (_, worklet) => worklet(),
@@ -192,13 +199,14 @@ function fixture(boundary) {
   new vm.Script(compiled).runInContext(context);
   context.exports.ShaderLayer(props);
   effects[0]();
-  const dispose = effects[1]();
+  effects[1]();
+  const dispose = effects[2]();
   return {
     reached: reached.promise,
     release: proceed.resolve,
     dispose,
     events,
-    settled: () => refs[1].current,
+    settled: () => refs[2].current,
     activity: (state) => listener(state),
     uniforms: () => control.value.uniforms,
     original,

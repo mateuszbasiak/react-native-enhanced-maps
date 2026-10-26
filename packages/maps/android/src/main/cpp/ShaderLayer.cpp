@@ -7,6 +7,7 @@
 #include <GLES2/gl2ext.h>
 #include <mln/style/layers/custom_layer_host.hpp>
 #include "ShaderJSI.h"
+#include "ShaderAtlas.h"
 #include <mutex>
 #include <memory>
 #include <map>
@@ -112,8 +113,8 @@ public:
         for(int i=0;i<4;i++) {
           double x=(t.x+i%2)/n*world,y=(t.y+i/2)/n*world;
           for(int row=0;row<4;row++)vertices[i*6+row]=(float)(p.projectionMatrix[row]*x+p.projectionMatrix[4+row]*y+p.projectionMatrix[12+row]);
-          vertices[i*6+4]=(tileIndex%4*256+2+(i%2)*252)/1024.f;
-          vertices[i*6+5]=(tileIndex/4*256+2+(i/2)*252)/1024.f;
+          auto uv=enhancedmaps::shaderAtlasUV(tileIndex,i);
+          vertices[i*6+4]=uv[0];vertices[i*6+5]=uv[1];
         }
         glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STREAM_DRAW);
         glDrawArrays(GL_TRIANGLE_STRIP,0,4);drawSubmitted=true;
@@ -154,16 +155,16 @@ public:
 extern "C" JNIEXPORT jstring JNICALL Java_com_enhancedmaps_SharedOutputNative_create(JNIEnv* env,jclass,jint size) {
  try {
   if(!allocateBuffer || !releaseBuffer)throw std::runtime_error("AHardwareBuffer requires Android 26+");
-  if(size!=1024)throw std::invalid_argument("Prototype output is fixed at 1024 pixels");
+  if(size!=enhancedmaps::kShaderAtlasSize)throw std::invalid_argument("Shader atlas is fixed at 1024 pixels");
   auto pool=std::make_shared<Pool>();
   for(int i=0;i<3;i++) {
-    AHardwareBuffer_Desc d{};d.width=d.height=1024;d.layers=1;d.format=AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
+    AHardwareBuffer_Desc d{};d.width=d.height=enhancedmaps::kShaderAtlasSize;d.layers=1;d.format=AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
     d.usage=AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE|AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT;
     if(allocateBuffer(&d,&pool->buffers[i])!=0)throw std::runtime_error("Writable AHardwareBuffer allocation failed");
   }
   std::lock_guard<std::mutex> lock(registryMutex);if(registry.size()>=4)throw std::runtime_error("At most four prototype pools");
   std::string id=std::to_string(++nextID);registry[id]=pool;
-  std::string result="{\"id\":\""+id+"\",\"format\":\"rgba8unorm\",\"size\":1024,\"handles\":[";
+  std::string result="{\"id\":\""+id+"\",\"format\":\"rgba8unorm\",\"size\":"+std::to_string(enhancedmaps::kShaderAtlasSize)+",\"handles\":[";
   for(int i=0;i<3;i++) { if(i)result+=",";result+="\""+std::to_string((uintptr_t)pool->buffers[i])+"\""; }
   result+="]}";return env->NewStringUTF(result.c_str());
  } catch(const std::exception& e) { fail(env,e);return nullptr; }
@@ -179,7 +180,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_enhancedmaps_SharedOutputNative_relea
 }
 extern "C" JNIEXPORT jstring JNICALL Java_com_enhancedmaps_SharedOutputNative_stats(JNIEnv* env,jclass,jstring key) {
  try { auto pool=find(string(env,key));std::lock_guard<std::mutex> lock(pool->state->mutex);
-  std::string result="{\"produced\":"+std::to_string(pool->state->produced)+",\"sampled\":"+std::to_string(pool->state->sampled)+",\"slots\":3,\"bytes\":3145728,\"error\":\""+escape(pool->state->error)+"\"}";return env->NewStringUTF(result.c_str());
+  std::string result="{\"produced\":"+std::to_string(pool->state->produced)+",\"sampled\":"+std::to_string(pool->state->sampled)+",\"slots\":3,\"bytes\":"+std::to_string(enhancedmaps::kShaderAtlasBytes)+",\"error\":\""+escape(pool->state->error)+"\"}";return env->NewStringUTF(result.c_str());
  }catch(const std::exception& e) { fail(env,e);return nullptr; }
 }
 namespace {

@@ -27,7 +27,7 @@ open class ShaderLayerModuleBase(context:ReactApplicationContext):ReactContextBa
     require(size==1024.0)
     Arguments.createMap().apply {
       val result=JSONObject(SharedOutputNative.create(size.toInt()))
-      putString("id",result.getString("id"));putString("format",result.getString("format"));putInt("size",1024)
+      putString("id",result.getString("id"));putString("format",result.getString("format"));putInt("size",result.getInt("size"))
       putArray("handles",Arguments.createArray().apply { val handles=result.getJSONArray("handles");for(i in 0 until handles.length())pushString(handles.getString(i)) })
     }
   }

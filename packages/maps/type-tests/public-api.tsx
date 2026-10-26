@@ -171,12 +171,31 @@ void Layer;
 
 // Shader entry declarations remain independent of GPU implementation types.
 import { ShaderLayer } from '../src/shaders.js';
+import type { ShaderGrid } from '../src/shaders.js';
+const shaderGrid: ShaderGrid = {
+  width: 1,
+  height: 1,
+  bounds: [18, 54, 19, 55],
+  channels: 2,
+  projection: 'mercator',
+  units: 'm/s',
+  interpolation: 'linear',
+  values: [8, 2],
+};
+void shaderGrid;
 const shaders = (
   <ShaderLayer
     id="wind"
     shaders={{
       fragment:
         '@fragment fn fragmentMain() -> @location(0) vec4f { return vec4f(0); }',
+    }}
+    data={shaderGrid}
+    minZoom={8.5}
+    maxZoom={18}
+    uniforms={(frame) => {
+      'worklet';
+      return [frame.zoom];
     }}
     simulation={{ byteLength: 32, workgroups: [1] }}
   />

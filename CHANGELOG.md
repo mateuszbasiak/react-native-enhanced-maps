@@ -33,6 +33,11 @@ changes, not accepted production support or closed release gates.
 - Internal GeoJSON validation rejects sparse coordinate axes and nested geometry
   arrays before they serialize into invalid native coordinates.
 
+- Updateable geographic scalar/vector shader grids, validity masks, sampling helpers,
+  fractional camera zoom and min/max zoom controls.
+- Blue wind trails with live speed, trail length and density controls, stable
+  local-coordinate motion and subpixel coverage in the 1024² atlas (12 MiB per layer).
+
 ### Breaking changes
 
 - Apple/Google provider experiments and TypeGPU raster/readback integration retired.

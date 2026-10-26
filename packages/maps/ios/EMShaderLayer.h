@@ -5,6 +5,7 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTBridge+Private.h>
 #include "../cpp/ShaderJSI.h"
+#include "../cpp/ShaderAtlas.h"
 @interface RCTBridge (EMShaderRuntime)
 - (void *)runtime;
 @end
@@ -51,12 +52,12 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(diagnostics) {
 }
 #endif
 RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if(dimension!=1024) { reject(@"size",@"Shader atlas is fixed at 1024 pixels",nil);return; }
+  if(dimension!=enhancedmaps::kShaderAtlasSize) { reject(@"size",@"Shader atlas is fixed at 1024 pixels",nil);return; }
   EMWebGPUOutputPool *pool=[EMWebGPUOutputPool new];
   NSMutableArray *handles=[NSMutableArray new];
   for(int i=0;i<3;i++) {
-    NSDictionary *properties=@{(id)kIOSurfaceWidth:@1024,(id)kIOSurfaceHeight:@1024,(id)kIOSurfaceBytesPerElement:@4,
-      (id)kIOSurfaceBytesPerRow:@(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow,1024*4)),(id)kIOSurfacePixelFormat:@(kCVPixelFormatType_32BGRA)};
+    NSDictionary *properties=@{(id)kIOSurfaceWidth:@(enhancedmaps::kShaderAtlasSize),(id)kIOSurfaceHeight:@(enhancedmaps::kShaderAtlasSize),(id)kIOSurfaceBytesPerElement:@4,
+      (id)kIOSurfaceBytesPerRow:@(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow,enhancedmaps::kShaderAtlasSize*4)),(id)kIOSurfacePixelFormat:@(kCVPixelFormatType_32BGRA)};
     pool->surfaces[i]=IOSurfaceCreate((__bridge CFDictionaryRef)properties);
     if(!pool->surfaces[i]) { reject(@"allocation",@"IOSurface allocation failed",nil);return; }
     [handles addObject:[NSString stringWithFormat:@"%llu",(unsigned long long)(uintptr_t)pool->surfaces[i]]];
@@ -66,13 +67,13 @@ RCT_EXPORT_METHOD(create:(double)dimension resolver:(RCTPromiseResolveBlock)reso
     if(EMWebGPUPools().count>=4) { reject(@"budget",@"At most four shader layers",nil);return; }
     EMWebGPUPools()[key]=pool;
   }
-  resolve(@{@"id":key,@"handles":handles,@"format":@"bgra8unorm",@"size":@1024});
+  resolve(@{@"id":key,@"handles":handles,@"format":@"bgra8unorm",@"size":@(enhancedmaps::kShaderAtlasSize)});
 }
 #if DEBUG
 RCT_EXPORT_METHOD(stats:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   EMWebGPUOutputPool *pool=EMWebGPUPool(key);if(!pool){reject(@"closed",@"Unknown output pool",nil);return;}
   std::lock_guard<std::mutex> lock(pool->state->mutex);
-  resolve(@{@"produced":@(pool->state->produced),@"sampled":@(pool->state->sampled),@"bytes":@(3*1024*1024*4)});
+  resolve(@{@"produced":@(pool->state->produced),@"sampled":@(pool->state->sampled),@"bytes":@(enhancedmaps::kShaderAtlasBytes)});
 }
 #endif
 RCT_EXPORT_METHOD(release:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
@@ -125,7 +126,7 @@ fragment float4 sharedFragment(O in [[stage_in]], texture2d<float> image [[textu
   { std::lock_guard<std::mutex> lock(pool->state->mutex);
     index=pool->state->slots.beginRead();if(index<0)return;
     if(!pool->textures[index]) {
-      MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:1024 height:1024 mipmapped:NO];
+      MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:enhancedmaps::kShaderAtlasSize height:enhancedmaps::kShaderAtlasSize mipmapped:NO];
       d.usage=MTLTextureUsageShaderRead;d.storageMode=MTLStorageModeShared;
       pool->textures[index]=[resource.device newTextureWithDescriptor:d iosurface:pool->surfaces[index] plane:0];
     }
@@ -143,7 +144,7 @@ fragment float4 sharedFragment(O in [[stage_in]], texture2d<float> image [[textu
       double x=(t.x+i%2)/n*world,y=(t.y+i/2)/n*world,v[4];
       for(int r=0;r<4;r++)v[r]=m[r]*x+m[4+r]*y+m[12+r];
       vertices[i].clip={(float)v[0],(float)v[1],(float)v[2],(float)v[3]};
-      vertices[i].uv={(float)((tileIndex%4*256+2+(i%2)*252)/1024.0),(float)((tileIndex/4*256+2+(i/2)*252)/1024.0)};
+      auto uv=enhancedmaps::shaderAtlasUV(tileIndex,i);vertices[i].uv={uv[0],uv[1]};
     }
     [encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
