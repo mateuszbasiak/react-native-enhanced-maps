@@ -8,9 +8,9 @@ import React, {
 import { AppState, Button, NativeModules, Text, View } from 'react-native';
 import { createSynchronizable } from 'react-native-worklets';
 import type { Synchronizable } from 'react-native-worklets';
-import { MapView, Marker } from 'react-native-enhanced-maps';
-import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
-import type { ShaderFrame } from 'react-native-enhanced-maps/shaders';
+import { MapView, Marker } from 'react-native-maplibre-maps';
+import { ShaderLayer } from 'react-native-maplibre-maps/shaders';
+import type { ShaderFrame } from 'react-native-maplibre-maps/shaders';
 import ExampleControls from '../ExampleControls';
 import { shaderSource } from './webgpuShader';
 import { shaderMapReady, verifyShaderClock } from './shaderLifecycleEvidence';

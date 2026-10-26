@@ -4,7 +4,7 @@
 MapLibre Native layers on iOS and Android, without a React Native view per shape.
 
 ```tsx
-import { Circle, Polygon, Polyline } from 'react-native-enhanced-maps';
+import { Circle, Polygon, Polyline } from 'react-native-maplibre-maps';
 
 <Circle
   id="search-area"

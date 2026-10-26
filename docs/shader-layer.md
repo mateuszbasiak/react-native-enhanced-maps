@@ -5,8 +5,8 @@
 Install `react-native-webgpu@0.17.0` and `react-native-worklets@0.12.2` in the application, add `react-native-worklets/plugin` last in the Babel plugins, install pods and rebuild native apps. Reset Metro's transform cache when adding the plugin. Use the dedicated `/shaders` entry point to keep GPU imports outside ordinary maps. These are optional peers for ordinary maps; mounting a shader layer requires both runtimes. Android's shared-output transport requires API 26+ and compatible writable native texture sharing.
 
 ```tsx
-import { MapView } from 'react-native-enhanced-maps';
-import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
+import { MapView } from 'react-native-maplibre-maps';
+import { ShaderLayer } from 'react-native-maplibre-maps/shaders';
 
 const fragment = /* wgsl */ `
 @fragment fn fragmentMain(
@@ -54,7 +54,7 @@ Optional `shaders.vertex` replaces the default fullscreen triangle. Entry names 
 `data` accepts a `ShaderGrid` of scalar (`channels: 1`) or eastward/northward vector (`channels: 2`) float32 values. It is independent of the persistent simulation buffer. For example:
 
 ```tsx
-import type { ShaderGrid } from 'react-native-enhanced-maps/shaders';
+import type { ShaderGrid } from 'react-native-maplibre-maps/shaders';
 
 const wind: ShaderGrid = {
   width: 2,

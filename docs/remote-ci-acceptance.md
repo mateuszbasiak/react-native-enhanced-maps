@@ -43,7 +43,7 @@ platform bundles/bundle log. The package tarball includes `lib/index.d.ts`.
 The following outputs have identical sizes and SHA-256 hashes across the two
 runs:
 
-- `react-native-enhanced-maps-0.0.0.tgz`: 168,744 bytes;
+- `react-native-maplibre-maps-0.0.0.tgz`: 168,744 bytes;
   SHA-256 `6dc88e5309b7d30d89a7bd9bbb4d8592d98404623a4d01a8d5cd2cbbf958b13a`.
 - iOS `main.jsbundle`: 1,213,695 bytes;
   SHA-256 `6e6e790bf4c72630b10ca86ceadba2a45bbe19b6b409c0c0e0c153d4d6acd476`.

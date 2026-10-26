@@ -1,4 +1,4 @@
-import type { Coordinate } from 'react-native-enhanced-maps';
+import type { Coordinate } from 'react-native-maplibre-maps';
 export const routes: readonly (readonly Coordinate[])[] = [
   [
     { latitude: 52.24, longitude: 20.99 },

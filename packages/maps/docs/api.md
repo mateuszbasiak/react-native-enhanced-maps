@@ -4,7 +4,7 @@ The package root exports `MapView` (also default), `Marker`, `Polyline`, `Polygo
 and `Circle`, plus `validateCamera` and `createRevisionGate`. Public TypeScript
 types are exported beside them. Sources, layers and source-oriented cluster
 queries are internal infrastructure, not public components. Import experimental
-`ShaderLayer` separately from `react-native-enhanced-maps/shaders`.
+`ShaderLayer` separately from `react-native-maplibre-maps/shaders`.
 
 ## MapView
 

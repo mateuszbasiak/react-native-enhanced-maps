@@ -6,7 +6,7 @@ snapshots do not have separate maintenance branches or a response-time guarantee
 
 ## Report privately
 
-Use [GitHub private vulnerability reporting](https://github.com/mateuszbasiak/react-native-enhanced-maps/security/advisories/new).
+Use [GitHub private vulnerability reporting](https://github.com/mateuszbasiak/react-native-maplibre-maps/security/advisories/new).
 Private reporting was enabled and verified on 2026-10-23. Do not put exploit details,
 tokens, signing material, private coordinates or application metadata in public
 issues, pull requests or screenshots.

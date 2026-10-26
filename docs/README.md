@@ -1,6 +1,6 @@
 # Documentation
 
-The current package is `react-native-enhanced-maps`; the repository is
+The current package is `react-native-maplibre-maps`; the repository is
 [react-native-maplibre-maps](https://github.com/mateuszbasiak/react-native-maplibre-maps).
 The repository rename does not rename npm imports. The package owns MapLibre
 Native on iOS/Android and targets React Native's New Architecture.

@@ -1,10 +1,10 @@
 import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button, Text, TextInput, View, NativeModules } from 'react-native';
-import { MapView, Marker } from 'react-native-enhanced-maps';
-import { ShaderLayer } from 'react-native-enhanced-maps/shaders';
-import type { ShaderFrame } from 'react-native-enhanced-maps/shaders';
-import type { MapViewRef } from 'react-native-enhanced-maps';
+import { MapView, Marker } from 'react-native-maplibre-maps';
+import { ShaderLayer } from 'react-native-maplibre-maps/shaders';
+import type { ShaderFrame } from 'react-native-maplibre-maps/shaders';
+import type { MapViewRef } from 'react-native-maplibre-maps';
 import {
   shaderSource,
   windCompute,

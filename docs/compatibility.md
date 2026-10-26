@@ -1,7 +1,7 @@
 # Compatibility
 
 Current renderer: package-owned MapLibre Native on iOS and Android, with Fabric
-components exported by `react-native-enhanced-maps`. Google Maps and Apple Maps
+components exported by `react-native-maplibre-maps`. Google Maps and Apple Maps
 experiments have been removed; provider selection is not a public API.
 
 The supported development baseline is React Native 0.85.3 / React 19.2.3,

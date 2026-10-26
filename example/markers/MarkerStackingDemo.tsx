@@ -1,8 +1,8 @@
 import ExampleControls from '../ExampleControls';
 import React, { useState } from 'react';
 import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MapView } from 'react-native-enhanced-maps';
-import { Marker } from 'react-native-enhanced-maps';
+import { MapView } from 'react-native-maplibre-maps';
+import { Marker } from 'react-native-maplibre-maps';
 
 const coordinate = { latitude: 54.37, longitude: 18.66 };
 export function MarkerStackingDemo({ onBack }: { onBack: () => void }) {

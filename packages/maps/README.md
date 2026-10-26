@@ -4,7 +4,7 @@ Private package-owned MapLibre Native integration. Not ready for production.
 Exports `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`.
 
 ```tsx
-import { MapView, Marker } from 'react-native-enhanced-maps';
+import { MapView, Marker } from 'react-native-maplibre-maps';
 
 <MapView
   style={{ flex: 1 }}
@@ -30,7 +30,7 @@ Use ordinary React Native children and input handlers inside `Marker`. Higher
 
 Android links MapLibre Native OpenGL 13.6.1 directly. iOS links MapLibre 6.31.0 via
 Swift Package Manager alongside React Native Pods. In the consumer Podfile require
-`react-native-enhanced-maps/maplibre-spm` (resolve the installed package path) and
+`react-native-maplibre-maps/maplibre-spm` (resolve the installed package path) and
 call `EnhancedMaps.post_install(installer)` inside `post_install`, in addition to
 `react_native_post_install`. The example Podfile shows the workspace equivalent.
 Minimum iOS 16 and Android 24. Rebuild after native setup.
@@ -86,7 +86,7 @@ maintainer-owned deferred follow-up. Source-oriented query
 APIs in older documents describe internal or historical infrastructure.
 
 Import experimental `ShaderLayer` separately from
-`react-native-enhanced-maps/shaders`. Its optional peers are
+`react-native-maplibre-maps/shaders`. Its optional peers are
 `react-native-webgpu@0.17.x` and `react-native-worklets@0.12.2`; configure the
 Worklets Babel plugin as in the example and rebuild native projects. Core-only
 consumers do not need these peers. See [ShaderLayer](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md).
@@ -106,7 +106,7 @@ React Native setup. Resolve the package entry and then its adjacent hook:
 
 ```ruby
 maps_entry = Pod::Executable.execute_command('node', ['-p',
-  'require.resolve("react-native-enhanced-maps", {paths: [process.argv[1]]})',
+  'require.resolve("react-native-maplibre-maps", {paths: [process.argv[1]]})',
   __dir__]).strip
 require File.expand_path('../maplibre-spm', File.dirname(maps_entry))
 
@@ -130,7 +130,7 @@ unmeasured devices and broader compatibility are not claimed as passing.
 ## Expo custom builds
 
 For Expo SDK 56 / RN 0.85.3, install the packed package and add
-`"react-native-enhanced-maps"` to `expo.plugins`. The config plugin adds the iOS
+`"react-native-maplibre-maps"` to `expo.plugins`. The config plugin adds the iOS
 MapLibre SPM hook; Android uses autolinking. Use a custom native build, not Expo Go.
 See [Expo setup and validation](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md)
 for the pinned template, optional-peer resolver requirement and reproducible

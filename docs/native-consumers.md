@@ -45,7 +45,7 @@ The package's MapLibre post-install hook is loaded from the installed tarball.
 From the repository root, compiled bridge verifiers accept consumer paths:
 
 ```sh
-node scripts/check-android-bridge.mjs /absolute/consumer/node_modules/react-native-enhanced-maps
+node scripts/check-android-bridge.mjs /absolute/consumer/node_modules/react-native-maplibre-maps
 node scripts/check-ios-bridge.mjs arm64 /absolute/consumer/ios
 node scripts/check-ios-bridge.mjs x86_64 /absolute/consumer/ios
 ```

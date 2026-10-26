@@ -1,7 +1,7 @@
 import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from 'react-native';
-import { MapView } from 'react-native-enhanced-maps';
+import { MapView } from 'react-native-maplibre-maps';
 import type {
   Camera,
   CameraEvent,
@@ -12,7 +12,7 @@ import type {
   MapPoint,
   FitOptions,
   MapViewRef,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 
 const camera: Camera = {
   center: { latitude: 54.37, longitude: 18.66 },

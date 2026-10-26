@@ -80,7 +80,7 @@ After building both Android Kotlin variants, run `npm run verify:android:bridge`
 The command inspects annotated methods declared on the concrete compiled module class and rejects
 Release counter exports or missing runtime transport methods. Build the variants
 from `example/android` with
-`./gradlew :react-native-enhanced-maps:compileDebugKotlin :react-native-enhanced-maps:compileReleaseKotlin`.
+`./gradlew :react-native-maplibre-maps:compileDebugKotlin :react-native-maplibre-maps:compileReleaseKotlin`.
 Use JDK 17 or the configured Android Studio JDK. This bounded check does not close
 the wider Release-consumer privacy and diagnostics acceptance gate.
 

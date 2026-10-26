@@ -15,9 +15,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MapView } from 'react-native-enhanced-maps';
-import type { MapViewRef } from 'react-native-enhanced-maps';
-import { Marker } from 'react-native-enhanced-maps';
+import { MapView } from 'react-native-maplibre-maps';
+import type { MapViewRef } from 'react-native-maplibre-maps';
+import { Marker } from 'react-native-maplibre-maps';
 import { MarkerStackingDemo } from './MarkerStackingDemo';
 
 const initial = {

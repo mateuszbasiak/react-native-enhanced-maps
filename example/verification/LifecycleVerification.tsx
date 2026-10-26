@@ -1,8 +1,8 @@
 import ExampleControls from '../ExampleControls';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Platform, Text, View } from 'react-native';
-import { MapView } from 'react-native-enhanced-maps';
-import type { MapError, MapViewRef } from 'react-native-enhanced-maps';
+import { MapView } from 'react-native-maplibre-maps';
+import type { MapError, MapViewRef } from 'react-native-maplibre-maps';
 
 type Cycle = {
   generation: number;

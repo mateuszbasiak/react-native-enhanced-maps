@@ -6,13 +6,13 @@ import MapView, {
   Circle,
   Polygon,
   Polyline,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 import type {
   Coordinate,
   MapPoint,
   MapViewRef,
   ShapePressEvent,
-} from 'react-native-enhanced-maps';
+} from 'react-native-maplibre-maps';
 import { createFleet, route } from './fixtures';
 const geodesicRoute = [
   { latitude: 55, longitude: -60 },

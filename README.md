@@ -1,4 +1,4 @@
-# React Native Enhanced Maps
+# React Native MapLibre Maps
 
 A package-owned React Native Fabric integration with MapLibre Native on iOS and Android.
 The core package exports `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
@@ -62,7 +62,7 @@ remains 10000. Distinct groups can overlap visually at the same coordinate.
 Changing a group rebuilds the indexes and invalidates previous cluster callbacks.
 Sources and style layers are private implementation details.
 
-Experimental world shader layers (`react-native-enhanced-maps/shaders`): [ShaderLayer contract](docs/shader-layer.md).
+Experimental world shader layers (`react-native-maplibre-maps/shaders`): [ShaderLayer contract](docs/shader-layer.md).
 
 Development changes are tracked in [CHANGELOG.md](CHANGELOG.md). See
 [contributing](CONTRIBUTING.md), [private security reporting](SECURITY.md) and
