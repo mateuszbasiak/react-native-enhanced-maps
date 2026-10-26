@@ -1,10 +1,22 @@
-import type { Coordinate, MapBounds, MapPoint } from './types';
+import type { Camera, Coordinate, MapBounds, MapPoint } from './types';
 import type { ClusterQueryKind, NativeClusterPage } from './clusterQueries';
 
 export type MapQueryKind =
-  'point' | 'coordinate' | 'bounds' | 'fit' | 'shaderLayer' | ClusterQueryKind;
+  | 'camera'
+  | 'point'
+  | 'coordinate'
+  | 'bounds'
+  | 'fit'
+  | 'shaderLayer'
+  | ClusterQueryKind;
 type Result =
-  Coordinate | MapPoint | MapBounds | void | NativeClusterPage | number;
+  | Camera
+  | Coordinate
+  | MapPoint
+  | MapBounds
+  | void
+  | NativeClusterPage
+  | number;
 const finite = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 export function validateMapPoint(value: unknown): MapPoint {
@@ -49,6 +61,28 @@ export function parseMapQueryResult(
     const r = v as Record<string, unknown>;
     if ((kind === 'fit' || kind === 'shaderLayer') && r.accepted === true)
       return;
+    if (kind === 'camera') {
+      const center = r.center as Coordinate | undefined;
+      if (
+        center &&
+        finite(center.latitude) &&
+        Math.abs(center.latitude) <= 90 &&
+        finite(center.longitude) &&
+        finite(r.zoom) &&
+        r.zoom >= 0 &&
+        r.zoom <= 24 &&
+        finite(r.heading) &&
+        finite(r.pitch) &&
+        r.pitch >= 0 &&
+        r.pitch <= 90
+      )
+        return {
+          center: { latitude: center.latitude, longitude: center.longitude },
+          zoom: r.zoom,
+          heading: r.heading,
+          pitch: r.pitch,
+        };
+    }
     if (kind === 'point' && finite(r.x) && finite(r.y))
       return { x: r.x, y: r.y };
     // Preserve the SDK's unwrapped inverse longitude and bounds semantics.

@@ -73,7 +73,7 @@ if (capabilities) {
 <MapView styleURL="https://example.com/style.json" provider="google" />;
 // @ts-expect-error style source must be explicit
 <MapView />;
-// @ts-expect-error camera requires all fields
+// RN Maps accepts partial camera updates
 map.animateCamera({ zoom: 5 });
 // @ts-expect-error marker requires a coordinate
 <Marker id="m">{null}</Marker>;
@@ -276,3 +276,51 @@ const unsupportedPolygonGradient: PolygonProps = {
 void unsupportedPolygonGradient;
 // @ts-expect-error Circle does not accept per-vertex gradient colors
 <Circle center={camera.center} radius={500} strokeColors={['red', 'blue']} />;
+
+map.animateCamera({ zoom: 10 }, { duration: 250 });
+map.setCamera({ heading: 90 });
+map.getCamera().then((camera) => camera.center.latitude);
+map.animateToRegion(
+  { latitude: 54, longitude: 18, latitudeDelta: 1, longitudeDelta: 2 },
+  300,
+);
+map.fitToCoordinates([camera.center], {
+  animated: false,
+  edgePadding: { top: 1, left: 2, bottom: 3, right: 4 },
+});
+<MapView
+  styleURL="https://example.com/style.json"
+  initialRegion={{
+    latitude: 54,
+    longitude: 18,
+    latitudeDelta: 1,
+    longitudeDelta: 2,
+  }}
+  onPress={(e) => e.nativeEvent.coordinate}
+  onRegionChangeComplete={(region, details) => [
+    region.latitudeDelta,
+    details.isGesture,
+  ]}
+>
+  <Marker
+    identifier="boat"
+    coordinate={camera.center}
+    centerOffset={{ x: 0, y: 2 }}
+    onPress={(e) => e.nativeEvent.coordinate}
+  />
+</MapView>;
+
+const familiarRef: MapView | null = null;
+void familiarRef;
+<MapView
+  styleURL="https://example.com/style.json"
+  onLayout={(event) => event.nativeEvent.layout.width}
+  pointerEvents="auto"
+  accessibilityLabel="Explore map"
+  onPress={(event) => event.stopPropagation()}
+>
+  <Marker
+    coordinate={camera.center}
+    onPress={(event) => event.stopPropagation()}
+  />
+</MapView>;

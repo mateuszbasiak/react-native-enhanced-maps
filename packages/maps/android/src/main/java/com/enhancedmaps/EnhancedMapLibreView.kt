@@ -58,6 +58,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   val markers = mutableListOf<EnhancedMarkerView>()
   private val textures = mutableMapOf<EnhancedMarkerView, EMMarkerTexture>()
   private val markerGestures = MarkerGestureGate()
+  private var lastCompletedRegionKey:String? = null
+  private var lastMovingRegionKey:String? = null
+  private var fitPreflight = false
+  private var regionIsGesture = false
   private val cameraOrigins = CameraOriginTracker()
   private val touchCoordinates = FloatArray(2)
   private var map: MapLibreMap? = null
@@ -133,15 +137,17 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         override fun onShoveEnd(detector: ShoveGestureDetector) { observeGesture(3,2,detector) }
       })
       nativeMap.addOnCameraMoveStartedListener { reason ->
+        regionIsGesture = reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE
         cameraOrigins.begin(
           reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE,
           reason == MapLibreMap.OnCameraMoveStartedListener.REASON_DEVELOPER_ANIMATION,
           reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_ANIMATION
         )
       }
-      nativeMap.addOnCameraMoveListener { updatePositions() }
+      nativeMap.addOnCameraMoveListener { updatePositions(); emitRegionEvent(false) }
       nativeMap.addOnCameraIdleListener {
         updatePositions()
+        emitRegionEvent(true)
         val camera = nativeMap.cameraPosition
         emit("topCameraIdle", Arguments.createMap().apply {
           putDouble("latitude", camera.target?.latitude ?: 0.0); putDouble("longitude", camera.target?.longitude ?: 0.0)
@@ -209,7 +215,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     if(disposed) return
     // The SDK suppresses move-start callbacks while a previous movement is active.
     // Observe recognition even when JS gesture subscriptions are disabled.
-    if(phase == 0) cameraOrigins.gestureBegan()
+    if(phase == 0) { cameraOrigins.gestureBegan();regionIsGesture=true }
+    // The SDK's camera-move listener can coalesce gesture motion until idle.
+    // Recognized input updates also sample the current native viewport.
+    if(phase == 1) emitRegionEvent(false)
     val point=detector.focalPoint
     val density=resources.displayMetrics.density
     val sample=gestureEvents.next(kind,phase,android.os.SystemClock.uptimeMillis().toDouble(),point.x.toDouble()/density,point.y.toDouble()/density,gestureEventsEnabled && isAttachedToWindow,gestureEventIntervalMs) ?: return
@@ -487,6 +496,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           val duration=request.getDouble("durationMs"); require(duration.isFinite() && duration in 0.0..60000.0)
           val fit=NativeCameraFit.camera(nativeMap,request,acceptedScene,markers,resources.displayMetrics.density,appliedMapPadding ?: intArrayOf(0,0,0,0))
           val initial=nativeMap.cameraPosition
+          fitPreflight=true;regionIsGesture=false
           try {
             // SDK fitting projects from the current transform. Recenter the
             // preflight first so distant geometry is not behind a pitched camera.
@@ -535,8 +545,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
             }
             nativeMap.moveCamera(CameraUpdateFactory.newCameraPosition(target))
             if(duration>0) nativeMap.moveCamera(CameraUpdateFactory.newCameraPosition(initial))
+            fitPreflight=false
             submitCamera(target,duration)
-          } catch(error:Exception) { nativeMap.moveCamera(CameraUpdateFactory.newCameraPosition(initial));throw error }
+            if(duration<=0)emitRegionEvent(true)
+          } catch(error:Exception) { fitPreflight=true;nativeMap.moveCamera(CameraUpdateFactory.newCameraPosition(initial));throw error }
+          finally {fitPreflight=false}
           JSONObject().put("accepted",true)
         }
         "point" -> {
@@ -551,6 +564,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           val coordinate=nativeMap.projection.fromScreenLocation(android.graphics.PointF(x,y))
           JSONObject().put("latitude",coordinate.latitude).put("longitude",coordinate.longitude)
         }
+        "camera" -> {
+          val camera=nativeMap.cameraPosition
+          val center= requireNotNull(camera.target)
+          JSONObject().put("center",JSONObject().put("latitude",center.latitude).put("longitude",center.longitude)).put("zoom",camera.zoom).put("heading",camera.bearing).put("pitch",camera.tilt)
+        }
         "bounds" -> {
           val bounds=nativeMap.projection.visibleRegion.latLngBounds
           JSONObject().put("north",bounds.latitudeNorth).put("south",bounds.latitudeSouth).put("east",bounds.longitudeEast).put("west",bounds.longitudeWest)
@@ -561,6 +579,30 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     } catch(error:Exception) { failure=error.message ?: "Invalid map query" }
     emit("topMapQueryResult",Arguments.createMap().apply { putDouble("requestId",requestId); putDouble("styleRevision",revision); putString("resultJSON",result); putString("error",failure) })
   }
+  private fun emitRegionEvent(complete:Boolean) {
+    val nativeMap=map ?: return
+    if(disposed || fitPreflight || !regionEventsEnabled || readyStyleRevision!=styleRevision)return
+    val bounds=nativeMap.projection.visibleRegion.latLngBounds
+    val west=bounds.longitudeWest; val east=bounds.longitudeEast
+    val delta=if(east>=west) east-west else east+360-west
+    val key="$readyStyleRevision:$regionIsGesture:${bounds.latitudeNorth}:${bounds.latitudeSouth}:$west:$east"
+    if(complete) {
+      if(key==lastCompletedRegionKey)return
+      lastCompletedRegionKey=key;lastMovingRegionKey=null
+    } else {
+      if(key==lastCompletedRegionKey || key==lastMovingRegionKey)return
+      lastCompletedRegionKey=null;lastMovingRegionKey=key
+    }
+    emit("topRegionEvent",Arguments.createMap().apply {
+      putDouble("latitude",(bounds.latitudeNorth+bounds.latitudeSouth)/2)
+      putDouble("longitude",((west+delta/2+180)%360+360)%360-180)
+      putDouble("latitudeDelta",bounds.latitudeNorth-bounds.latitudeSouth)
+      putDouble("longitudeDelta",delta.coerceAtMost(360.0))
+      putBoolean("isGesture",regionIsGesture);putBoolean("complete",complete)
+      putDouble("styleRevision",readyStyleRevision)
+    })
+  }
+  var regionEventsEnabled = false
   fun animateCamera(latitude:Double,longitude:Double,zoom:Double,heading:Double,pitch:Double,durationMs:Double) {
     val nativeMap=map ?: return
     if(disposed) return

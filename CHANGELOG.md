@@ -7,6 +7,12 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- RN Maps common API conventions: regions/controlled camera, native region-change
+  callbacks, authoritative camera reads, partial updates, fit/bounds method aliases,
+  nativeEvent presses, optional marker identifiers, image/default pins and
+  centerOffset. Existing camera/fit helpers remain available. See
+  [migration](docs/rn-maps-migration.md) for supported APIs and remaining differences.
+
 - Package-owned MapLibre Native Fabric hosts for iOS and Android, React marker
   children, geographic shapes, camera/projection/fit helpers and capability reports.
 - Opt-in `Marker.cluster` with default/custom React cluster components, lazy member

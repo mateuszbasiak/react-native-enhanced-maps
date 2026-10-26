@@ -39,7 +39,7 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   } else {
     if(acceptedScene) {
       NSDictionary *scene=[NSJSONSerialization JSONObjectWithData:[acceptedScene dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-      for(NSDictionary *source in scene[@"sources"])EMFitGeometry(source[@"data"],points,0);
+      for(NSDictionary *source in scene[@"sources"])if(![request[@"markersOnly"] boolValue] || source[@"cluster"])EMFitGeometry(source[@"data"],points,0);
     }
     for(NSArray *coordinate in markerPoints)EMFitAdd(points,[coordinate[0] doubleValue],[coordinate[1] doubleValue]);
   }
@@ -53,5 +53,12 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   std::sort(longitudes.begin(),longitudes.end());double gap=-1;size_t start=0;
   for(size_t i=0;i<longitudes.size();++i) {double next=i+1<longitudes.size()?longitudes[i+1]:longitudes[0]+360;if(next-longitudes[i]>gap){gap=next-longitudes[i];start=(i+1)%longitudes.size();}}
   double west=longitudes[start];if(west>180)west-=360;double east=west+360-gap;
+  if(request[@"regionLongitude"]) {
+    id centerValue=request[@"regionLongitude"],spanValue=request[@"regionLongitudeDelta"];
+    EMFitRequire([centerValue isKindOfClass:NSNumber.class] && [spanValue isKindOfClass:NSNumber.class],@"Invalid region longitude span");
+    double center=[centerValue doubleValue],span=[spanValue doubleValue];
+    EMFitRequire(std::isfinite(center) && std::abs(center)<=180 && std::isfinite(span) && span>0 && span<=360,@"Invalid region longitude span");
+    west=center-span/2;east=center+span/2;
+  }
   return MLNCoordinateBoundsMake(CLLocationCoordinate2DMake(south,west),CLLocationCoordinate2DMake(north,east));
 }

@@ -100,6 +100,8 @@ android {
     }
     buildTypes {
         debug {
+            // Optional isolated verification install alongside the regular example.
+            applicationIdSuffix project.findProperty("verificationApplicationIdSuffix") ?: ""
             signingConfig signingConfigs.debug
         }
         release {

@@ -45,12 +45,15 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   @ReactProp(name="initialPitch") override fun setInitialPitch(view:EnhancedMapLibreView,value:Double) { view.pitch=value }
   override fun queryMap(view:EnhancedMapLibreView,requestId:Double,requestJSON:String?) { view.queryMap(requestId,requestJSON ?: "") }
   override fun animateCamera(view:EnhancedMapLibreView,latitude:Double,longitude:Double,zoom:Double,heading:Double,pitch:Double,durationMs:Double) { view.animateCamera(latitude,longitude,zoom,heading,pitch,durationMs) }
+  @ReactProp(name="regionEventsEnabled")
+  override fun setRegionEventsEnabled(view:EnhancedMapLibreView,value:Boolean) { view.regionEventsEnabled=value }
   override fun getExportedCustomDirectEventTypeConstants():MutableMap<String,Any> = mutableMapOf(
     "topMapReady" to mapOf("registrationName" to "onMapReady"), "topMapError" to mapOf("registrationName" to "onMapError"),
     "topMapQueryResult" to mapOf("registrationName" to "onMapQueryResult"),
     "topMarkerClusters" to mapOf("registrationName" to "onMarkerClusters"),
     "topMapPress" to mapOf("registrationName" to "onMapPress"),
     "topGesture" to mapOf("registrationName" to "onGesture"),
+    "topRegionEvent" to mapOf("registrationName" to "onRegionEvent"),
     "topCameraIdle" to mapOf("registrationName" to "onCameraIdle"), "topFeaturePress" to mapOf("registrationName" to "onFeaturePress")
   )
 }
