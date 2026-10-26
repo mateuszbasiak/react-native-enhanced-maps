@@ -293,3 +293,56 @@ test('clusterGroup enables clustering unless cluster explicitly overrides it', a
     /latitude/,
   );
 });
+
+test('RN Maps identifiers and keyed markers work without package-specific ids', async () => {
+  const { collectMarkers } = await load();
+  const coordinate = { latitude: 54, longitude: 18 };
+  const first = collectMarkers(
+    [
+      React.createElement(Marker, { key: 'boat', coordinate, cluster: true }),
+      React.createElement(Marker, {
+        identifier: 'place',
+        coordinate,
+        cluster: true,
+      }),
+    ],
+    Marker,
+  );
+  assert.equal(first.markers.get('place').props.id, 'place');
+  const second = collectMarkers(
+    [
+      React.createElement(Marker, {
+        identifier: 'place',
+        coordinate,
+        cluster: true,
+      }),
+      React.createElement(Marker, { key: 'boat', coordinate, cluster: true }),
+    ],
+    Marker,
+  );
+  assert.deepEqual(
+    [...first.markers.keys()].sort(),
+    [...second.markers.keys()].sort(),
+  );
+});
+
+test('generated marker identities respect array and fragment key scopes', async () => {
+  const { collectMarkers } = await load();
+  const m = (key) =>
+    React.createElement(Marker, {
+      key,
+      coordinate: { latitude: 1, longitude: 2 },
+      cluster: true,
+    });
+  assert.equal(
+    collectMarkers([[m('boat')], [m('boat')]], Marker).markers.size,
+    2,
+  );
+  assert.equal(
+    collectMarkers(
+      [React.createElement(React.Fragment, { key: 'a' }, m('b')), m('a/key:b')],
+      Marker,
+    ).markers.size,
+    2,
+  );
+});

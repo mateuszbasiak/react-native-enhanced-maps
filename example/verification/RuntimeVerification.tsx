@@ -9,8 +9,13 @@ import {
   View,
 } from 'react-native';
 import { MapView, Circle, Marker } from 'react-native-maplibre-maps';
+// React Native static image assets must use a literal require.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const parityImage = require('../maplibre/vessel.png');
 import type {
   CameraEvent,
+  Camera,
+  Region,
   MapCapabilities,
   MapError,
   MapGestureEvent,
@@ -70,6 +75,15 @@ const append = <T,>(items: T[], value: T, limit: number) => {
 /** Development-only, bounded runtime evidence; input actions still use the native UI. */
 export default function RuntimeVerification() {
   const map = useRef<MapViewRef>(null);
+  const [parityInitialRegion, setParityInitialRegion] = useState<Region>();
+  const readyCamera = useRef<Partial<Camera> | undefined>(undefined);
+  const [controlledRegion, setControlledRegion] = useState<Region>();
+  const [controlledCamera, setControlledCamera] = useState<Camera>();
+  const [parityMarkers, setParityMarkers] = useState(false);
+  const regionEvidence = useRef<
+    { region: Region; isGesture: boolean; complete: boolean }[]
+  >([]);
+  const parityPresses = useRef<unknown[]>([]);
   const evidence = useRef<Snapshot>({
     schemaVersion: 1,
     platform: Platform.OS,
@@ -179,6 +193,23 @@ export default function RuntimeVerification() {
     if (!__DEV__) return;
     const target = globalThis as VerificationGlobal;
     const api = {
+      parity: {
+        map: () => map.current,
+        mountRegion: (region: Region, camera?: Partial<Camera>) => {
+          readyCamera.current = camera;
+          setParityInitialRegion(region);
+          setGeneration((value) => value + 1);
+        },
+        setRegion: setControlledRegion,
+        setCamera: setControlledCamera,
+        showMarkers: setParityMarkers,
+        setShapeLongitude: (longitude: number) =>
+          setCandidate((value) => ({ ...value, longitude })),
+        snapshot: () => ({
+          regions: regionEvidence.current,
+          presses: parityPresses.current,
+        }),
+      },
       snapshot: () => ({
         ...evidence.current,
         currentCapabilities: map.current?.getCapabilities() ?? null,
@@ -418,12 +449,33 @@ export default function RuntimeVerification() {
           style={{ flex: 1 }}
           testID="verification-map"
           styleURL={`https://tiles.openfreemap.org/styles/liberty?verification=${styleEpoch}`}
-          initialCamera={{
-            center: { latitude: 54.37, longitude: 18.66 },
-            zoom: 13,
-            heading: 0,
-            pitch: 0,
-          }}
+          initialRegion={parityInitialRegion}
+          initialCamera={
+            parityInitialRegion
+              ? undefined
+              : {
+                  center: { latitude: 54.37, longitude: 18.66 },
+                  zoom: 13,
+                  heading: 0,
+                  pitch: 0,
+                }
+          }
+          region={controlledRegion}
+          camera={controlledCamera}
+          onRegionChange={(region, details) =>
+            append(
+              regionEvidence.current,
+              { region, ...details, complete: false },
+              128,
+            )
+          }
+          onRegionChangeComplete={(region, details) =>
+            append(
+              regionEvidence.current,
+              { region, ...details, complete: true },
+              128,
+            )
+          }
           onGesture={enabled ? onGesture : undefined}
           gestureEventIntervalMs={interval}
           onPress={
@@ -447,6 +499,12 @@ export default function RuntimeVerification() {
           }
           onMapReady={() => {
             evidence.current.readyCount++;
+            if (readyCamera.current)
+              void map.current
+                ?.setCamera(readyCamera.current)
+                .catch((error) =>
+                  append(evidence.current.queryErrors, String(error), 32),
+                );
             setSummary(`Ready · ${evidence.current.readyCount} loads`);
           }}
           onCameraIdle={(event) => append(evidence.current.camera, event, 64)}
@@ -455,6 +513,28 @@ export default function RuntimeVerification() {
             setSummary(`${error.code} · fatal=${error.fatal}`);
           }}
         >
+          {parityMarkers && (
+            <>
+              <Marker
+                identifier="parity-marker"
+                coordinate={{ latitude: 54.37, longitude: 18.66 }}
+                onPress={(event) => append(parityPresses.current, event, 32)}
+              >
+                <Text style={{ backgroundColor: 'orange', padding: 12 }}>
+                  RN Maps marker
+                </Text>
+              </Marker>
+              <Marker
+                identifier="parity-image"
+                coordinate={{ latitude: 54.369, longitude: 18.657 }}
+                image={parityImage}
+              />
+              <Marker
+                coordinate={{ latitude: 54.371, longitude: 18.663 }}
+                pinColor="purple"
+              />
+            </>
+          )}
           {showMarker && (
             <Marker
               id="verification-marker"

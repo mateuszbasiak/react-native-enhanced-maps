@@ -1,6 +1,7 @@
 import React, {
   forwardRef,
   useImperativeHandle,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -8,6 +9,15 @@ import React, {
 } from 'react';
 import type { ElementRef } from 'react';
 import { Platform, PixelRatio } from 'react-native';
+import {
+  regionRequest,
+  rejectUnsupportedProps,
+  createCameraCommandQueue,
+  parseRegionEvent,
+  mergeCamera,
+  cameraDuration,
+  fitOptions,
+} from './rnMapsCompat';
 import { Marker } from './Marker';
 import { DefaultCluster } from './DefaultCluster';
 import {
@@ -55,8 +65,10 @@ const defaultCamera: Camera = {
   heading: 0,
   pitch: 0,
 };
+export type MapView = MapViewRef;
 export const MapView = forwardRef<MapViewRef, MapViewProps>(
   function MapView(props, ref) {
+    rejectUnsupportedProps(props, 'MapView');
     if (Platform.OS !== 'ios' && Platform.OS !== 'android')
       throw new Error('MapView supports iOS and Android only');
     if (typeof props.styleURL !== 'string' || !props.styleURL.trim())
@@ -262,75 +274,211 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
             );
           })
         : [];
-    useImperativeHandle(
-      ref,
-      () => ({
-        async fitCoordinates(coordinates, options) {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          await queries.request(
-            'fit',
-            fitRequest(coordinates, options),
-            styleRequest.revision,
-          );
-        },
-        async fitElements(options) {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          await queries.request(
-            'fit',
-            fitRequest(undefined, options),
-            styleRequest.revision,
-          );
-        },
-        async pointForCoordinate(coordinate) {
-          const value = validateMapCoordinate(coordinate);
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          return (await queries.request(
-            'point',
-            { latitude: value.latitude, longitude: value.longitude },
-            styleRequest.revision,
-          )) as MapPoint;
-        },
-        async coordinateForPoint(point) {
-          const value = validateMapPoint(point);
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          return (await queries.request(
-            'coordinate',
-            { x: value.x, y: value.y },
-            styleRequest.revision,
-          )) as Coordinate;
-        },
-        async getVisibleBounds() {
-          if (!readiness.getCapabilities()) throw new Error('Map is not ready');
-          return (await queries.request(
-            'bounds',
-            {},
-            styleRequest.revision,
-          )) as MapBounds;
-        },
-        getCapabilities() {
-          return readiness.getCapabilities();
-        },
-        animateCamera(camera, durationMs = 300) {
-          validateCamera(camera);
-          if (!Number.isFinite(durationMs) || durationMs < 0)
-            throw new RangeError(
-              'Camera duration must be finite and non-negative',
-            );
-          if (!readiness.getCapabilities() || !nativeRef.current)
-            throw new Error('Map is not ready');
-          Commands.animateCamera(
-            nativeRef.current,
-            camera.center.latitude,
-            camera.center.longitude,
-            camera.zoom,
-            camera.heading,
-            camera.pitch,
-            durationMs,
-          );
-        },
-      }),
-      [readiness, queries, styleRequest.revision],
+    const [enqueueCamera] = useState(createCameraCommandQueue);
+    const controlledSignature = JSON.stringify(
+      props.camera ?? props.region ?? null,
     );
+    const controlledRequest = useRef({
+      signature: controlledSignature,
+      revision: styleRequest.revision,
+      version: 0,
+    });
+    if (
+      controlledRequest.current.signature !== controlledSignature ||
+      controlledRequest.current.revision !== styleRequest.revision
+    )
+      controlledRequest.current = {
+        signature: controlledSignature,
+        revision: styleRequest.revision,
+        version: controlledRequest.current.version + 1,
+      };
+    const commandVersion = controlledRequest.current.version;
+    const controlledCurrent = () =>
+      controlledRequest.current.version === commandVersion;
+    const readNativeCamera = async () => {
+      if (!readiness.isReady(styleRequest.revision))
+        throw new Error('Map is not ready');
+      return (await queries.request(
+        'camera',
+        {},
+        styleRequest.revision,
+      )) as Camera;
+    };
+    const getCamera = async () => {
+      let camera: Camera | undefined;
+      await enqueueCamera(async () => {
+        camera = await readNativeCamera();
+      });
+      return camera!;
+    };
+    const submitCamera = (
+      patch: Partial<Camera>,
+      durationMs: number,
+      current = () => true,
+    ) => {
+      mergeCamera(defaultCamera, patch);
+      return enqueueCamera(async () => {
+        const revision = styleRequest.revision;
+        const camera = mergeCamera(await readNativeCamera(), patch);
+        if (!current()) return;
+        if (!readiness.isReady(revision) || !nativeRef.current)
+          throw new Error('Map is not ready');
+        Commands.animateCamera(
+          nativeRef.current,
+          camera.center.latitude,
+          camera.center.longitude,
+          camera.zoom,
+          camera.heading,
+          camera.pitch,
+          durationMs,
+        );
+      }, current);
+    };
+    const fit = async (
+      coordinates: readonly Coordinate[] | undefined,
+      options: Parameters<MapViewRef['fitCoordinates']>[1],
+    ) => {
+      if (!readiness.isReady(styleRequest.revision))
+        throw new Error('Map is not ready');
+      const request = fitRequest(coordinates, options);
+      await enqueueCamera(async () => {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        await queries.request('fit', request, styleRequest.revision);
+      });
+    };
+    const fitRegion = async (
+      region: import('./types').Region,
+      duration = 300,
+      current = () => true,
+    ) => {
+      if (!readiness.isReady(styleRequest.revision))
+        throw new Error('Map is not ready');
+      const request = regionRequest(region, duration);
+      await enqueueCamera(async () => {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        await queries.request('fit', request, styleRequest.revision);
+      }, current);
+    };
+    const readGeometry = async (
+      kind: 'bounds' | 'point' | 'coordinate',
+      input: Record<string, number> = {},
+    ) => {
+      let result: Awaited<ReturnType<typeof queries.request>>;
+      await enqueueCamera(async () => {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        result = await queries.request(kind, input, styleRequest.revision);
+      });
+      return result!;
+    };
+    const initialRegion = useRef(
+      props.initialCamera ? undefined : props.initialRegion,
+    );
+    const lastEmittedRegion = useRef<string | undefined>(undefined);
+    const appliedControlled = useRef<string | undefined>(undefined);
+    const controlledKey = `${styleRequest.revision}:${controlledSignature}`;
+    useEffect(() => {
+      if (shaderReadyRevision !== styleRequest.revision) return;
+      if (
+        !props.camera &&
+        props.region &&
+        JSON.stringify(props.region) === lastEmittedRegion.current
+      ) {
+        appliedControlled.current = controlledKey;
+        return;
+      }
+      if (appliedControlled.current === controlledKey) return;
+      appliedControlled.current = controlledKey;
+      const task = props.camera
+        ? submitCamera(props.camera, 0, controlledCurrent)
+        : props.region
+          ? fitRegion(props.region, 0, controlledCurrent)
+          : undefined;
+      task?.catch((error) =>
+        props.onError?.({
+          code: 'camera',
+          message: String(error),
+          fatal: false,
+        }),
+      );
+      // React value changes, rather than object identity, drive controlled commands.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [controlledSignature, shaderReadyRevision, styleRequest.revision]);
+    useImperativeHandle(ref, () => ({
+      getCamera,
+      setCamera: (patch) => submitCamera(patch, 0),
+      animateToRegion: (region, duration = 300) => fitRegion(region, duration),
+      fitToCoordinates: (coordinates, options) =>
+        fit(coordinates, fitOptions(options)),
+      fitToElements: async (options) => {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        const request = {
+          ...fitRequest(undefined, fitOptions(options)),
+          markersOnly: 1,
+        };
+        await enqueueCamera(async () => {
+          if (!readiness.isReady(styleRequest.revision))
+            throw new Error('Map is not ready');
+          await queries.request('fit', request, styleRequest.revision);
+        });
+      },
+      async getMapBoundaries() {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        const b = (await readGeometry('bounds')) as MapBounds;
+        return {
+          northEast: { latitude: b.north, longitude: b.east },
+          southWest: { latitude: b.south, longitude: b.west },
+        };
+      },
+      fitCoordinates: fit,
+      fitElements: (options) =>
+        fit(
+          undefined,
+          options && ('edgePadding' in options || 'animated' in options)
+            ? fitOptions(options)
+            : options,
+        ),
+      async pointForCoordinate(coordinate) {
+        const value = validateMapCoordinate(coordinate);
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        return (await readGeometry('point', {
+          latitude: value.latitude,
+          longitude: value.longitude,
+        })) as MapPoint;
+      },
+      async coordinateForPoint(point) {
+        const value = validateMapPoint(point);
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        return (await readGeometry('coordinate', {
+          x: value.x,
+          y: value.y,
+        })) as Coordinate;
+      },
+      async getVisibleBounds() {
+        if (!readiness.isReady(styleRequest.revision))
+          throw new Error('Map is not ready');
+        return (await readGeometry('bounds')) as MapBounds;
+      },
+      getCapabilities() {
+        return readiness.getCapabilities();
+      },
+      animateCamera(camera, options) {
+        const duration = cameraDuration(options);
+        void submitCamera(camera, duration).catch((error) =>
+          props.onError?.({
+            code: 'camera',
+            message: String(error),
+            fatal: false,
+          }),
+        );
+      },
+    }));
     const [shaderViewport, setShaderViewport] = useState({
       width: 0,
       height: 0,
@@ -362,7 +510,11 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
             {...settings}
             ref={nativeRef}
             style={props.style}
-            onLayout={({ nativeEvent: { layout } }) => {
+            onLayout={(event) => {
+              props.onLayout?.(event);
+              const {
+                nativeEvent: { layout },
+              } = event;
               const width = PixelRatio.getPixelSizeForLayoutSize(layout.width),
                 height = PixelRatio.getPixelSizeForLayoutSize(layout.height),
                 pixelRatio = PixelRatio.get();
@@ -375,6 +527,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               );
             }}
             testID={props.testID}
+            accessible={props.accessible}
+            accessibilityLabel={props.accessibilityLabel}
+            accessibilityHint={props.accessibilityHint}
+            accessibilityRole={props.accessibilityRole}
+            accessibilityState={props.accessibilityState}
+            importantForAccessibility={props.importantForAccessibility}
+            pointerEvents={props.pointerEvents}
             styleURL={props.styleURL}
             styleRevision={styleRequest.revision}
             sceneJSON={scene.json}
@@ -420,7 +579,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               queries.accept(e.requestId, e.resultJSON, e.error);
             }}
             mapPressEventsEnabled={Boolean(props.onPress || props.onLongPress)}
-            onMapPress={({ nativeEvent }) => {
+            onMapPress={(nativePress) => {
+              const { nativeEvent } = nativePress;
               if (
                 nativeEvent.styleRevision !== styleRequest.revision ||
                 !readiness.getCapabilities()
@@ -428,8 +588,19 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 return;
               const event = parseNativeMapPress(nativeEvent);
               if (!event) return;
-              if (event.action === 'tap') props.onPress?.(event);
-              else props.onLongPress?.(event);
+              const wrapped = {
+                ...event,
+                stopPropagation: () => nativePress.stopPropagation(),
+                nativeEvent: {
+                  ...event,
+                  action:
+                    event.action === 'tap'
+                      ? ('press' as const)
+                      : ('long-press' as const),
+                },
+              };
+              if (event.action === 'tap') props.onPress?.(wrapped);
+              else props.onLongPress?.(wrapped);
             }}
             gestureEventsEnabled={gestureEnabled}
             gestureSubscriptionRevision={gestureSubscription.revision}
@@ -469,9 +640,35 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 return;
               }
               if (!report) return;
-              setShaderReadyRevision(nativeEvent.styleRevision);
+              const initial = initialRegion.current;
+              initialRegion.current = undefined;
+              const setup = props.camera
+                ? submitCamera(props.camera, 0, controlledCurrent)
+                : props.region
+                  ? fitRegion(props.region, 0, controlledCurrent)
+                  : initial
+                    ? fitRegion(initial, 0, controlledCurrent)
+                    : Promise.resolve();
               props.onCapabilitiesChange?.(report);
-              props.onMapReady?.();
+              void setup
+                .then(() => {
+                  if (controlledCurrent())
+                    appliedControlled.current = controlledKey;
+                  if (!readiness.isReady(nativeEvent.styleRevision)) return;
+                  setShaderReadyRevision(nativeEvent.styleRevision);
+                  props.onMapReady?.();
+                })
+                .catch((error) => {
+                  props.onError?.({
+                    code: 'initial-camera',
+                    message: String(error),
+                    fatal: false,
+                  });
+                  if (!readiness.isReady(nativeEvent.styleRevision)) return;
+                  appliedControlled.current = controlledKey;
+                  setShaderReadyRevision(nativeEvent.styleRevision);
+                  props.onMapReady?.();
+                });
             }}
             onMapError={({ nativeEvent }) => {
               const error = classifyMapError(nativeEvent);
@@ -483,7 +680,20 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               }
               props.onError?.(error);
             }}
-            onCameraIdle={({ nativeEvent: e }) =>
+            regionEventsEnabled={Boolean(
+              props.onRegionChange || props.onRegionChangeComplete,
+            )}
+            onRegionEvent={({ nativeEvent }) => {
+              if (!readiness.isReady(styleRequest.revision)) return;
+              const e = parseRegionEvent(nativeEvent, styleRequest.revision);
+              if (e) {
+                lastEmittedRegion.current = JSON.stringify(e.region);
+                (e.complete
+                  ? props.onRegionChangeComplete
+                  : props.onRegionChange)?.(e.region, e.details);
+              }
+            }}
+            onCameraIdle={({ nativeEvent: e }) => {
               props.onCameraIdle?.({
                 camera: {
                   center: { latitude: e.latitude, longitude: e.longitude },
@@ -492,8 +702,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                   pitch: e.pitch,
                 },
                 origin: normalizeCameraOrigin(e.origin),
-              })
-            }
+              });
+            }}
             onFeaturePress={({ nativeEvent: e }) => {
               if (e.styleRevision !== styleRequest.revision) return;
               let hit = parseNativeFeatureHit(e);

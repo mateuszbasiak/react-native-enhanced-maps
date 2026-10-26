@@ -1,6 +1,6 @@
 export { MapView, MapView as default } from './MapView';
 export { Marker } from './Marker';
-export type { MarkerProps } from './Marker';
+export type { MarkerProps, MarkerPressEvent } from './Marker';
 export { Polyline, Polygon, Circle } from './mapContent';
 export type {
   PolylineProps,
@@ -10,6 +10,13 @@ export type {
 } from './mapContent';
 export { validateCamera, createRevisionGate } from './contracts';
 export type {
+  LatLng,
+  Point,
+  EdgePadding,
+  Region,
+  RegionChangeDetails,
+  CameraAnimationOptions,
+  FitToOptions,
   Camera,
   CameraEvent,
   CameraOrigin,
@@ -32,3 +39,17 @@ export type {
   ClusterMember,
   ClusterComponentProps,
 } from './types';
+
+// Familiar RN Maps component and props names for existing imports.
+export { Marker as MapMarker } from './Marker';
+export type { MarkerProps as MapMarkerProps } from './Marker';
+export {
+  Polyline as MapPolyline,
+  Polygon as MapPolygon,
+  Circle as MapCircle,
+} from './mapContent';
+export type {
+  PolylineProps as MapPolylineProps,
+  PolygonProps as MapPolygonProps,
+  CircleProps as MapCircleProps,
+} from './mapContent';

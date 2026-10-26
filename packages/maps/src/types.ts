@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle, ViewProps } from 'react-native';
 import type { JSONValue } from './layers';
 
 export interface MapFeaturePressEvent {
@@ -14,6 +14,12 @@ export interface MapFeaturePressEvent {
 
 export type MapPlatform = 'ios' | 'android';
 export interface MapPressEvent {
+  readonly stopPropagation: () => void;
+  readonly nativeEvent: {
+    readonly action: 'press' | 'long-press';
+    readonly coordinate: Coordinate;
+    readonly position: MapPoint;
+  };
   readonly action: 'tap' | 'long-press';
   readonly coordinate: Coordinate;
   readonly position: Readonly<{ x: number; y: number }>;
@@ -81,7 +87,48 @@ export interface MapSettings {
   /** Defaults to 24. SDK geometry and viewport constraints may clamp further. */
   readonly maxZoomLevel?: number;
 }
-export interface MapViewProps extends MapSettings {
+export type LatLng = Coordinate;
+export type Point = MapPoint;
+export type EdgePadding = MapPadding;
+export interface Region extends Coordinate {
+  readonly latitudeDelta: number;
+  readonly longitudeDelta: number;
+}
+export interface CameraAnimationOptions {
+  readonly duration?: number;
+}
+export interface FitToOptions {
+  readonly edgePadding?: EdgePadding;
+  readonly animated?: boolean;
+}
+export interface RegionChangeDetails {
+  readonly isGesture: boolean;
+}
+export interface MapViewProps
+  extends
+    MapSettings,
+    Pick<
+      ViewProps,
+      | 'onLayout'
+      | 'accessible'
+      | 'accessibilityLabel'
+      | 'accessibilityHint'
+      | 'accessibilityRole'
+      | 'accessibilityState'
+      | 'importantForAccessibility'
+      | 'pointerEvents'
+    > {
+  readonly initialRegion?: Region;
+  readonly region?: Region;
+  readonly camera?: Camera;
+  readonly onRegionChange?: (
+    region: Region,
+    details: RegionChangeDetails,
+  ) => void;
+  readonly onRegionChangeComplete?: (
+    region: Region,
+    details: RegionChangeDetails,
+  ) => void;
   /** Custom cluster contents; omitted uses a count bubble that expands on press. */
   readonly clusterComponent?: ComponentType<ClusterComponentProps>;
   readonly styleURL: string;
@@ -109,14 +156,26 @@ export interface MapViewRef {
     coordinates: readonly Coordinate[],
     options?: FitOptions,
   ): Promise<void>;
-  fitElements(options?: FitOptions): Promise<void>;
+  fitElements(options?: FitOptions & FitToOptions): Promise<void>;
+  fitToElements(options?: FitToOptions): Promise<void>;
+  fitToCoordinates(
+    coordinates: readonly Coordinate[],
+    options?: FitToOptions,
+  ): Promise<void>;
+  getMapBoundaries(): Promise<{ northEast: Coordinate; southWest: Coordinate }>;
+  getCamera(): Promise<Camera>;
+  setCamera(camera: Partial<Camera>): Promise<void>;
+  animateToRegion(region: Region, duration?: number): Promise<void>;
   pointForCoordinate(coordinate: Coordinate): Promise<MapPoint>;
   coordinateForPoint(point: MapPoint): Promise<Coordinate>;
   getVisibleBounds(): Promise<MapBounds>;
   /** Native report for this ready map; null before readiness, on style reload or after disposal. */
   getCapabilities(): MapCapabilities | null;
   /** An accepted command is not evidence that the camera animation completed. */
-  animateCamera(camera: Camera, durationMs?: number): void;
+  animateCamera(
+    camera: Partial<Camera>,
+    options?: number | CameraAnimationOptions,
+  ): void;
 }
 export interface ClusterMember {
   readonly id: string;

@@ -1,6 +1,8 @@
 import type { MapPressEvent } from './types';
 
-export function parseNativeMapPress(value: unknown): MapPressEvent | null {
+export function parseNativeMapPress(
+  value: unknown,
+): Pick<MapPressEvent, 'action' | 'coordinate' | 'position'> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const e = value as Record<string, unknown>;
   if (e.action !== 'tap' && e.action !== 'long-press') return null;

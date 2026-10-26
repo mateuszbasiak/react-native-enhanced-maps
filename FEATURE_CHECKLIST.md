@@ -24,6 +24,8 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Implemented foundation
 
+- [x] RN Maps common API migration surface — Regions/controlled camera, partial updates, native region events, ordered camera/geometry reads, fit/bounds aliases, nativeEvent presses, optional marker identifiers, image/default pins and centerOffset. Native builds and both simulator runtime suites pass; full provider parity remains separate. [Migration guide](docs/rn-maps-migration.md).
+
 - [x] **ARCH-01–06, MAP-13** — Workspace, package-owned Fabric hosts, pinned baseline dependencies, declarations, Codegen, autolinking and packed-consumer checks.
 - [x] **ARCH-07** — Revision-scoped native capability reports; layers and shaders remain unvalidated. [Capabilities](docs/capabilities.md).
 - [x] **CAM-01–02** — Validated mount-only initial camera and imperative `animateCamera`, with rejection before readiness.
@@ -47,14 +49,14 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
 - [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).
 - [ ] **CAM-04, CAM-06, CAM-08** — Complete idle/origin, animation completion, exact no-op, interruption, SDK-control and disposal matrices. Simulator app/gesture/compass cases are recorded in [camera origins](docs/camera-origins.md).
-- [ ] **CAM-07, CAM-11** — Define controlled camera ownership/precedence and test rapid commands, feedback loops and event volume if that API is added.
+- [ ] **CAM-07, CAM-11** — Controlled camera/region and precedence are implemented with serialized partial updates and obsolete-request guards. Broaden interruption, feedback-loop and event-volume acceptance. [Migration contract](docs/rn-maps-migration.md).
 - [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Explicit fit request validation now rejects sparse coordinate arrays before native dispatch, with host regression coverage. Both simulators have bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
 - [ ] **GEST-01–03, GEST-06** — Complete native pan/zoom/rotate/tilt provenance, throttling, simultaneous recognition and cancellation under detach/navigation/stress. Background cancellation and subscription cycling have simulator evidence. [Gestures](docs/gestures.md).
 - [ ] **GEST-05, A11Y-05** — Marker touch ownership and hit order under multi-touch, nested scroll, bottom sheets, navigation, multiple maps and GPU touch-through. [Marker gestures](docs/marker-gestures.md).
 
 ## Markers, shapes and internal rendering
 
-- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Decide dedicated image, dragging and callout APIs. [Marker sync evidence](docs/marker-coordinate-sync.md).
+- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; dragging and callout APIs remain open. [Marker sync evidence](docs/marker-coordinate-sync.md).
 - [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed; complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Native fix and remaining geometry limits](docs/polygon-hole-picking.md).
 - [ ] **SHAPE-03** — React Native color strings, geodesic Polyline/Polygon edges (including holes) and per-vertex Polyline gradients are implemented. Decide remaining dash-phase compatibility. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.

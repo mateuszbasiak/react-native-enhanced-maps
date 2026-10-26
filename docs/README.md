@@ -19,6 +19,8 @@ Native on iOS/Android and targets React Native's New Architecture.
 - [Experimental shaders](shader-layer.md) and [runtime capabilities](capabilities.md).
   An implemented feature can still report unvalidated while broader quality
   evidence remains open; the report does not expose all underlying SDK features.
+- [Migrating from RN Maps](rn-maps-migration.md): common camera, region, marker,
+  event and ref contracts, plus explicit remaining differences.
 - [Compatibility and unavailable APIs](compatibility.md) and
   [remaining checklist](../FEATURE_CHECKLIST.md).
 

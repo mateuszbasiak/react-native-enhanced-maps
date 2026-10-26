@@ -30,8 +30,8 @@ Errors contain `{code, message, fatal}`.
 
 A ready `MapViewRef` supplies:
 
-- `animateCamera(camera, durationMs?)`: sends a command, not an animation-completion
-  promise. Duration defaults to 300ms and must be finite and nonnegative.
+- `animateCamera(partialCamera, { duration }?)`: sends a command, not an animation-completion
+  promise. Duration defaults to 300ms and must be within 0–60000ms; numeric durations remain accepted.
 - `pointForCoordinate(coordinate)` and `coordinateForPoint(point)`: asynchronous
   native projection in logical map-relative points.
 - `getVisibleBounds()`: asynchronous `{north, south, east, west}` envelope;
@@ -47,10 +47,20 @@ or disposal invalidates pending queries. Capabilities are evidence states
 feature is available. Current shaders and circle/line/fill quality remain
 unvalidated in those reports.
 
+## RN Maps conventions
+
+See the [migration guide](../../../docs/rn-maps-migration.md) for controlled
+`region`/`camera`, `initialRegion`, native region-change callbacks, partial camera
+updates, RN-style fit/bounds methods, `nativeEvent` press payloads and familiar
+component/type aliases. A MapLibre style URL remains required. Legacy helpers
+remain available alongside the common RN Maps names.
+
 ## Marker and clustering
 
-`Marker` requires a stable `id`, geographic `coordinate` and React Native
-`children`. Optional `anchor` defaults to `{x:0.5,y:1}` within [0,1]; logical-point
+`Marker` requires a geographic `coordinate`. Use optional `identifier`/`id` or
+stable React keys; omitted IDs are generated. Optional `children` override `image`
+and the default colored pin. `onPress` receives a marker nativeEvent; `centerOffset`
+is supported in logical points. Optional `anchor` defaults to `{x:0.5,y:1}` within [0,1]; logical-point
 `offset` defaults to zero. `zIndex` defaults to zero; larger values win, ties use
 marker creation order. Use ordinary React Native child input handlers.
 Marker and shape ordering remain separate native systems.
@@ -67,8 +77,7 @@ characters. Custom cluster components receive `clusterGroup`, undefined for the
 default group. Each group uses one source/layer within shared scene limits of
 64 sources and 128 layers. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
-cluster operations. The current participating-marker input bound is 10000. Dedicated marker image,
-dragging and callout APIs are not implemented.
+cluster operations. The current participating-marker input bound is 10000. Marker dragging and callout APIs are not implemented.
 
 ## Shapes
 
@@ -103,7 +112,7 @@ Core components do not require those peers. See the
 for WGSL, resource, placement, adapter and lifecycle constraints.
 
 Provider selection, user-location/tracking/permission ownership, snapshots,
-controlled camera and public source/layer components are not implemented. Expo
+marker dragging/callouts and public source/layer components are not implemented. Expo
 SDK 56 custom native builds use the package config plugin; see
 [Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in

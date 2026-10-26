@@ -281,9 +281,23 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 - (void)emitError:(NSString *)message { [self emitError:message code:@"maplibre"]; }
 - (void)emitError:(NSString *)message code:(NSString *)code { if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error")}); }
 - (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { [self emitError:error.localizedDescription]; }
+- (void)emitRegionEvent:(MLNMapView *)map gesture:(BOOL)gesture complete:(BOOL)complete {
+  const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
+  if(!p.regionEventsEnabled || !_ready || !_eventEmitter || _fitPreflight)return;
+  MLNCoordinateBounds bounds=map.visibleCoordinateBounds;
+  double west=bounds.sw.longitude,east=bounds.ne.longitude;
+  double delta=east>=west?east-west:east+360-west;
+  double longitude=std::remainder(west+delta/2,360.);
+  std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onRegionEvent({(bounds.sw.latitude+bounds.ne.latitude)/2,longitude,bounds.ne.latitude-bounds.sw.latitude,std::min(360.,delta),(bool)gesture,(bool)complete,_readyStyleRevision});
+}
+- (void)mapView:(MLNMapView *)map regionIsChangingWithReason:(MLNCameraChangeReason)reason {
+  const MLNCameraChangeReason gestures=MLNCameraChangeReasonGesturePan|MLNCameraChangeReasonGesturePinch|MLNCameraChangeReasonGestureRotate|MLNCameraChangeReasonGestureZoomIn|MLNCameraChangeReasonGestureZoomOut|MLNCameraChangeReasonGestureOneFingerZoom|MLNCameraChangeReasonGestureTilt;
+  [self emitRegionEvent:map gesture:(reason&gestures)!=0 complete:NO];
+}
 - (void)mapView:(MLNMapView *)map regionDidChangeWithReason:(MLNCameraChangeReason)reason animated:(BOOL)animated {
   if(_fitPreflight)return;
   const MLNCameraChangeReason gestures=MLNCameraChangeReasonGesturePan|MLNCameraChangeReasonGesturePinch|MLNCameraChangeReasonGestureRotate|MLNCameraChangeReasonGestureZoomIn|MLNCameraChangeReasonGestureZoomOut|MLNCameraChangeReasonGestureOneFingerZoom|MLNCameraChangeReasonGestureTilt;
+  [self emitRegionEvent:map gesture:(reason&gestures)!=0 complete:YES];
   const char *origin=_cameraOrigins.resolve((reason&gestures)!=0,(reason&MLNCameraChangeReasonProgrammatic)!=0,(reason&MLNCameraChangeReasonResetNorth)!=0);
   if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onCameraIdle({map.centerCoordinate.latitude,map.centerCoordinate.longitude,map.zoomLevel,map.direction,map.camera.pitch,origin});
   for(EMMarkerView *m in _markers)[m.annotation sortSiblings];
@@ -597,6 +611,8 @@ static UIColor *EMColor(id value) {
     } else if([request[@"kind"] isEqual:@"coordinate"]) {
       CLLocationCoordinate2D coordinate=[_map convertPoint:CGPointMake(number(@"x"),number(@"y")) toCoordinateFromView:_map];
       response=@{@"latitude":@(coordinate.latitude),@"longitude":@(coordinate.longitude)};
+    } else if([request[@"kind"] isEqual:@"camera"]) {
+      response=@{@"center":@{@"latitude":@(_map.centerCoordinate.latitude),@"longitude":@(_map.centerCoordinate.longitude)},@"zoom":@(_map.zoomLevel),@"heading":@(_map.direction),@"pitch":@(_map.camera.pitch)};
     } else if([request[@"kind"] isEqual:@"bounds"]) {
       MLNCoordinateBounds bounds=_map.visibleCoordinateBounds;
       response=@{@"north":@(bounds.ne.latitude),@"east":@(bounds.ne.longitude),@"south":@(bounds.sw.latitude),@"west":@(bounds.sw.longitude)};

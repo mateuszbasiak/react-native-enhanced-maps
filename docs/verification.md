@@ -1013,3 +1013,42 @@ annotation. WGSL now uses worldOrigin and screen projection helpers; the old til
 fields and helpers were removed. Rebuild native apps for the rectangular output
 transport and native zoom gate. Physical-device performance/energy validation
 remains maintainer-owned follow-up.
+
+## RN Maps common API compatibility (2026-10-26)
+
+The main entry point now supports regions/controlled camera, partial camera
+updates, RN-style fit/bounds aliases, nativeEvent map/marker presses, optional
+marker identifiers, image/default pins, centerOffset and familiar component/type
+aliases. See [migration and remaining differences](rn-maps-migration.md).
+
+`npm run check` passes all 266 tests, TypeScript migration fixtures, lint/format,
+Codegen and packed declarations. Both production example bundles pass. Both
+arm64 native Debug builds pass; iOS required CocoaPods/Fabric regeneration after
+adding the region event transport. The isolated test apps use Metro 8090: iPhone
+SE (2nd generation), iOS 26.1, and Android API 36 arm64 with a separate `.parity`
+application ID.
+
+The repeatable `npm run verify:rn-maps` check passes 11 assertions on each host:
+initialRegion before onMapReady commands, serialized partial updates, ordered
+camera reads, ordered geometry reads, fit/bounds aliases, antimeridian fitting,
+single fit completion, controlled camera precedence, controlled region updates,
+callback echoes (including re-requesting the original region afterward) and
+marker-only fitToElements with a distant non-marker shape.
+Results are under ignored `artifacts/rn-maps-parity/ios.json` and `android.json`.
+
+Runtime checks reproduced and fixed camera-update/read ordering races and Android
+fit preflight/delayed move/idle callback duplication. Native gesture smoke records
+74 changing/one completed gesture region on iOS and 27 changing/one completed
+region on Android, with gesture provenance and no reported errors. Android's SDK
+camera-move listener coalesced gesture motion until idle; recognized gesture
+updates now sample the native viewport independently of JS gesture subscription.
+These counts describe individual bounded smoke checks, not an event-rate promise.
+
+The iOS and Android touch smoke checks confirm marker-level nativeEvent presses
+without map presses.
+Visual inspection shows custom children, a colored default pin and a local image
+marker. Full gesture arbitration, accessibility and performance matrices remain
+separate follow-up. Exact 360-degree region fits reject explicitly; native zoom
+units, Mercator/polar limits and unsupported provider-specific APIs remain
+explicit in the migration guide. Physical-device validation is maintainer-owned
+follow-up and no hardware performance results are claimed.

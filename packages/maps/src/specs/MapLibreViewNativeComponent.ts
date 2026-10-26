@@ -71,6 +71,18 @@ export interface NativeProps extends ViewProps {
     }>
   >;
   onMapError?: DirectEventHandler<Readonly<{ code: string; message: string }>>;
+  regionEventsEnabled?: WithDefault<boolean, false>;
+  onRegionEvent?: DirectEventHandler<
+    Readonly<{
+      latitude: Double;
+      longitude: Double;
+      latitudeDelta: Double;
+      longitudeDelta: Double;
+      isGesture: boolean;
+      complete: boolean;
+      styleRevision: Double;
+    }>
+  >;
   onCameraIdle?: DirectEventHandler<
     Readonly<{
       latitude: Double;

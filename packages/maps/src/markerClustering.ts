@@ -1,4 +1,4 @@
-import { Children, Fragment, isValidElement } from 'react';
+import { Children, Fragment, isValidElement, cloneElement } from 'react';
 import type { ElementType, ReactElement, ReactNode } from 'react';
 import type { MarkerProps } from './Marker';
 import type { GeoJSONData } from './layers';
@@ -17,16 +17,25 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
     string | undefined,
     GeoJSONData['features'][number][]
   >();
-  const visit = (nodes: ReactNode, depth = 0) => {
+  const visit = (nodes: ReactNode, depth = 0, path = '') => {
     if (depth > 32) throw new Error('Map child nesting limit exceeded');
-    Children.forEach(nodes, (node) => {
+    Children.toArray(nodes).forEach((node, index) => {
+      const childPath = `${path}/${encodeURIComponent(isValidElement(node) ? String(node.key ?? index) : String(index))}`;
       if (isValidElement(node) && node.type === Fragment) {
-        visit((node.props as { children?: ReactNode }).children, depth + 1);
+        visit(
+          (node.props as { children?: ReactNode }).children,
+          depth + 1,
+          childPath,
+        );
       } else if (
         isValidElement<MarkerProps>(node) &&
         node.type === markerType
       ) {
-        const p = node.props;
+        const id =
+          node.props.id ?? node.props.identifier ?? `em-auto:${childPath}`;
+        const normalized =
+          node.props.id === id ? node : cloneElement(node, { id });
+        const p = normalized.props as MarkerProps & { id: string };
         if (
           typeof p.id !== 'string' ||
           !p.id ||
@@ -64,7 +73,7 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
             );
           if (markers.size >= 10000)
             throw new RangeError('Clustered marker limit exceeded');
-          markers.set(p.id, node);
+          markers.set(p.id, normalized);
           const feature: GeoJSONData['features'][number] = {
             type: 'Feature',
             id: p.id,
@@ -78,7 +87,7 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
           const group = grouped.get(p.clusterGroup) ?? [];
           group.push(feature);
           grouped.set(p.clusterGroup, group);
-        } else content.push(node);
+        } else content.push(normalized);
       } else content.push(node);
     });
   };
