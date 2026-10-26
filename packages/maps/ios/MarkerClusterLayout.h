@@ -2,7 +2,7 @@
 #import <MapLibre/MapLibre.h>
 #import "NativeClustering.h"
 
-static NSString *EMMarkerClusterLayout(MLNMapView *map,NSString *scene,uint64_t index) {
+static NSString *EMMarkerClusterLayout(MLNMapView *map,NSString *scene,uint64_t index,CGFloat markerExtent) {
   if(!scene || CGRectIsEmpty(map.bounds))return nil;
   NSDictionary *decoded=[NSJSONSerialization JSONObjectWithData:[scene dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
   NSNumber *sourceRevision=nil;
@@ -15,7 +15,12 @@ static NSString *EMMarkerClusterLayout(MLNMapView *map,NSString *scene,uint64_t 
     if(![map.style layerWithIdentifier:layerID])return nil;
     if(sourceRevision && ![sourceRevision isEqual:source[@"revision"]])return nil;
     sourceRevision=source[@"revision"];
-    NSArray<id<MLNFeature>> *features=[map visibleFeaturesInRect:map.bounds inStyleLayersWithIdentifiers:[NSSet setWithObject:layerID]];
+    // Query the spatial index with room for marker content, rather than
+    // mounting every feature in every loaded tile. The bootstrap margin also
+    // lets new markers mount and measure before their anchors enter the map.
+    CGFloat padding=MAX(64,markerExtent);
+    CGRect queryBounds=CGRectInset(map.bounds,-padding,-padding);
+    NSArray<id<MLNFeature>> *features=[map visibleFeaturesInRect:queryBounds inStyleLayersWithIdentifiers:[NSSet setWithObject:layerID]];
     for(id<MLNFeature> feature in features) {
       id stamp=feature.attributes[EMClusterIndexProperty];
       if(![stamp isKindOfClass:NSNumber.class] || [stamp doubleValue]!=(double)index || ![feature isKindOfClass:MLNPointFeature.class])return nil;

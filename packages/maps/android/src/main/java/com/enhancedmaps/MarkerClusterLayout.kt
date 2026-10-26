@@ -8,7 +8,7 @@ import org.maplibre.geojson.Point
 
 /** Private layout transport. Application marker data never enters this index. */
 internal object MarkerClusterLayout {
-  fun read(map:MapLibreMap, scene:String?, index:Long, width:Int, height:Int):String? {
+  fun read(map:MapLibreMap, scene:String?, index:Long, width:Int, height:Int, markerExtent:Float, density:Float):String? {
     if(scene==null || width<=0 || height<=0) return null
     val sources=JSONObject(scene).getJSONArray("sources")
     var sourceRevision:Long?=null
@@ -23,7 +23,10 @@ internal object MarkerClusterLayout {
       val revision=source.getLong("revision")
       if(sourceRevision!=null && sourceRevision!=revision) return null
       sourceRevision=revision
-      val features=map.queryRenderedFeatures(RectF(0f,0f,width.toFloat(),height.toFloat()),layerId)
+      // Query a bounded spatial region, with enough room for measured marker
+      // content and a bootstrap margin before new anchors enter the map.
+      val padding=maxOf(64f*density,markerExtent)
+      val features=map.queryRenderedFeatures(RectF(-padding,-padding,width+padding,height+padding),layerId)
       for(feature in features) {
         val properties=feature.properties() ?: return null
         val stamp=properties.get(NativeClustering.INDEX_PROPERTY) ?: return null

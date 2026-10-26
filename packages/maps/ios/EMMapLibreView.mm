@@ -233,7 +233,13 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
   if(p.styleRevision!=_readyStyleRevision)return;
   @try {
-    NSString *layout=EMMarkerClusterLayout(map,_acceptedSceneJSON,_clusterIndexRevision);
+    CGFloat markerExtent=0;
+    for(EMMarkerView *marker in _markers) {
+      EMMarkerAnnotation *view=marker.annotation;
+      CGSize size=view.bounds.size;
+      markerExtent=MAX(markerExtent,MAX(size.width*MAX(view.anchorX,1-view.anchorX)+fabs(view.offsetX),size.height*MAX(view.anchorY,1-view.anchorY)+fabs(view.offsetY)));
+    }
+    NSString *layout=EMMarkerClusterLayout(map,_acceptedSceneJSON,_clusterIndexRevision,markerExtent);
     if(!layout || [layout isEqual:_lastMarkerLayout])return;
     _lastMarkerLayout=[layout copy];
     std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMarkerClusters({std::string(layout.UTF8String),_readyStyleRevision});
