@@ -6,6 +6,7 @@ import type {
 } from 'react-native/Libraries/Types/CodegenTypes';
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 export interface NativeProps extends ViewProps {
+  callout?: WithDefault<boolean, false>;
   draggable?: WithDefault<boolean, false>;
   dragRevision?: WithDefault<Double, 0>;
   onMarkerDrag?: DirectEventHandler<

@@ -12,7 +12,7 @@ Core packed consumers have Debug/Release build and Release simulator evidence in
 maintainer-owned deferred follow-up, not a feature-completion prerequisite.
 
 The current [public API reference](../packages/maps/docs/api.md) documents
-MapView, React-child Marker, Polyline, Polygon, Circle, camera/query refs, native
+MapView, React-child Marker/Callout, Polyline, Polygon, Circle, camera/query refs, native
 settings/events and component clustering. Clustering is implemented and has
 [component acceptance evidence](component-cluster-acceptance.md). Experimental
 [ShaderLayer](shader-layer.md) is implemented through the separate `/shaders`
@@ -24,7 +24,8 @@ regions/controlled camera, partial camera updates, fit/bounds aliases, nativeEve
 presses and optional marker identifiers/images/default pins. Full drop-in parity
 is not claimed. [Location, snapshots and native marker dragging](location-snapshots-dragging.md)
 are implemented with explicit permission, composition and clustering limits.
-Provider selection and callouts remain unavailable. [Expo SDK 56 custom builds](expo.md) have core
+[React callouts and map-local selection](marker-callouts.md) are implemented.
+Provider selection remains unavailable. [Expo SDK 56 custom builds](expo.md) have core
 consumer build/simulator acceptance; Expo Go is outside the target. Public source/layer components
 and their old cluster-query APIs were retired. Symbol/icon, raster/tile, heatmap
 and expression/filter requirements still need reconciliation with the component

@@ -14,6 +14,7 @@ class EnhancedMarkerViewManager : ViewGroupManager<EnhancedMarkerView>(), Enhanc
   override fun createViewInstance(context: ThemedReactContext) = EnhancedMarkerView(context)
   override fun onAfterUpdateTransaction(view: EnhancedMarkerView) { super.onAfterUpdateTransaction(view); view.owner?.markerChanged() }
   @ReactProp(name="draggable") override fun setDraggable(view:EnhancedMarkerView,value:Boolean){view.draggable=value}
+  @ReactProp(name="callout") override fun setCallout(view:EnhancedMarkerView,value:Boolean){view.callout=value}
   @ReactProp(name="dragRevision") override fun setDragRevision(view:EnhancedMarkerView,value:Double){view.dragRevision=value}
   override fun getExportedCustomDirectEventTypeConstants():MutableMap<String,Any> = mutableMapOf("topMarkerDrag" to mapOf("registrationName" to "onMarkerDrag"))
   @ReactProp(name="markerID") override fun setMarkerID(view: EnhancedMarkerView, value: String?) { view.markerID = value ?: "" }

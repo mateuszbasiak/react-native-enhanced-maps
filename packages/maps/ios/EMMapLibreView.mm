@@ -611,7 +611,7 @@ static UIColor *EMColor(id value) {
       response=EMClusterQuery(_map,request,_clusterIndexRevision,_clusteredSources);
     } else if([request[@"kind"] isEqual:@"fit"]) {
       double duration=number(@"durationMs");EMFitRequire(duration>=0 && duration<=60000,@"Invalid fit duration");
-      NSMutableArray *markers=[NSMutableArray new];for(EMMarkerView *marker in _markers) { if([marker.markerIdentifier isEqual:@"em-cluster:user-location"])continue;CLLocationCoordinate2D c=marker.annotation.coordinate;[markers addObject:@[@(c.latitude),@(c.longitude)]]; }
+      NSMutableArray *markers=[NSMutableArray new];for(EMMarkerView *marker in _markers) { if(marker.callout || [marker.markerIdentifier isEqual:@"em-cluster:user-location"])continue;CLLocationCoordinate2D c=marker.annotation.coordinate;[markers addObject:@[@(c.latitude),@(c.longitude)]]; }
       MLNCoordinateBounds bounds=EMFitBounds(_map,request,_acceptedSceneJSON,markers);
       CLLocationCoordinate2D corners[]={bounds.sw,CLLocationCoordinate2DMake(bounds.ne.latitude,bounds.sw.longitude),bounds.ne,CLLocationCoordinate2DMake(bounds.sw.latitude,bounds.ne.longitude)};
       UIEdgeInsets padding=UIEdgeInsetsMake(number(@"top"),number(@"left"),number(@"bottom"),number(@"right"));

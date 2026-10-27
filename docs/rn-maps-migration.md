@@ -108,7 +108,10 @@ also exported.
 
 This is common API compatibility, not complete provider parity. Location, snapshots
 and native marker dragging are covered by the [follow-up contract](location-snapshots-dragging.md).
-Callouts and animated marker coordinates,
+[React callouts](marker-callouts.md) support title/description, custom content,
+show/hide refs, selection/press events and attachment offsets. `MapCallout` is an
+alias. Automatic camera panning and provider-specific bubble parity are outside
+this contract. Animated marker coordinates,
 AnimatedRegion, fitToSuppliedMarkers, map types, Google style arrays, provider
 selection and altitude cameras remain unsupported. Keep application location
 ownership and weather integration separate. Use MapLibre styles instead of

@@ -1,6 +1,6 @@
 # Public component API
 
-The package root exports `MapView` (also default), `Marker`, `Polyline`, `Polygon`
+The package root exports `MapView` (also default), `Marker`, `Callout`, `Polyline`, `Polygon`
 and `Circle`, plus `validateCamera` and `createRevisionGate`. Public TypeScript
 types are exported beside them. Sources, layers and source-oriented cluster
 queries are internal infrastructure, not public components. Import experimental
@@ -115,7 +115,7 @@ characters. Custom cluster components receive `clusterGroup`, undefined for the
 default group. Each group uses one source/layer within shared scene limits of
 64 sources and 128 layers. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
-cluster operations. The current participating-marker input bound is 10000. Native marker dragging is supported; callout APIs remain unavailable. See
+cluster operations. The current participating-marker input bound is 10000. Native marker dragging is supported. See
 [location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
 
 Set `draggable` to enable native long-press dragging. `onDragStart`, `onDrag`,
@@ -125,6 +125,17 @@ the native endpoint until the application changes that value. A draggable marker
 must use `cluster={false}` if a cluster group would otherwise enable clustering.
 The [dragging contract](../../../docs/location-snapshots-dragging.md#marker-dragging)
 defines coordinate echoes, press suppression and lifecycle cancellation.
+
+## Callouts and selection
+
+Nest one `Callout` directly inside `Marker` (Fragments are supported), or supply
+marker `title`/`description`. Custom content overrides text; `tooltip` removes the
+default container. `MarkerRef` exposes `showCallout()` and `hideCallout()`.
+`onSelect` / `onDeselect` report map-local selection; `Callout.onPress` and
+`Marker.onCalloutPress` report bubble input. Nested controls retain their handlers.
+`calloutAnchor` / `calloutOffset` adjust attachment. `MapCallout` / `MapCalloutProps`,
+`MarkerSelectionEvent` and `CalloutPressEvent` are exported. See the
+[full contract and verification](../../../docs/marker-callouts.md).
 
 ## Shapes
 
@@ -160,7 +171,7 @@ for WGSL, resource, placement, adapter and lifecycle constraints.
 
 User location/following, snapshots and native marker dragging are supported; see
 [their contract and limits](../../../docs/location-snapshots-dragging.md). Provider
-selection, callouts and public source/layer components are not implemented. Expo
+selection and public source/layer components are not implemented. Expo
 SDK 56 custom native builds use the package config plugin; see
 [Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in

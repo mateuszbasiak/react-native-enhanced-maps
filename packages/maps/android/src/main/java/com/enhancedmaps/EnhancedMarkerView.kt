@@ -90,6 +90,7 @@ class EnhancedMarkerView(context: Context) : ReactViewGroup(context) {
   }
   override fun onWindowVisibilityChanged(visibility:Int){if(visibility!=View.VISIBLE)cancelDrag();super.onWindowVisibilityChanged(visibility)}
   var markerID = ""
+  var callout = false
   var latitude = 0.0
   var longitude = 0.0
   var markerZIndex = 0.0

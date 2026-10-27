@@ -1,5 +1,9 @@
 export { MapView, MapView as default } from './MapView';
 export { Marker } from './Marker';
+export { Callout, Callout as MapCallout } from './Callout';
+export type { CalloutProps, CalloutPressEvent } from './Callout';
+export type { CalloutProps as MapCalloutProps } from './Callout';
+export type { MarkerRef, MarkerSelectionEvent } from './Marker';
 export type { MarkerProps, MarkerPressEvent, MarkerDragEvent } from './Marker';
 export { Polyline, Polygon, Circle } from './mapContent';
 export type {

@@ -353,3 +353,40 @@ map.resumeUserLocationFollow();
 </MapView>;
 // @ts-expect-error snapshot format is portable PNG/JPEG only
 map.takeSnapshot({ format: 'webp' });
+
+// Callouts share ordinary marker refs and keep custom React children interactive.
+import { Callout, MapCallout } from '../src/index.js';
+import type {
+  MarkerRef,
+  MarkerSelectionEvent,
+  CalloutPressEvent,
+} from '../src/index.js';
+import { createRef } from 'react';
+import { Text } from 'react-native';
+const markerRef = createRef<MarkerRef>();
+const calloutExample = (
+  <Marker
+    ref={markerRef}
+    coordinate={camera.center}
+    title="Boat"
+    description="Moored"
+    calloutAnchor={{ x: 0.5, y: 0 }}
+    onSelect={(event: MarkerSelectionEvent) => {
+      const id: string = event.nativeEvent.id;
+      void id;
+    }}
+    onCalloutPress={(event: CalloutPressEvent) => event.stopPropagation()}
+  >
+    <Callout tooltip>
+      <Text>Boat details</Text>
+    </Callout>
+  </Marker>
+);
+void calloutExample;
+const aliasCallout = <MapCallout />;
+void aliasCallout;
+markerRef.current?.showCallout();
+markerRef.current?.hideCallout();
+// @ts-expect-error callout tooltip is boolean
+const invalidCallout = <Callout tooltip="yes" />;
+void invalidCallout;

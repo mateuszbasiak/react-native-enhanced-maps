@@ -3,7 +3,7 @@
 Last reviewed: **2026-10-25**, against the current working tree.
 
 Package-owned MapLibre Native on iOS/Android, React Native New Architecture only.
-The public API is component-based: `MapView`, `Marker`, `Polyline`, `Polygon`,
+The public API is component-based: `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon`,
 `Circle`, and experimental `ShaderLayer` through `/shaders`. Sources and style
 layers are internal infrastructure; marker clustering replaces the former public
 source-oriented clustering API. See the [clustering contract](docs/clustering.md)
@@ -58,7 +58,9 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Markers, shapes and internal rendering
 
-- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; native dragging is implemented; callout APIs remain open. [Marker sync evidence](docs/marker-coordinate-sync.md).
+- [x] **Marker selection/callouts** — Default/custom React bubbles, show/hide refs, map-local selection/press events, native attachment, interactive controls and cleanup are implemented and checked on both simulator hosts. [Contract and evidence](docs/marker-callouts.md). Full accessibility/gesture matrices remain separate validation work.
+
+- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; native dragging and React callouts are implemented. [Marker sync evidence](docs/marker-coordinate-sync.md).
 - [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed. Native graph/literal-style preflight preserves accepted fitting/picking after malformed updates on both simulators; SDK resource objects are constructed before replacement. Complete visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures. [Scene preflight](docs/scene-budgets.md#native-scene-graph-and-style-preflight--2026-10-27), [remaining geometry limits](docs/polygon-hole-picking.md).
 - [ ] **SHAPE-03** — React Native color strings, geodesic Polyline/Polygon edges (including holes) and per-vertex Polyline gradients are implemented. Decide remaining dash-phase compatibility. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.

@@ -163,15 +163,7 @@ export function rejectUnsupportedProps(
   const names =
     component === 'MapView'
       ? ['provider', 'mapType', 'customMapStyle', 'googleMapId']
-      : [
-          'title',
-          'description',
-          'calloutAnchor',
-          'calloutOffset',
-          'flat',
-          'rotation',
-          'tracksViewChanges',
-        ];
+      : ['flat', 'rotation', 'tracksViewChanges'];
   for (const name of names)
     if (Reflect.get(input, name) !== undefined)
       throw new Error(

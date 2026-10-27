@@ -1,4 +1,5 @@
 export const scenarios = [
+  'callouts',
   'fit',
   'markers',
   'shapes',
@@ -37,6 +38,7 @@ type Options = {
   sleep: (ms: number) => Promise<void>;
 };
 const instrumented: readonly Scenario[] = [
+  'callouts',
   'native-scene',
   'fit',
   'shader-lifecycle',

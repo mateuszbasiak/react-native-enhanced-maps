@@ -34,6 +34,7 @@ import type { MarkerLayout } from './markerClustering';
 import { currentMarkerLayout } from './markerLayoutLifetime';
 import NativeMap, { Commands } from './specs/MapLibreViewNativeComponent';
 import { MapContext } from './maplibreContext';
+import { createCalloutSelection } from './calloutSelection';
 import { ShaderMapContext } from './shaderContext';
 import { compileScene, InternalSource, InternalLayer } from './maplibreContent';
 import { validateCamera, classifyMapError } from './contracts';
@@ -135,6 +136,11 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
     );
     const previousRequest = useRef(styleRequest.revision);
     const [clusterHandles] = useState(createClusterHandles);
+    const [callouts] = useState(createCalloutSelection);
+    useLayoutEffect(() => {
+      callouts.deactivate('style');
+      return () => callouts.deactivate('dispose');
+    }, [callouts, styleRequest.revision]);
     const [queries] = useState(() =>
       createMapQueryClient(
         (id, request) => {
@@ -610,7 +616,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       ],
     );
     return (
-      <MapContext.Provider value={true}>
+      <MapContext.Provider value={callouts}>
         <ShaderMapContext.Provider value={shaderHost}>
           <NativeMap
             {...settings}
@@ -735,8 +741,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                       : ('long-press' as const),
                 },
               };
-              if (event.action === 'tap') props.onPress?.(wrapped);
-              else props.onLongPress?.(wrapped);
+              if (event.action === 'tap') {
+                callouts.reset('map-press');
+                props.onPress?.(wrapped);
+              } else props.onLongPress?.(wrapped);
             }}
             gestureEventsEnabled={gestureEnabled}
             gestureSubscriptionRevision={gestureSubscription.revision}
@@ -795,6 +803,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                     appliedControlled.current = controlledKey;
                   if (!readiness.isReady(nativeEvent.styleRevision)) return;
                   setShaderReadyRevision(nativeEvent.styleRevision);
+                  callouts.activate();
                   props.onMapReady?.();
                 })
                 .catch((error) => {
@@ -806,12 +815,14 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                   if (!readiness.isReady(nativeEvent.styleRevision)) return;
                   appliedControlled.current = controlledKey;
                   setShaderReadyRevision(nativeEvent.styleRevision);
+                  callouts.activate();
                   props.onMapReady?.();
                 });
             }}
             onMapError={({ nativeEvent }) => {
               const error = classifyMapError(nativeEvent);
               if (error.fatal) {
+                callouts.deactivate('dispose');
                 setShaderReadyRevision(null);
                 readiness.invalidate();
                 queries.cancelAll('Map is unavailable');
@@ -847,6 +858,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               if (e.styleRevision !== styleRequest.revision) return;
               let hit = parseNativeFeatureHit(e);
               if (!hit) return;
+              callouts.reset('map-press');
               if (e.indexRevision > 0) {
                 const cluster = clusterHandles.capture(
                   hit.sourceId,

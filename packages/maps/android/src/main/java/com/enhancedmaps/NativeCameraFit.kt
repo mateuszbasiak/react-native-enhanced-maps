@@ -36,7 +36,7 @@ internal object NativeCameraFit {
       for(i in 0 until input.length()) input.getJSONArray(i).let { require(it.length()==2); add(it.getDouble(0),it.getDouble(1)) }
     } else {
       acceptedScene?.let { JSONObject(it).getJSONArray("sources").let { sources -> for(i in 0 until sources.length()) { val source=sources.getJSONObject(i);if(request.optInt("markersOnly")==0 || source.has("cluster")) geometry(source.getJSONObject("data"),0) } } }
-      markers.filter{it.markerID!="em-cluster:user-location"}.forEach { add(it.latitude,it.longitude) }
+      markers.filter{!it.callout && it.markerID!="em-cluster:user-location"}.forEach { add(it.latitude,it.longitude) }
     }
     require(points.isNotEmpty()) { "No map elements to fit" }
     // Leave two physical pixels for the SDK's projection/fit raster rounding.
