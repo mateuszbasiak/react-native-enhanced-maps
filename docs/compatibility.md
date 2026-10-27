@@ -22,8 +22,9 @@ performance claim.
 The [RN Maps migration guide](rn-maps-migration.md) documents the common API:
 regions/controlled camera, partial camera updates, fit/bounds aliases, nativeEvent
 presses and optional marker identifiers/images/default pins. Full drop-in parity
-is not claimed. Provider selection, marker dragging/callouts, user location/tracking
-and snapshots are not implemented. [Expo SDK 56 custom builds](expo.md) have core
+is not claimed. [Location, snapshots and native marker dragging](location-snapshots-dragging.md)
+are implemented with explicit permission, composition and clustering limits.
+Provider selection and callouts remain unavailable. [Expo SDK 56 custom builds](expo.md) have core
 consumer build/simulator acceptance; Expo Go is outside the target. Public source/layer components
 and their old cluster-query APIs were retired. Symbol/icon, raster/tile, heatmap
 and expression/filter requirements still need reconciliation with the component

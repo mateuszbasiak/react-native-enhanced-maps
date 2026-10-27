@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import type { ElementRef } from 'react';
-import { Platform, PixelRatio } from 'react-native';
+import { Platform, PixelRatio, View } from 'react-native';
 import {
   regionRequest,
   rejectUnsupportedProps,
@@ -18,6 +18,10 @@ import {
   cameraDuration,
   fitOptions,
 } from './rnMapsCompat';
+import { normalizeUserLocation, parseUserLocationEvent } from './userLocation';
+import type { UserLocation } from './userLocation';
+import { snapshotRequest } from './snapshots';
+import { createLocationFollowState } from './locationTracking';
 import { Marker } from './Marker';
 import { DefaultCluster } from './DefaultCluster';
 import {
@@ -77,7 +81,34 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
     const gestureInterval = validateGestureInterval(
       props.gestureEventIntervalMs,
     );
-    const gestureEnabled = Boolean(props.onGesture);
+    const gestureEnabled = Boolean(
+      props.onGesture || props.followsUserLocation,
+    );
+    for (const flag of [props.showsUserLocation, props.followsUserLocation])
+      if (flag !== undefined && typeof flag !== 'boolean')
+        throw new TypeError(
+          'Location visibility and follow flags must be boolean',
+        );
+    const [locationFollow] = useState(createLocationFollowState);
+    locationFollow.configure(
+      Boolean(props.showsUserLocation && props.followsUserLocation),
+      Boolean(props.camera || props.region),
+    );
+    const [nativeLocation, setNativeLocation] = useState<{
+      revision: number;
+      fix: UserLocation;
+    }>();
+    const suppliedLocation = useMemo(
+      () =>
+        props.userLocation == null
+          ? undefined
+          : normalizeUserLocation(props.userLocation),
+      [props.userLocation],
+    );
+    const locationCallback = useRef(props.onUserLocationChange);
+    useLayoutEffect(() => {
+      locationCallback.current = props.onUserLocationChange;
+    }, [props.onUserLocationChange]);
     const [gestureSubscription, setGestureSubscription] = useState({
       enabled: gestureEnabled,
       revision: 0,
@@ -361,6 +392,54 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         await queries.request('fit', request, styleRequest.revision);
       }, current);
     };
+    const effectiveLocation =
+      props.userLocation === undefined
+        ? nativeLocation?.revision === styleRequest.revision
+          ? nativeLocation.fix
+          : undefined
+        : suppliedLocation;
+    if (!effectiveLocation) locationFollow.clear();
+    useEffect(() => {
+      if (props.userLocation !== undefined || !props.showsUserLocation)
+        setNativeLocation(undefined);
+    }, [props.userLocation, props.showsUserLocation]);
+    const locationSignature = JSON.stringify(effectiveLocation ?? null);
+    useEffect(() => {
+      if (!effectiveLocation || !readiness.isReady(styleRequest.revision))
+        return;
+      if (props.userLocation !== undefined)
+        locationCallback.current?.({
+          nativeEvent: { coordinate: effectiveLocation },
+        });
+      // Location values, rather than parent callback identity, define a new fix.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locationSignature, shaderReadyRevision, styleRequest.revision]);
+    useEffect(() => {
+      if (!effectiveLocation || !readiness.isReady(styleRequest.revision))
+        return;
+      const target = locationFollow.update(effectiveLocation);
+      if (target)
+        void submitCamera(
+          { center: target },
+          300,
+          () => locationFollow.current() === target,
+        ).catch((error) =>
+          props.onError?.({
+            code: 'location-follow',
+            message: String(error),
+            fatal: false,
+          }),
+        );
+      // Follow ownership changes can resume a retained fix without re-emitting it.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      locationSignature,
+      props.followsUserLocation,
+      props.showsUserLocation,
+      controlledSignature,
+      shaderReadyRevision,
+      styleRequest.revision,
+    ]);
     const readGeometry = async (
       kind: 'bounds' | 'point' | 'coordinate',
       input: Record<string, number> = {},
@@ -407,6 +486,29 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [controlledSignature, shaderReadyRevision, styleRequest.revision]);
     useImperativeHandle(ref, () => ({
+      async takeSnapshot(options) {
+        const request = snapshotRequest(options);
+        let value: string | undefined;
+        await enqueueCamera(async () => {
+          if (!readiness.isReady(styleRequest.revision))
+            throw new Error('Map is not ready');
+          value = (await queries.request(
+            'snapshot',
+            request,
+            styleRequest.revision,
+          )) as string;
+        });
+        return value!;
+      },
+      async resumeUserLocationFollow() {
+        const target = locationFollow.resume();
+        if (target)
+          await submitCamera(
+            { center: target },
+            300,
+            () => locationFollow.current() === target,
+          );
+      },
       getCamera,
       setCamera: (patch) => submitCamera(patch, 0),
       animateToRegion: (region, duration = 300) => fitRegion(region, duration),
@@ -534,6 +636,36 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
             accessibilityState={props.accessibilityState}
             importantForAccessibility={props.importantForAccessibility}
             pointerEvents={props.pointerEvents}
+            locationEnabled={Boolean(
+              props.showsUserLocation && props.userLocation === undefined,
+            )}
+            onUserLocation={({ nativeEvent }) => {
+              if (
+                !readiness.isReady(styleRequest.revision) ||
+                props.userLocation !== undefined ||
+                !props.showsUserLocation
+              )
+                return;
+              if (nativeEvent.error) {
+                props.onError?.({
+                  code: 'location-unavailable',
+                  message: nativeEvent.error,
+                  fatal: false,
+                });
+                return;
+              }
+              const event = parseUserLocationEvent(
+                nativeEvent,
+                styleRequest.revision,
+              );
+              if (event) {
+                setNativeLocation({
+                  revision: styleRequest.revision,
+                  fix: event.nativeEvent.coordinate,
+                });
+                props.onUserLocationChange?.(event);
+              }
+            }}
             styleURL={props.styleURL}
             styleRevision={styleRequest.revision}
             sceneJSON={scene.json}
@@ -613,7 +745,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               )
                 return;
               const event = parseNativeGesture(nativeEvent);
-              if (event) props.onGesture?.(event);
+              if (event) {
+                if (event.phase === 'begin') locationFollow.gesture();
+                props.onGesture?.(event);
+              }
             }}
             initialLatitude={initial.center.latitude}
             initialLongitude={initial.center.longitude}
@@ -728,6 +863,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           >
             {scene.live}
             {clusterChildren}
+            {props.showsUserLocation && effectiveLocation && (
+              <Marker
+                id="em-cluster:user-location"
+                coordinate={effectiveLocation}
+                anchor={{ x: 0.5, y: 0.5 }}
+                zIndex={1000000}
+              >
+                <View
+                  accessible
+                  accessibilityLabel="Your location"
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: '#1688ff',
+                    borderColor: 'white',
+                    borderWidth: 3,
+                  }}
+                />
+              </Marker>
+            )}
           </NativeMap>
         </ShaderMapContext.Provider>
       </MapContext.Provider>

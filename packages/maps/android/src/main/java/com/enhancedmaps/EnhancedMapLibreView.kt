@@ -29,6 +29,9 @@ import org.maplibre.android.style.sources.GeoJsonSource
 private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLibre.getInstance(context); return context }
 
 class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapView(initialized(reactContext), MapLibreMapOptions.createFromAttributes(reactContext)), LifecycleEventListener {
+  private var snapshotOperation:MapSnapshot?=null
+  private var snapshotGeneration=0L
+  private fun cancelSnapshot(){snapshotGeneration++;snapshotOperation?.cancel();snapshotOperation=null}
   private val shaderLayerOwners=mutableMapOf<String,String>()
   var mapPaddingTop=0.0;var mapPaddingRight=0.0;var mapPaddingBottom=0.0;var mapPaddingLeft=0.0
   private var appliedMapPadding:IntArray?=null
@@ -41,6 +44,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   var minZoomLevel = 0.0
   var maxZoomLevel = 24.0
   var styleURL = ""
+  var locationEnabled=false
+  private val userLocation=MapUserLocation(reactContext,{json ->
+    if(!disposed && isAttachedToWindow && readyStyleRevision==styleRevision && locationEnabled) emit("topUserLocation",Arguments.createMap().apply {putString("locationJSON",json);putString("error","");putDouble("styleRevision",readyStyleRevision)})
+  },{code,message -> if(!disposed)error(code,message)})
+  private fun updateLocationSource(){userLocation.configure(locationEnabled && readyStyleRevision==styleRevision && readyStyleRevision>=0)}
   var styleRevision = 0.0
   private var loadedStyleRevision: Double? = null
   private var readyStyleRevision = -1.0
@@ -277,6 +285,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     val nativeMap = map ?: return
     if (disposed) return
     applyMapSettings(nativeMap)
+    updateLocationSource()
     if (!configured) {
       configured = true
       animateCamera(latitude,longitude,zoom,heading,pitch,0.0)
@@ -287,10 +296,14 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val generation = ++styleGeneration
       loadedURL = requestedURL
       loadedStyleRevision = requestedRevision
+      cancelSnapshot()
+      markers.forEach{it.cancelDrag()}
       shaderLayerOwners.clear()
+      userLocation.configure(false)
       nativeMap.setStyle(Style.Builder().fromUri(requestedURL)) {
         if (!disposed && generation == styleGeneration && loadedURL == requestedURL && styleURL == requestedURL && styleRevision == requestedRevision) {
           readyStyleRevision = requestedRevision
+          updateLocationSource()
           lastMarkerLayout = null
           appliedScene = null; sceneSources = emptyList(); sceneLayers = emptyList(); orderStyle = null
           if (!applyScene()) acceptedScene?.let { applyScene(it) }
@@ -370,7 +383,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     addView(marker); map?.let { textures[marker] = EMMarkerTexture(it,marker) }; markerChanged(); scheduleFrame()
   }
   fun removeMarker(index: Int) {
-    val marker = markers.removeAt(index); textures.remove(marker)?.close(); marker.owner = null; removeView(marker); orderDirty = true
+    val marker = markers.removeAt(index); marker.cancelDrag();textures.remove(marker)?.close(); marker.owner = null; removeView(marker); orderDirty = true
   }
   fun markerChanged() {
     orderDirty = true
@@ -400,8 +413,8 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     orderDirty = false; orderStyle = style
   }
   private fun scheduleFrame() { if(!framePending && !disposed && isAttachedToWindow && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
-  override fun onAttachedToWindow() { super.onAttachedToWindow(); if(!resumed) onHostResume(); scheduleFrame() }
-  override fun onDetachedFromWindow() { cancelNativeGestures(); markerGestures.end(); clock.removeFrameCallback(frame); framePending = false; super.onDetachedFromWindow() }
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); if(!resumed) onHostResume(); userLocation.resume(); scheduleFrame() }
+  override fun onDetachedFromWindow() { cancelSnapshot();userLocation.pause();cancelNativeGestures(); markerGestures.end(); clock.removeFrameCallback(frame); framePending = false; super.onDetachedFromWindow() }
   override fun requestLayout() {
     super.requestLayout()
     // Fabric owns this view's frame and can omit the ordinary Android measure pass
@@ -426,6 +439,13 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     // FrameLayout owns SDK ornaments, but Yoga owns every marker subtree's size.
     markers.forEach { marker -> val (w,h)=marker.getContentSize(); marker.layout(0,0,w.toInt(),h.toInt()) }
     updatePositions()
+  }
+  fun markerDragCoordinate(latitude:Double,longitude:Double,deltaX:Float,deltaY:Float):LatLng? {
+    val nativeMap=map ?: return null
+    if(disposed || !isAttachedToWindow || readyStyleRevision!=styleRevision)return null
+    val point=nativeMap.projection.toScreenLocation(LatLng(latitude,longitude))
+    val coordinate=nativeMap.projection.fromScreenLocation(android.graphics.PointF(point.x+deltaX,point.y+deltaY))
+    return if(coordinate.latitude.isFinite() && coordinate.longitude.isFinite())coordinate else null
   }
   fun setMarkerGestureOwner(marker: EnhancedMarkerView, active: Boolean) {
     if (!disposed && active && marker in markers && markerGestures.claim()) {
@@ -464,6 +484,17 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       revision=request.getDouble("styleRevision")
       val nativeMap=map
       require(nativeMap!=null && readyStyleRevision==revision && styleRevision==revision) { "Map is not ready" }
+      if(request.getString("kind")=="snapshot") {
+        require(shaderLayerOwners.isEmpty()) {"Snapshots with ShaderLayer are not supported"}
+        require(snapshotOperation==null) {"A snapshot is already in progress"}
+        val generation=++snapshotGeneration
+        snapshotOperation=MapSnapshot.start(nativeMap,this,request) { output,error ->
+          if(generation==snapshotGeneration)snapshotOperation=null
+          if(disposed || !isAttachedToWindow || generation!=snapshotGeneration || readyStyleRevision!=revision || styleRevision!=revision) {if(output!=null)MapSnapshot.discardResult(this,output)}
+          else emit("topMapQueryResult",Arguments.createMap().apply {putDouble("requestId",requestId);putDouble("styleRevision",revision);putString("resultJSON",output?.toString() ?: "");putString("error",error ?: "")})
+        }
+        return
+      }
       val response=when(request.getString("kind")) {
         "shaderLayer" -> {
           val style=nativeMap.style ?: throw IllegalStateException("Style not ready")
@@ -471,6 +502,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           val pool=request.getString("poolId")
           when(request.getString("action")) {
             "attach" -> {
+              snapshotOperation?.cancel()
               require(shaderLayerOwners[id]==null || shaderLayerOwners[id]==pool) { "Duplicate shader layer id" }
               require(style.getLayer(id)==null || shaderLayerOwners[id]==pool) { "Duplicate style layer id" }
               val before=if(request.has("beforeId")) {
@@ -629,10 +661,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       if(durationMs<=0) nativeMap.moveCamera(update,callback) else nativeMap.animateCamera(update,durationMs.toInt().coerceAtLeast(1),callback)
     } catch(error:Exception) { cameraOrigins.finishApplicationCommand(command); throw error }
   }
-  override fun onHostResume() { if(!disposed && !resumed) { onStart(); onResume(); resumed=true } }
-  override fun onHostPause() { cancelNativeGestures(); markerGestures.end(); if(resumed) { onPause(); onStop(); resumed=false } }
+  override fun onHostResume() { if(isAttachedToWindow)userLocation.resume(); if(!disposed && !resumed) { onStart(); onResume(); resumed=true } }
+  override fun onHostPause() { snapshotOperation?.cancel();userLocation.pause(); markers.forEach{it.cancelDrag()}; cancelNativeGestures(); markerGestures.end(); if(resumed) { onPause(); onStop(); resumed=false } }
   override fun onHostDestroy() { dispose() }
-  fun dispose() { if(disposed)return; disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
+  fun dispose() { if(disposed)return; cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
   private fun error(code:String,message:String) { emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message) }) }
   private fun emit(name:String,data:WritableMap) { if(disposed || id==View.NO_ID)return; UIManagerHelper.getEventDispatcherForReactTag(reactContext,id)?.dispatchEvent(MapEvent(UIManagerHelper.getSurfaceId(this),id,name,data)) }
 }

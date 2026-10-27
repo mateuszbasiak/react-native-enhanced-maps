@@ -21,6 +21,8 @@ Native on iOS/Android and targets React Native's New Architecture.
   evidence remains open; the report does not expose all underlying SDK features.
 - [Migrating from RN Maps](rn-maps-migration.md): common camera, region, marker,
   event and ref contracts, plus explicit remaining differences.
+- [Location, snapshots and marker dragging](location-snapshots-dragging.md):
+  permission ownership, follow interruption, export limits and native input.
 - [Compatibility and unavailable APIs](compatibility.md) and
   [remaining checklist](../FEATURE_CHECKLIST.md).
 

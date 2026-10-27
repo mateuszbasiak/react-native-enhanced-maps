@@ -106,8 +106,9 @@ also exported.
 
 ## Remaining differences
 
-This is common API compatibility, not complete provider parity. Dragging,
-callouts, animated marker coordinates, snapshots, user-location watching/following,
+This is common API compatibility, not complete provider parity. Location, snapshots
+and native marker dragging are covered by the [follow-up contract](location-snapshots-dragging.md).
+Callouts and animated marker coordinates,
 AnimatedRegion, fitToSuppliedMarkers, map types, Google style arrays, provider
 selection and altitude cameras remain unsupported. Keep application location
 ownership and weather integration separate. Use MapLibre styles instead of

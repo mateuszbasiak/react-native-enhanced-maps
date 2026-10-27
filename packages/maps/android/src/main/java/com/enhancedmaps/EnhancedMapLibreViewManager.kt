@@ -19,6 +19,7 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   override fun getChildCount(parent:EnhancedMapLibreView)=parent.markers.size
   override fun getChildAt(parent:EnhancedMapLibreView,index:Int):View=parent.markers[index]
   override fun removeViewAt(parent:EnhancedMapLibreView,index:Int) { parent.removeMarker(index) }
+  @ReactProp(name="locationEnabled") override fun setLocationEnabled(view:EnhancedMapLibreView,value:Boolean){view.locationEnabled=value}
   @ReactProp(name="mapPaddingTop") override fun setMapPaddingTop(view:EnhancedMapLibreView,value:Double) { view.mapPaddingTop=value }
   @ReactProp(name="mapPaddingRight") override fun setMapPaddingRight(view:EnhancedMapLibreView,value:Double) { view.mapPaddingRight=value }
   @ReactProp(name="mapPaddingBottom") override fun setMapPaddingBottom(view:EnhancedMapLibreView,value:Double) { view.mapPaddingBottom=value }
@@ -48,6 +49,7 @@ class EnhancedMapLibreViewManager : ViewGroupManager<EnhancedMapLibreView>(), En
   @ReactProp(name="regionEventsEnabled")
   override fun setRegionEventsEnabled(view:EnhancedMapLibreView,value:Boolean) { view.regionEventsEnabled=value }
   override fun getExportedCustomDirectEventTypeConstants():MutableMap<String,Any> = mutableMapOf(
+    "topUserLocation" to mapOf("registrationName" to "onUserLocation"),
     "topMapReady" to mapOf("registrationName" to "onMapReady"), "topMapError" to mapOf("registrationName" to "onMapError"),
     "topMapQueryResult" to mapOf("registrationName" to "onMapQueryResult"),
     "topMarkerClusters" to mapOf("registrationName" to "onMarkerClusters"),

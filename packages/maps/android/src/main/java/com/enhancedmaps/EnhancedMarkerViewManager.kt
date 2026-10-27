@@ -13,9 +13,12 @@ class EnhancedMarkerViewManager : ViewGroupManager<EnhancedMarkerView>(), Enhanc
   override fun getName() = "EnhancedMarkerView"
   override fun createViewInstance(context: ThemedReactContext) = EnhancedMarkerView(context)
   override fun onAfterUpdateTransaction(view: EnhancedMarkerView) { super.onAfterUpdateTransaction(view); view.owner?.markerChanged() }
+  @ReactProp(name="draggable") override fun setDraggable(view:EnhancedMarkerView,value:Boolean){view.draggable=value}
+  @ReactProp(name="dragRevision") override fun setDragRevision(view:EnhancedMarkerView,value:Double){view.dragRevision=value}
+  override fun getExportedCustomDirectEventTypeConstants():MutableMap<String,Any> = mutableMapOf("topMarkerDrag" to mapOf("registrationName" to "onMarkerDrag"))
   @ReactProp(name="markerID") override fun setMarkerID(view: EnhancedMarkerView, value: String?) { view.markerID = value ?: "" }
-  @ReactProp(name="latitude") override fun setLatitude(view: EnhancedMarkerView, value: Double) { view.latitude = value }
-  @ReactProp(name="longitude") override fun setLongitude(view: EnhancedMarkerView, value: Double) { view.longitude = value }
+  @ReactProp(name="latitude") override fun setLatitude(view: EnhancedMarkerView, value: Double) { view.setPropLatitude(value) }
+  @ReactProp(name="longitude") override fun setLongitude(view: EnhancedMarkerView, value: Double) { view.setPropLongitude(value) }
   @ReactProp(name="markerZIndex") override fun setMarkerZIndex(view: EnhancedMarkerView, value: Double) { view.markerZIndex = value }
   @ReactProp(name="anchorX", defaultDouble=.5) override fun setAnchorX(view: EnhancedMarkerView, value: Double) { view.anchorX = value.toFloat() }
   @ReactProp(name="anchorY", defaultDouble=1.0) override fun setAnchorY(view: EnhancedMarkerView, value: Double) { view.anchorY = value.toFloat() }

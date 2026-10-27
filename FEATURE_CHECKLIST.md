@@ -24,6 +24,8 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Implemented foundation
 
+- [x] Mounted snapshots and native marker dragging — PNG/JPEG file/base64 captures with explicit composition/size limits, native long-press dragging, coordinate callbacks and cancellation. [Contract](docs/location-snapshots-dragging.md).
+
 - [x] RN Maps common API migration surface — Regions/controlled camera, partial updates, native region events, ordered camera/geometry reads, fit/bounds aliases, nativeEvent presses, optional marker identifiers, image/default pins and centerOffset. Native builds and both simulator runtime suites pass; full provider parity remains separate. [Migration guide](docs/rn-maps-migration.md).
 
 - [x] **ARCH-01–06, MAP-13** — Workspace, package-owned Fabric hosts, pinned baseline dependencies, declarations, Codegen, autolinking and packed-consumer checks.
@@ -56,7 +58,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Markers, shapes and internal rendering
 
-- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; dragging and callout APIs remain open. [Marker sync evidence](docs/marker-coordinate-sync.md).
+- [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; native dragging is implemented; callout APIs remain open. [Marker sync evidence](docs/marker-coordinate-sync.md).
 - [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed; complete geometry/style replacement, visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures for internal circle/line/fill rendering and public shapes. [Native fix and remaining geometry limits](docs/polygon-hole-picking.md).
 - [ ] **SHAPE-03** — React Native color strings, geodesic Polyline/Polygon edges (including holes) and per-vertex Polyline gradients are implemented. Decide remaining dash-phase compatibility. [Shapes](docs/shapes.md).
 - [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
@@ -105,7 +107,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 ## Compatibility and distribution
 
 - [ ] **COMPAT-01–02, COMPAT-05–06, COMPAT-08–09** — Pin RN Maps and document supported/partial/unsupported APIs with equivalent fixtures and migration examples. Current familiar component names do not promise full parity; include camera/bounds/snapshot/helper gaps.
-- [ ] **COMPAT-07, A11Y-04** — Define user-location/tracking, permission ownership, denial and privacy behavior.
+- [x] **COMPAT-07** — Native/app-owned foreground user location, following, permission ownership, recoverable denial and lifecycle behavior are implemented. [Contract](docs/location-snapshots-dragging.md). Broader accessible tracking acceptance remains under A11Y-04.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
 - [ ] **REL-01, REL-08** — Resolve package ownership, repository metadata, license, SDK attribution and dependency/distribution requirements. Packages are currently private and UNLICENSED.
 - [x] **REL-02** — Packed core bare consumers pass Debug/Release builds, declarations, autolinking and Release simulator startup outside the workspace. [Results and resolver workaround](docs/native-consumers.md). Physical/signed-device checks are maintainer-owned follow-up.

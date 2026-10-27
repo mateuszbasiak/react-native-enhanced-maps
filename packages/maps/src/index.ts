@@ -1,6 +1,6 @@
 export { MapView, MapView as default } from './MapView';
 export { Marker } from './Marker';
-export type { MarkerProps, MarkerPressEvent } from './Marker';
+export type { MarkerProps, MarkerPressEvent, MarkerDragEvent } from './Marker';
 export { Polyline, Polygon, Circle } from './mapContent';
 export type {
   PolylineProps,
@@ -53,3 +53,6 @@ export type {
   PolygonProps as MapPolygonProps,
   CircleProps as MapCircleProps,
 } from './mapContent';
+
+export type { UserLocation, UserLocationChangeEvent } from './userLocation';
+export type { SnapshotOptions } from './snapshots';

@@ -7,6 +7,10 @@ import type {
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 import codegenNativeCommands from 'react-native/Libraries/Utilities/codegenNativeCommands';
 export interface NativeProps extends ViewProps {
+  locationEnabled?: WithDefault<boolean, false>;
+  onUserLocation?: DirectEventHandler<
+    Readonly<{ locationJSON: string; error: string; styleRevision: Double }>
+  >;
   mapPaddingTop?: WithDefault<Double, 0>;
   mapPaddingRight?: WithDefault<Double, 0>;
   mapPaddingBottom?: WithDefault<Double, 0>;

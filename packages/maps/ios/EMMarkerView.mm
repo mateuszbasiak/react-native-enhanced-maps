@@ -1,10 +1,78 @@
 #import "EMMarkerView.h"
+#include <cmath>
 #import <react/renderer/components/EnhancedMapsSpec/ComponentDescriptors.h>
 #import <react/renderer/components/EnhancedMapsSpec/Props.h>
+#import <react/renderer/components/EnhancedMapsSpec/EventEmitters.h>
 using namespace facebook::react;
 @implementation EMMarkerAnnotation {
   UIView *_markerContent;
+  UILongPressGestureRecognizer *_markerDragRecognizer;
+  BOOL _markerDragEnabled;
+  BOOL _markerDragging;
+  double _dragSession;
+  double _dragRevision;
+  double _sessionRevision;
+  CLLocationCoordinate2D _controlledCoordinate;
+  CGPoint _dragStartPoint;
+  CGPoint _dragTouchPoint;
+  __weak MLNMapView *_dragMap;
 }
+- (instancetype)initWithReuseIdentifier:(NSString *)identifier {
+  if((self=[super initWithReuseIdentifier:identifier])) {
+    _markerDragRecognizer=[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleMarkerDrag:)];
+    _markerDragRecognizer.minimumPressDuration=.5;
+    _markerDragRecognizer.allowableMovement=10;
+    _markerDragRecognizer.cancelsTouchesInView=YES;
+    _markerDragRecognizer.enabled=NO;
+    [self addGestureRecognizer:_markerDragRecognizer];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cancelMarkerDrag) name:UIApplicationWillResignActiveNotification object:nil];
+  }
+  return self;
+}
+- (BOOL)markerDragging { return _markerDragging; }
+- (MLNMapView *)containingMap {
+  for(UIView *view=self.superview;view;view=view.superview)if([view isKindOfClass:MLNMapView.class])return (MLNMapView *)view;
+  return nil;
+}
+- (void)configureDrag:(BOOL)enabled revision:(double)revision coordinate:(CLLocationCoordinate2D)coordinate changed:(BOOL)changed {
+  _controlledCoordinate=coordinate;
+  if(_markerDragging && (!enabled || revision!=_dragRevision)) [self cancelMarkerDrag];
+  _markerDragEnabled=enabled;_dragRevision=revision;
+  _markerDragRecognizer.enabled=enabled;
+  if(changed && !_markerDragging) self.coordinate=coordinate;
+}
+- (void)cancelMarkerDrag {
+  if(!_markerDragging)return;
+  _markerDragging=NO;self.coordinate=_controlledCoordinate;
+  if(self.dragEvent)self.dragEvent("cancel",_dragSession,_sessionRevision,self.coordinate);
+  _dragMap=nil;
+  // Reset recognition so a cancelled finger stream cannot restart this drag.
+  _markerDragRecognizer.enabled=NO;_markerDragRecognizer.enabled=_markerDragEnabled;
+}
+- (void)handleMarkerDrag:(UILongPressGestureRecognizer *)recognizer {
+  if(recognizer.state==UIGestureRecognizerStateBegan) {
+    MLNMapView *map=[self containingMap];
+    if(!_markerDragEnabled || !map || !self.window)return;
+    _dragMap=map;_markerDragging=YES;_dragSession+=1;_sessionRevision=_dragRevision;
+    _dragTouchPoint=[recognizer locationInView:map];
+    _dragStartPoint=[map convertCoordinate:self.coordinate toPointToView:map];
+    // Cancel already-active map gestures without restoring stale gesture settings.
+    for(UIGestureRecognizer *gesture in map.gestureRecognizers)if(gesture.enabled){gesture.enabled=NO;gesture.enabled=YES;}
+    if(self.dragEvent)self.dragEvent("start",_dragSession,_sessionRevision,self.coordinate);
+  } else if(recognizer.state==UIGestureRecognizerStateChanged || recognizer.state==UIGestureRecognizerStateEnded) {
+    MLNMapView *map=_dragMap;
+    if(!_markerDragging || !map)return;
+    CGPoint touch=[recognizer locationInView:map];
+    CLLocationCoordinate2D coordinate=[map convertPoint:CGPointMake(_dragStartPoint.x+touch.x-_dragTouchPoint.x,_dragStartPoint.y+touch.y-_dragTouchPoint.y) toCoordinateFromView:map];
+    coordinate.longitude=std::remainder(coordinate.longitude,360.);
+    if(!CLLocationCoordinate2DIsValid(coordinate)){[self cancelMarkerDrag];return;}
+    self.coordinate=coordinate;
+    BOOL ended=recognizer.state==UIGestureRecognizerStateEnded;
+    if(ended){_markerDragging=NO;_dragMap=nil;}
+    if(self.dragEvent)self.dragEvent(ended?"end":"update",_dragSession,_sessionRevision,coordinate);
+  } else if(recognizer.state==UIGestureRecognizerStateCancelled || recognizer.state==UIGestureRecognizerStateFailed) [self cancelMarkerDrag];
+}
+- (void)didMoveToWindow { [super didMoveToWindow];if(!self.window)[self cancelMarkerDrag]; }
 static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
 // MLNAnnotationView is an accessibility leaf for SDK callouts. Our annotations
 // host live React controls, whose labels, actions and screen-space frames must
@@ -31,6 +99,7 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
                                   (.5-self.anchorY)*size.height+self.offsetY);
 }
 - (void)dealloc {
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
   if (_markerContent) [_markerContent removeObserver:self forKeyPath:@"bounds" context:EMMarkerContentBoundsContext];
 }
 - (UIView *)hitTest:(CGPoint)p withEvent:(UIEvent *)event { UIView *hit=[super hitTest:p withEvent:event]; return hit==self ? nil : hit; }
@@ -53,10 +122,17 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
 + (BOOL)shouldBeRecycled { return NO; }
 + (ComponentDescriptorProvider)componentDescriptorProvider { return concreteComponentDescriptorProvider<EnhancedMarkerViewComponentDescriptor>(); }
 - (instancetype)initWithFrame:(CGRect)frame {
-  if((self=[super initWithFrame:frame])) { _props=std::make_shared<const EnhancedMarkerViewProps>(); _annotation=[[EMMarkerAnnotation alloc] initWithReuseIdentifier:nil]; _children=[NSMutableArray new]; }
+  if((self=[super initWithFrame:frame])) { _props=std::make_shared<const EnhancedMarkerViewProps>(); _annotation=[[EMMarkerAnnotation alloc] initWithReuseIdentifier:nil]; _children=[NSMutableArray new];
+    __weak EMMarkerView *weakSelf=self;
+    _annotation.dragEvent=^(const char *phase,double session,double revision,CLLocationCoordinate2D coordinate){
+      EMMarkerView *owner=weakSelf;if(!owner || !owner->_eventEmitter)return;
+      std::static_pointer_cast<const EnhancedMarkerViewEventEmitter>(owner->_eventEmitter)->onMarkerDrag({phase,session,revision,coordinate.latitude,coordinate.longitude});
+    };
+  }
   return self;
 }
 - (EMMarkerAnnotation *)annotation { return _annotation; }
+- (NSString *)markerIdentifier { const auto &p=*std::static_pointer_cast<const EnhancedMarkerViewProps>(_props);return @(p.markerID.c_str()); }
 - (UIView *)hitTest:(CGPoint)p withEvent:(UIEvent *)e { UIView *hit=[super hitTest:p withEvent:e]; return hit==self?nil:hit; }
 - (void)attachWithSequence:(NSUInteger)sequence { _annotation.mountSequence=sequence; [_annotation sortSiblings]; }
 - (void)mountChildComponentView:(UIView<RCTComponentViewProtocol> *)child index:(NSInteger)index { [_children insertObject:child atIndex:index]; [_annotation insertSubview:child atIndex:index]; [_annotation setMarkerContent:_children.firstObject]; [self updateAnnotationLayout]; }
@@ -72,7 +148,10 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
 }
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps {
   [super updateProps:props oldProps:oldProps]; const auto &p=*std::static_pointer_cast<const EnhancedMarkerViewProps>(props);
-  _annotation.coordinate=CLLocationCoordinate2DMake(p.latitude,p.longitude); _annotation.markerZIndex=p.markerZIndex;
+  const auto previous=oldProps ? std::static_pointer_cast<const EnhancedMarkerViewProps>(oldProps) : std::make_shared<const EnhancedMarkerViewProps>();
+  const auto &old=*previous;
+  [_annotation configureDrag:p.draggable revision:p.dragRevision coordinate:CLLocationCoordinate2DMake(p.latitude,p.longitude) changed:old.latitude!=p.latitude || old.longitude!=p.longitude];
+  _annotation.markerZIndex=p.markerZIndex;
   [self updateAnnotationLayout]; [_annotation sortSiblings];
 }
 @end

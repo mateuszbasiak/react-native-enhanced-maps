@@ -16,6 +16,9 @@ import type {
   CameraEvent,
   Camera,
   Region,
+  UserLocation,
+  UserLocationChangeEvent,
+  MarkerDragEvent,
   MapCapabilities,
   MapError,
   MapGestureEvent,
@@ -75,6 +78,19 @@ const append = <T,>(items: T[], value: T, limit: number) => {
 /** Development-only, bounded runtime evidence; input actions still use the native UI. */
 export default function RuntimeVerification() {
   const map = useRef<MapViewRef>(null);
+  const [locationFlags, setLocationFlags] = useState({
+    showsUserLocation: false,
+    followsUserLocation: false,
+  });
+  const [suppliedUserLocation, setSuppliedUserLocation] =
+    useState<UserLocation | null>();
+  const locationEvents = useRef<UserLocationChangeEvent[]>([]);
+  const [dragEnabled, setDragEnabled] = useState(true);
+  const [dragCoordinate, setDragCoordinate] = useState({
+    latitude: 54.369,
+    longitude: 18.665,
+  });
+  const dragEvents = useRef<{ phase: string; event: MarkerDragEvent }[]>([]);
   const [parityInitialRegion, setParityInitialRegion] = useState<Region>();
   const readyCamera = useRef<Partial<Camera> | undefined>(undefined);
   const [controlledRegion, setControlledRegion] = useState<Region>();
@@ -195,6 +211,14 @@ export default function RuntimeVerification() {
     const api = {
       parity: {
         map: () => map.current,
+        setUserLocation: setSuppliedUserLocation,
+        setLocationFlags,
+        setDragEnabled,
+        featureSnapshot: () => ({
+          locations: locationEvents.current,
+          drags: dragEvents.current,
+          dragCoordinate,
+        }),
         mountRegion: (region: Region, camera?: Partial<Camera>) => {
           readyCamera.current = camera;
           setParityInitialRegion(region);
@@ -223,7 +247,7 @@ export default function RuntimeVerification() {
       if (target.__enhancedMapsVerification === api)
         delete target.__enhancedMapsVerification;
     };
-  }, [candidate, present, enabled]);
+  }, [candidate, present, enabled, dragCoordinate]);
   if (!__DEV__) return null;
   return (
     <View style={{ flex: 1 }}>
@@ -460,6 +484,11 @@ export default function RuntimeVerification() {
                   pitch: 0,
                 }
           }
+          {...locationFlags}
+          userLocation={suppliedUserLocation}
+          onUserLocationChange={(event) =>
+            append(locationEvents.current, event, 64)
+          }
           region={controlledRegion}
           camera={controlledCamera}
           onRegionChange={(region, details) =>
@@ -522,6 +551,35 @@ export default function RuntimeVerification() {
               >
                 <Text style={{ backgroundColor: 'orange', padding: 12 }}>
                   RN Maps marker
+                </Text>
+              </Marker>
+              <Marker
+                identifier="parity-drag"
+                coordinate={dragCoordinate}
+                draggable={dragEnabled}
+                onDragStart={(event) =>
+                  append(dragEvents.current, { phase: 'start', event }, 128)
+                }
+                onDrag={(event) => {
+                  append(dragEvents.current, { phase: 'update', event }, 128);
+                  setDragCoordinate(event.nativeEvent.coordinate);
+                }}
+                onDragEnd={(event) => {
+                  append(dragEvents.current, { phase: 'end', event }, 128);
+                  setDragCoordinate(event.nativeEvent.coordinate);
+                }}
+                onDragCancel={(event) =>
+                  append(dragEvents.current, { phase: 'cancel', event }, 128)
+                }
+              >
+                <Text
+                  style={{
+                    backgroundColor: '#245bc7',
+                    color: 'white',
+                    padding: 10,
+                  }}
+                >
+                  Drag marker
                 </Text>
               </Marker>
               <Marker

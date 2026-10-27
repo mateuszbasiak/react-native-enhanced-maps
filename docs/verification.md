@@ -1052,3 +1052,51 @@ separate follow-up. Exact 360-degree region fits reject explicitly; native zoom
 units, Mercator/polar limits and unsupported provider-specific APIs remain
 explicit in the migration guide. Physical-device validation is maintainer-owned
 follow-up and no hardware performance results are claimed.
+
+## Location, snapshots and dragging (2026-10-27)
+
+The follow-up adds permission-aware foreground location or app-owned fixes,
+gesture-interruptible camera following, mounted PNG/JPEG snapshots, and native
+long-press marker dragging. [Contracts and explicit limits](location-snapshots-dragging.md)
+cover ownership, cancellation, permissions, cache lifetime and composition.
+
+The final local package check passes 282 tests, TypeScript migration fixtures,
+lint/format, Codegen and packed declarations. Production example bundles pass for
+both platforms. Both arm64 native Debug builds pass. Tests include native
+Foundation URL-template handling: snapshot style serialization initially
+percent-escaped glyph/tile placeholders and caused HTTP 404s; preserving absolute
+URLs and resolving relative templates through placeholders fixes that failure.
+
+On iPhone SE (2nd generation), iOS 26.1, the final feature suite passes ten checks:
+supplied fixes/events, following, controlled-camera precedence, follow after
+controlled release, PNG/JPEG base64 signatures, file export, invalid dimensions,
+explicit null disabling native watching, and user location exclusion from marker
+fitting. File metadata confirms 512×384 output. Native CoreLocation smoke reports
+recoverable permission denial while the map remains ready, then delivers a
+simulated 54.37/18.66 fix after test authorization; no app permission prompt is
+triggered by the package.
+
+Android API 36 arm64 passed nine feature assertions for supplied fixes, following,
+controlled precedence, PNG/JPEG/file output, invalid dimensions and null disabling
+watching. File metadata likewise confirms 512×384 output. Captured output includes
+basemap, shapes, custom/default/image markers and static source attribution.
+Permission denial is recoverable and preserves map readiness. The later marker-fit
+exclusion and retained-coordinate fixes compile and have contract coverage; the
+final expanded Android runtime rerun was unavailable after the emulator's adb
+transport became unresponsive and the replacement boot was aborted. This does not
+record a native Android GPS-fix acceptance pass.
+
+Native touch smoke on both simulators records start/update/end dragging with the
+camera unchanged, plus start/cancel when dragging is disabled during a hold.
+The Android Text-only fixture initially lost MOVE/UP because it did not retain a
+native touch target; consuming the draggable stream fixes it. Native gesture
+ownership suppresses React presses after dragging. Contract tests cover retained
+post-drag press coordinates without prop updates, stale sessions, cancellation
+and coordinate echoes. Broader nested-input arbitration remains follow-up.
+
+Both simulators verify gesture interruption of following: a new supplied fix does
+not recenter after a map pan. Following can resume explicitly. Clearing a fix now
+invalidates retained/queued targets, and the internal location dot is excluded
+from app-marker fitting. These bounded checks do not establish accessibility,
+minimum-OS, leak-stress or physical-device performance results. Physical-device
+validation remains maintainer-owned follow-up.

@@ -7,6 +7,11 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- Foreground native or app-owned user location, gesture-interruptible camera
+  following, mounted-map PNG/JPEG snapshots and native draggable markers. See
+  [contracts and limits](docs/location-snapshots-dragging.md); permission prompts
+  remain application-owned and attached shader snapshots reject explicitly.
+
 - RN Maps common API conventions: regions/controlled camera, native region-change
   callbacks, authoritative camera reads, partial updates, fit/bounds method aliases,
   nativeEvent presses, optional marker identifiers, image/default pins and

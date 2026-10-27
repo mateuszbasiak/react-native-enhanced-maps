@@ -1,5 +1,7 @@
 #import "EMMapLibreView.h"
 #import "EMMarkerView.h"
+#import "MapUserLocation.h"
+#import "MapSnapshot.h"
 #import "SourceRevisionGate.h"
 #import "NativeMapCapabilities.h"
 #import "CameraOrigin.h"
@@ -71,7 +73,7 @@ static BOOL EMAcceptsFillHit(id<MLNFeature> feature,CLLocationCoordinate2D coord
   [super resetPosition];
   if(self.sdkCameraOperation)self.sdkCameraOperation();
 }
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch { return !EMIsOverlayTouch(touch); }
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch { for(id annotation in self.annotations)if([annotation isKindOfClass:EMMarkerAnnotation.class] && ((EMMarkerAnnotation *)annotation).markerDragging)return NO;return !EMIsOverlayTouch(touch); }
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)r { return [super gestureRecognizerShouldBegin:r]; }
 @end
 @interface EMMapLibreView () <MLNMapViewDelegate,RCTEnhancedMapLibreViewViewProtocol,UIGestureRecognizerDelegate>
@@ -101,6 +103,9 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   NSDictionary<NSString *,NSString *> *_layerSources;
   NSMutableSet<NSString *> *_interactiveLayers;
   NSUInteger _sequence;
+  EMMapSnapshot *_snapshotOperation;
+  NSUInteger _snapshotGeneration;
+  EMMapUserLocation *_userLocation;
   BOOL _configured;
   BOOL _ready;
   double _loadingStyleRevision;
@@ -119,7 +124,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 + (BOOL)shouldBeRecycled { return NO; }
 + (ComponentDescriptorProvider)componentDescriptorProvider { return concreteComponentDescriptorProvider<EnhancedMapLibreViewComponentDescriptor>(); }
 - (instancetype)initWithFrame:(CGRect)frame { if((self=[super initWithFrame:frame])) { _props=std::make_shared<const EnhancedMapLibreViewProps>(); _markers=[NSMutableArray new]; _sourceIDs=[NSMutableArray new]; _layerIDs=[NSMutableArray new]; }return self; }
-- (void)didMoveToWindow { [super didMoveToWindow]; if(!self.window)[self cancelNativeGestures]; [self configure]; }
+- (void)didMoveToWindow { [super didMoveToWindow]; if(!self.window){[self cancelSnapshot];[self cancelNativeGestures];[_userLocation pause];} [self configure];if(self.window)[_userLocation resume]; }
 - (void)configure {
   if(_configured || !self.window)return; _configured=YES;
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
@@ -128,6 +133,14 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   _map=[[EMNativeMap alloc] initWithFrame:self.bounds styleURL:url]; _map.delegate=self; self.contentView=_map;
   _map.automaticallyAdjustsContentInset=NO;
   __weak EMMapLibreView *weakSelf=self;
+  _userLocation=[[EMMapUserLocation alloc] initWithLocation:^(NSString *json){
+    EMMapLibreView *owner=weakSelf;
+    if(!owner || !owner->_ready || !owner.window || !owner->_eventEmitter)return;
+    const auto &props=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(owner->_props);
+    if(!props.locationEnabled || props.styleRevision!=owner->_readyStyleRevision)return;
+    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(owner->_eventEmitter)->onUserLocation({std::string(json.UTF8String),"",owner->_readyStyleRevision});
+  } error:^(NSString *code,NSString *message){EMMapLibreView *owner=weakSelf;if(owner)[owner emitError:message code:code];}];
+  [_userLocation resume];
   [self applyMapSettings];
   _map.sdkCameraOperation=^{ EMMapLibreView *owner=weakSelf; if(owner)owner->_cameraOrigins.sdkBegan(); };
   _observedGestures=[_map.gestureRecognizers copy];
@@ -138,6 +151,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
     if(EMGestureKind(recognizer)>=0)[recognizer addTarget:self action:@selector(observeNativeGesture:)];
   }
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onApplicationResignActive:) name:UIApplicationWillResignActiveNotification object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onApplicationBecameActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
   UITapGestureRecognizer *tap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(featureTap:)]; tap.cancelsTouchesInView=NO; tap.delaysTouchesBegan=NO; tap.delaysTouchesEnded=NO; tap.delegate=self; [_map addGestureRecognizer:tap];
   // UIKit's tap can otherwise complete after a stationary long hold. This
   // exclusion recognizer observes only; it never consumes React child touches.
@@ -206,10 +220,14 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 #if MLN_RENDER_BACKEND_METAL
     [_shaderLayers removeAllObjects];
 #endif
+    [self cancelSnapshot];
+    for(EMMarkerView *marker in _markers)[marker.annotation cancelMarkerDrag];
+    [_userLocation configure:NO];
     _ready=NO; _loadingStyleRevision=next.styleRevision;
     _map.styleURL=next.styleURL.empty()?nil:[NSURL URLWithString:@(next.styleURL.c_str())];
   }
   else if(sceneChanged && _ready)[self applyScene];
+  [_userLocation configure:next.locationEnabled && _ready];
 }
 - (void)updateEventEmitter:(EventEmitter::Shared const &)emitter { [super updateEventEmitter:emitter]; if(_ready && _eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapReady({true, enhancedmaps::nativeMapCapabilitiesJSON(), _readyStyleRevision}); }
 - (void)mountChildComponentView:(UIView<RCTComponentViewProtocol> *)child index:(NSInteger)index {
@@ -226,6 +244,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   if(map!=_map || style!=_map.style)return;
   _lastMarkerLayout=nil;
   [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; _ready=YES; _readyStyleRevision=_loadingStyleRevision;
+  const auto &locationProps=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);[_userLocation configure:locationProps.locationEnabled];
   if(![self applyScene] && _acceptedSceneJSON)[self applySceneJSON:_acceptedSceneJSON];
   if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapReady({true, enhancedmaps::nativeMapCapabilitiesJSON(), _readyStyleRevision});
 }
@@ -279,7 +298,9 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 - (void)cancelNativeGestures {
   for(const auto &sample:_gestureEvents.cancelAll(CACurrentMediaTime()*1000))[self emitGesture:sample];
 }
-- (void)onApplicationResignActive:(NSNotification *)notification { [self cancelNativeGestures]; }
+- (void)cancelSnapshot { ++_snapshotGeneration;[_snapshotOperation cancel];_snapshotOperation=nil; }
+- (void)onApplicationResignActive:(NSNotification *)notification { [_snapshotOperation cancel]; [_userLocation pause];[self cancelNativeGestures]; }
+- (void)onApplicationBecameActive:(NSNotification *)notification { if(self.window)[_userLocation resume]; }
 - (void)emitError:(NSString *)message { [self emitError:message code:@"maplibre"]; }
 - (void)emitError:(NSString *)message code:(NSString *)code { if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error")}); }
 - (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { [self emitError:error.localizedDescription]; }
@@ -414,7 +435,7 @@ static UIColor *EMColor(id value) {
     return YES;
   } @catch(NSException *exception) { [self emitSceneError:exception.reason?:@"Could not apply scene"];return NO; }
 }
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch { return !EMIsOverlayTouch(touch); }
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch { for(id annotation in _map.annotations)if([annotation isKindOfClass:EMMarkerAnnotation.class] && ((EMMarkerAnnotation *)annotation).markerDragging)return NO;return !EMIsOverlayTouch(touch); }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)a shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)b { return YES; }
 - (void)featureTap:(UITapGestureRecognizer *)tap {
   if(tap.state!=UIGestureRecognizerStateEnded || !_eventEmitter)return;
@@ -473,6 +494,24 @@ static UIColor *EMColor(id value) {
     revision=number(@"styleRevision");
     if(!_ready || !_map || !self.window || revision!=_readyStyleRevision || revision!=p.styleRevision)
       @throw [NSException exceptionWithName:@"MapQuery" reason:@"Map is not ready" userInfo:nil];
+    if([request[@"kind"] isEqual:@"snapshot"]) {
+#if MLN_RENDER_BACKEND_METAL
+      if(_shaderLayers.count)@throw [NSException exceptionWithName:@"MapSnapshot" reason:@"Snapshots with ShaderLayer are not supported" userInfo:nil];
+#endif
+      if(_snapshotOperation)@throw [NSException exceptionWithName:@"MapSnapshot" reason:@"A snapshot is already in progress" userInfo:nil];
+      NSMutableArray<UIView *> *markerViews=[NSMutableArray new];for(EMMarkerView *marker in _markers)[markerViews addObject:marker.annotation];
+      const NSUInteger generation=++_snapshotGeneration;const double requestedRevision=revision;
+      __weak EMMapLibreView *weakSelf=self;
+      _snapshotOperation=[EMMapSnapshot startWithMap:_map markers:markerViews request:request completion:^(NSDictionary *output,NSString *error){
+        EMMapLibreView *owner=weakSelf;
+        if(!owner || !owner.window || !owner->_ready || generation!=owner->_snapshotGeneration || owner->_readyStyleRevision!=requestedRevision || !owner->_eventEmitter){if(output)[EMMapSnapshot discardResult:output];return;}
+        owner->_snapshotOperation=nil;
+        NSData *data=output?[NSJSONSerialization dataWithJSONObject:output options:0 error:nil]:nil;
+        NSString *json=data?[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]:@"";
+        std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(owner->_eventEmitter)->onMapQueryResult({requestId,requestedRevision,std::string(json.UTF8String),std::string((error?:@"").UTF8String)});
+      }];
+      return;
+    }
     NSDictionary *response=nil;
 #if MLN_RENDER_BACKEND_METAL
     if([request[@"kind"] isEqual:@"shaderLayer"]) {
@@ -546,7 +585,7 @@ static UIColor *EMColor(id value) {
       response=EMClusterQuery(_map,request,_clusterIndexRevision,_clusteredSources);
     } else if([request[@"kind"] isEqual:@"fit"]) {
       double duration=number(@"durationMs");EMFitRequire(duration>=0 && duration<=60000,@"Invalid fit duration");
-      NSMutableArray *markers=[NSMutableArray new];for(EMMarkerView *marker in _markers) { CLLocationCoordinate2D c=marker.annotation.coordinate;[markers addObject:@[@(c.latitude),@(c.longitude)]]; }
+      NSMutableArray *markers=[NSMutableArray new];for(EMMarkerView *marker in _markers) { if([marker.markerIdentifier isEqual:@"em-cluster:user-location"])continue;CLLocationCoordinate2D c=marker.annotation.coordinate;[markers addObject:@[@(c.latitude),@(c.longitude)]]; }
       MLNCoordinateBounds bounds=EMFitBounds(_map,request,_acceptedSceneJSON,markers);
       CLLocationCoordinate2D corners[]={bounds.sw,CLLocationCoordinate2DMake(bounds.ne.latitude,bounds.sw.longitude),bounds.ne,CLLocationCoordinate2DMake(bounds.sw.latitude,bounds.ne.longitude)};
       UIEdgeInsets padding=UIEdgeInsetsMake(number(@"top"),number(@"left"),number(@"bottom"),number(@"right"));
@@ -643,6 +682,7 @@ static UIColor *EMColor(id value) {
   std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapPress({action,coordinate.latitude,coordinate.longitude,point.x,point.y,_readyStyleRevision});
 }
 - (void)dealloc {
+  [self cancelSnapshot];[_userLocation close];
 #if DEBUG && MLN_RENDER_BACKEND_METAL
   [_shaderPrototype stop];
 #endif

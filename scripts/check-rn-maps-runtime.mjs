@@ -1,8 +1,10 @@
 // Run against the Debug example on a dedicated Metro port.
 import WebSocket from 'ws';
+import { runFeatureChecks } from './rn-maps-features-expression.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const port = Number(process.env.METRO_PORT ?? 8090);
-const device = process.argv[2];
+const featureMode = process.argv.includes('--features');
+const device = process.argv.slice(2).find((arg) => arg !== '--features');
 const targets = await (
   await fetch(`http://localhost:${port}/json/list`)
 ).json();
@@ -11,7 +13,9 @@ const selected = targets.filter(
 );
 if (!selected.length)
   throw new Error('No matching Debug example on the test Metro port');
-const expression = `(async () => {
+const expression = featureMode
+  ? `(${runFeatureChecks.toString()})()`
+  : `(async () => {
   const check = (ok,message) => {if(!ok) throw Error(message);};
   const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
   const wait = async predicate => {for(let i=0;i<200;i++){if(await predicate())return;await sleep(100);}throw Error('Runtime acceptance timed out');};
@@ -141,7 +145,7 @@ for (const target of selected) {
     if (!result?.platform) throw new Error('Runtime acceptance did not finish');
     mkdirSync('artifacts/rn-maps-parity', { recursive: true });
     writeFileSync(
-      `artifacts/rn-maps-parity/${result.platform}.json`,
+      `artifacts/rn-maps-parity/${featureMode ? 'features-' : ''}${result.platform}.json`,
       JSON.stringify(result, null, 2) + '\n',
     );
     console.log(JSON.stringify(result, null, 2));
