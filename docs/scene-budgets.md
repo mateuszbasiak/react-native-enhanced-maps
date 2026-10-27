@@ -119,3 +119,46 @@ budgets, or full native scene/style preflight. Deep property/parser complexity,
 layer/style replacement failure handling and broader geographic acceptance remain
 separate work. Bounds on the raw UTF-8 scene are still enforced before native
 JSON parsing.
+
+## Native scene graph and style preflight — 2026-10-27
+
+Both hosts validate the private scene graph and supported literal styles before
+removing accepted resources. The checks cover the 64-source/128-layer limits,
+object framing, unique resource IDs, source references, insertion targets,
+booleans, clustered-source filters and collisions with existing basemap or shader
+resources. Source names retain the 128-character SDK grammar; generated stroke
+layer names can include the seven-character prefix. Feature IDs follow their
+separate source/marker contract.
+
+Style values are checked without numeric-string or boolean coercion. Each layer
+type has an explicit property set with finite bounded numbers, canonical hex
+colors, line enums, bounded dash arrays and strictly ordered gradient stops.
+Colors require a complete match, including rejecting trailing newlines in iOS
+scalar and gradient colors. The SDK source, gradient and layer objects are also
+constructed before accepted resources are removed. Preflight rejections do not
+advance accepted source revisions or cluster indexes.
+
+This preflight protects malformed input in the currently supported circle, line
+and fill transport. It does not expose general style-spec expressions or close
+the remaining component-surface requirements. It does not promise recovery from
+unexpected SDK allocation failures or asynchronous resource failures; deep parser
+complexity, geographic render/pick matrices and measured frame/memory costs
+remain separate acceptance work. Physical-device validation is maintainer-owned.
+
+The shared Java/Foundation corpus has 56 graph/style cases, including actual
+compiler output for a dateline circle, a geodesic gradient and a polygon whose
+128-character ID produces a 135-character stroke-layer ID. It covers malformed
+scalars, style enums/numbers/colors/dashes/gradients, resource counts, references,
+external collisions and valid insertion targets. Full local checks pass 291 tests.
+Both native Debug builds and production JS bundle checks pass.
+
+On iOS 26.1/iPhone 17 Pro and Android 16/API 36 ARM64, a 22-case raw-scene run
+rejected 19 malformed graph/style/geometry updates while preserving native fitting
+and exact feature/source hits, then accepted a repaired scene and dateline circle
+and geodesic replacements. After gradient-stop hardening, a focused two-case run
+on the final builds rejected the newline-color gradient while retaining the old
+fit/hit, then rendered and picked a valid dateline gradient. These runs use native
+taps at projected/measured coordinates; a debugger reads bounded Debug fixture
+snapshots. Two driver-interrupted attempts exceeded the operator tap deadline
+and are excluded. Local results are in
+`artifacts/verification/native-scene-preflight/`.

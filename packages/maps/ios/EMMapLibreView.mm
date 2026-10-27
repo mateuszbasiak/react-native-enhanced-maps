@@ -4,6 +4,7 @@
 #import "MapSnapshot.h"
 #import "SourceRevisionGate.h"
 #import "GeoJSONValidation.h"
+#import "SceneValidation.h"
 #import "NativeMapCapabilities.h"
 #import "CameraOrigin.h"
 #import "NativeCameraFit.h"
@@ -374,6 +375,10 @@ static UIColor *EMColor(id value) {
   NSMutableSet<NSString *> *metricSources=[NSMutableSet new];
   NSMutableDictionary<NSString *,NSExpression *> *gradients=[NSMutableDictionary new];
   @try {
+    NSMutableSet *externalSources=[NSMutableSet new],*externalLayers=[NSMutableSet new];
+    for(MLNSource *source in style.sources)if(![_sourceIDs containsObject:source.identifier])[externalSources addObject:source.identifier];
+    for(MLNStyleLayer *layer in style.layers)if(![_layerIDs containsObject:layer.identifier])[externalLayers addObject:layer.identifier];
+    EMValidateScene(scene,externalSources,externalLayers);
     NSUInteger remainingPositions=50000;
     NSUInteger remainingShapePositions=10000;
     // Validate all source versions and parse geometry before removing the accepted scene.
@@ -411,21 +416,30 @@ static UIColor *EMColor(id value) {
     for(NSDictionary *entry in scene[@"layers"]) { NSExpression *gradient=EMLineGradientExpression(entry,metricSources);if(gradient)gradients[entry[@"id"]]=gradient; }
     try { _sourceRevisions.validate(revisions); }
     catch(const std::exception &exception) { [self emitSceneError:@(exception.what())];return NO; }
+    NSMutableDictionary *candidateSources=[NSMutableDictionary new];
+    for(MLNShapeSource *source in parsedSources)candidateSources[source.identifier]=source;
+    NSMutableArray<MLNStyleLayer *> *parsedLayers=[NSMutableArray new];
+    for(NSDictionary *entry in scene[@"layers"]) {
+      MLNSource *source=candidateSources[entry[@"source"]];
+      MLNStyleLayer *layer=nil; NSString *type=entry[@"type"]; NSDictionary *s=entry[@"style"]?:@{};
+      if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
+      else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(gradients[entry[@"id"]])l.lineGradient=gradients[entry[@"id"]]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
+      else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }
+      if(!layer)@throw [NSException exceptionWithName:@"Scene" reason:@"Unsupported layer type" userInfo:nil];
+      if(entry[@"clusterFilter"] && [layer isKindOfClass:MLNVectorStyleLayer.class])((MLNVectorStyleLayer *)layer).predicate=[entry[@"clusterFilter"] isEqual:@"clusters"]?[NSPredicate predicateWithFormat:@"cluster == YES"]:[NSPredicate predicateWithFormat:@"cluster != YES"];
+      layer.visible=entry[@"visible"]?[entry[@"visible"] boolValue]:YES;
+      [parsedLayers addObject:layer];
+    }
     EMClusterQueryRequire(_clusterIndexRevision<9007199254740991ULL,@"Cluster index revisions exhausted");
     ++_clusterIndexRevision;
     for(NSString *identifier in [_layerIDs reverseObjectEnumerator]) { MLNStyleLayer *layer=[style layerWithIdentifier:identifier]; if(layer)[style removeLayer:layer]; }
     for(NSString *identifier in _sourceIDs) { MLNSource *source=[style sourceWithIdentifier:identifier]; if(source)[style removeSource:source]; }
     [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; NSMutableDictionary *sources=[NSMutableDictionary new]; _interactiveLayers=[NSMutableSet new];
     for(MLNShapeSource *source in parsedSources) { [style addSource:source]; [_sourceIDs addObject:source.identifier]; }
+    NSUInteger layerIndex=0;
     for(NSDictionary *entry in scene[@"layers"]) {
-      MLNSource *source=[style sourceWithIdentifier:entry[@"source"]]; if(!source){[self emitSceneError:@"Layer source does not exist"];return NO;}
-      MLNStyleLayer *layer=nil; NSString *type=entry[@"type"]; NSDictionary *s=entry[@"style"]?:@{};
-      if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
-      else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(gradients[entry[@"id"]])l.lineGradient=gradients[entry[@"id"]]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
-      else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }
-      if(!layer)continue;
-      if(entry[@"clusterFilter"] && [layer isKindOfClass:MLNVectorStyleLayer.class])((MLNVectorStyleLayer *)layer).predicate=[entry[@"clusterFilter"] isEqual:@"clusters"]?[NSPredicate predicateWithFormat:@"cluster == YES"]:[NSPredicate predicateWithFormat:@"cluster != YES"];
-      if([entry[@"interactive"] boolValue])[_interactiveLayers addObject:layer.identifier]; layer.visible=entry[@"visible"]?[entry[@"visible"] boolValue]:YES;
+      MLNStyleLayer *layer=parsedLayers[layerIndex++];
+      if([entry[@"interactive"] boolValue])[_interactiveLayers addObject:layer.identifier];
       MLNStyleLayer *before=entry[@"beforeId"]?[style layerWithIdentifier:entry[@"beforeId"]]:nil; if(before)[style insertLayer:layer belowLayer:before];else [style addLayer:layer]; [_layerIDs addObject:layer.identifier]; sources[layer.identifier]=entry[@"source"];
     } _layerSources=sources;
     _sourceRevisions.commit(revisions);

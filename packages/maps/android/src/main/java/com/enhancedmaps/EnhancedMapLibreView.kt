@@ -327,6 +327,9 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     }
     try {
       val scene = JSONObject(json)
+      SceneValidation.validate(scene,NativeGeoJSONReader,
+        style.sources.map { it.id }.filter { it !in sceneSources }.toSet(),
+        style.layers.map { it.id }.filter { it !in sceneLayers }.toSet())
       val sources = scene.getJSONArray("sources")
       val layers = scene.getJSONArray("layers")
       var remainingPositions=50000
@@ -355,16 +358,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         require(expression==null || (definition.getString("type")=="line" && definition.getString("source") in metricSources)) { "Gradient requires a line-metrics source" }
         definition.getString("id") to expression
       }
-      require(clusterIndexRevision<9007199254740991L) { "Cluster index revisions exhausted" }
-      ++clusterIndexRevision
-      sceneLayers.asReversed().forEach { style.removeLayer(it) }; sceneSources.forEach { style.removeSource(it) }
-      sceneSources = emptyList(); sceneLayers = emptyList(); layerSources.clear(); interactiveLayers.clear()
       // Inline scene data and Marker props belong to the same Fabric commit.
       // Async GeoJSON tiles can otherwise display different coordinate revisions.
       // This work happens on data changes, never on camera frames.
-      parsedSources.forEach { source -> style.addSource(GeoJsonSource(source.id,source.data,source.options)); sceneSources = sceneSources + source.id }
-      parsedLayers.forEach { definition ->
-        val id = definition.getString("id"); if(definition.optBoolean("interactive",false)) interactiveLayers.add(id); val source = definition.getString("source"); val properties = definition.optJSONObject("style") ?: JSONObject()
+      val sdkSources=parsedSources.map { source -> GeoJsonSource(source.id,source.data,source.options) }
+      val sdkLayers=parsedLayers.map { definition ->
+        val id = definition.getString("id"); val source = definition.getString("source"); val properties = definition.optJSONObject("style") ?: JSONObject()
         val layer: Layer = when (definition.getString("type")) {
           "circle" -> CircleLayer(id,source).apply { if(properties.has("circleColor")) setProperties(circleColor(properties.getString("circleColor"))); if(properties.has("circleRadius")) setProperties(circleRadius(properties.getDouble("circleRadius").toFloat())); if(properties.has("circleOpacity")) setProperties(circleOpacity(properties.getDouble("circleOpacity").toFloat())) }
           "line" -> LineLayer(id,source).apply { gradients[id]?.let { setProperties(lineGradient(it)) }; if(properties.has("lineColor")) setProperties(lineColor(properties.getString("lineColor"))); if(properties.has("lineWidth")) setProperties(lineWidth(properties.getDouble("lineWidth").toFloat())); if(properties.has("lineOpacity")) setProperties(lineOpacity(properties.getDouble("lineOpacity").toFloat())); if(properties.has("lineCap")) setProperties(lineCap(properties.getString("lineCap"))); if(properties.has("lineJoin")) setProperties(lineJoin(properties.getString("lineJoin"))); if(properties.has("lineMiterLimit")) setProperties(lineMiterLimit(properties.getDouble("lineMiterLimit").toFloat())); if(properties.has("lineDasharray")) { val d=properties.getJSONArray("lineDasharray"); setProperties(lineDasharray(Array(d.length()) { d.getDouble(it).toFloat() })) } }
@@ -377,6 +376,16 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           when(layer) { is CircleLayer -> layer.setFilter(filter); is LineLayer -> layer.setFilter(filter); is FillLayer -> layer.setFilter(filter) }
         }
         layer.setProperties(visibility(if(definition.optBoolean("visible",true)) "visible" else "none"))
+        layer
+      }
+      require(clusterIndexRevision<9007199254740991L) { "Cluster index revisions exhausted" }
+      ++clusterIndexRevision
+      sceneLayers.asReversed().forEach { style.removeLayer(it) }; sceneSources.forEach { style.removeSource(it) }
+      sceneSources = emptyList(); sceneLayers = emptyList(); layerSources.clear(); interactiveLayers.clear()
+      sdkSources.forEach { source -> style.addSource(source); sceneSources = sceneSources + source.id }
+      parsedLayers.forEachIndexed { index,definition ->
+        val id=definition.getString("id"); val source=definition.getString("source");val layer=sdkLayers[index]
+        if(definition.optBoolean("interactive",false))interactiveLayers.add(id)
         val before = definition.optString("beforeId")
         if(before.isNotEmpty() && style.getLayer(before) != null) style.addLayerBelow(layer,before) else style.addLayer(layer)
         sceneLayers = sceneLayers + id; layerSources[id] = source
