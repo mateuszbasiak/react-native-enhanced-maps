@@ -22,6 +22,7 @@ import ShapePickingVerification from './verification/ShapePickingVerification';
 import GradientVerification from './verification/GradientVerification';
 import FitVerification from './verification/FitVerification';
 import CalloutVerification from './verification/CalloutVerification';
+import UrlTileVerification from './verification/UrlTileVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 import ShaderLifecycleVerification from './gpu/ShaderLifecycleVerification';
@@ -125,6 +126,8 @@ export default function App() {
       <View key={selection.generation} style={{ flex: 1 }}>
         {id === 'callouts' && __DEV__ ? (
           <CalloutVerification />
+        ) : id === 'url-tiles' && __DEV__ ? (
+          <UrlTileVerification />
         ) : id === 'native-scene' && __DEV__ ? (
           <NativeSceneVerification />
         ) : id === 'fit' && __DEV__ ? (

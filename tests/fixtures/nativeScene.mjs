@@ -186,3 +186,87 @@ for (const stops of [
     s.layers[0].type = 'line';
     s.layers[0].style = { lineGradient: stops };
   });
+
+const raster = () => ({
+  sources: [
+    {
+      id: 'tiles',
+      type: 'raster',
+      urlTemplate: 'https://example.test/{z}/{x}/{y}.png',
+      tileSize: 256,
+      minZoom: 0,
+      maxZoom: 22,
+    },
+  ],
+  layers: [
+    {
+      id: 'raster:tiles',
+      source: 'tiles',
+      type: 'raster',
+      visible: true,
+      interactive: false,
+      style: { rasterOpacity: 0.5 },
+    },
+  ],
+});
+fixtures.push({ label: 'native raster', scene: raster(), accepted: true });
+for (const [label, change] of [
+  ['raster bad tile size', (s) => (s.sources[0].tileSize = 300)],
+  ['raster bool size', (s) => (s.sources[0].tileSize = true)],
+  [
+    'raster missing XYZ',
+    (s) => (s.sources[0].urlTemplate = 'https://example.test/{x}/{y}'),
+  ],
+  [
+    'raster bad scheme',
+    (s) => (s.sources[0].urlTemplate = 'file:///{z}/{x}/{y}'),
+  ],
+  [
+    'raster empty host',
+    (s) => (s.sources[0].urlTemplate = 'https:///{z}/{x}/{y}'),
+  ],
+  ['raster unknown token', (s) => (s.sources[0].urlTemplate += '/{q}')],
+  ['raster whitespace', (s) => (s.sources[0].urlTemplate += '\n')],
+  [
+    'raster excessive template',
+    (s) => (s.sources[0].urlTemplate += 'x'.repeat(4096)),
+  ],
+  ['raster inverted zoom', (s) => (s.sources[0].minZoom = 23)],
+  ['raster fractional zoom', (s) => (s.sources[0].maxZoom = 14.5)],
+  ['raster invalid opacity', (s) => (s.layers[0].style.rasterOpacity = 2)],
+  ['raster vector style', (s) => (s.layers[0].style.circleRadius = 1)],
+  ['raster geojson field', (s) => (s.sources[0].data = {})],
+  ['raster cluster', (s) => (s.sources[0].cluster = {})],
+  ['raster interactive', (s) => (s.layers[0].interactive = true)],
+  ['raster cluster filter', (s) => (s.layers[0].clusterFilter = 'points')],
+  [
+    'raster wrong source',
+    (s) => {
+      s.sources[0] = source;
+      s.layers[0].source = source.id;
+    },
+  ],
+  [
+    'raster wrong layer',
+    (s) => {
+      s.layers[0].type = 'circle';
+      s.layers[0].style = {};
+    },
+  ],
+]) {
+  const scene = raster();
+  change(scene);
+  fixtures.push({ label, scene, accepted: false });
+}
+
+{
+  const scene = raster();
+  scene.sources[0].urlTemplate = 'https://example.test/static.png#{z}/{x}/{y}';
+  fixtures.push({ label: 'raster fragment XYZ', scene, accepted: false });
+}
+{
+  const scene = raster();
+  scene.sources[0].id = 'em-marker-clusters:tiles';
+  scene.layers[0].source = scene.sources[0].id;
+  fixtures.push({ label: 'raster marker-like ID', scene, accepted: true });
+}

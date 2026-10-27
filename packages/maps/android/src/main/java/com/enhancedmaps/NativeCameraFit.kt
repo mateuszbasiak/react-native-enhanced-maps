@@ -35,7 +35,7 @@ internal object NativeCameraFit {
       val input=JSONArray(explicit); require(input.length() in 1..1000)
       for(i in 0 until input.length()) input.getJSONArray(i).let { require(it.length()==2); add(it.getDouble(0),it.getDouble(1)) }
     } else {
-      acceptedScene?.let { JSONObject(it).getJSONArray("sources").let { sources -> for(i in 0 until sources.length()) { val source=sources.getJSONObject(i);if(request.optInt("markersOnly")==0 || source.has("cluster")) geometry(source.getJSONObject("data"),0) } } }
+      acceptedScene?.let { JSONObject(it).getJSONArray("sources").let { sources -> for(i in 0 until sources.length()) { val source=sources.getJSONObject(i);if(source.optString("type")!="raster" && (request.optInt("markersOnly")==0 || source.has("cluster"))) geometry(source.getJSONObject("data"),0) } } }
       markers.filter{!it.callout && it.markerID!="em-cluster:user-location"}.forEach { add(it.latitude,it.longitude) }
     }
     require(points.isNotEmpty()) { "No map elements to fit" }

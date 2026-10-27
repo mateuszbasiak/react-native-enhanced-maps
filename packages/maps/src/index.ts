@@ -4,6 +4,8 @@ export { Callout, Callout as MapCallout } from './Callout';
 export type { CalloutProps, CalloutPressEvent } from './Callout';
 export type { CalloutProps as MapCalloutProps } from './Callout';
 export type { MarkerRef, MarkerSelectionEvent } from './Marker';
+export { UrlTile } from './UrlTile';
+export type { UrlTileProps } from './UrlTile';
 export type { MarkerProps, MarkerPressEvent, MarkerDragEvent } from './Marker';
 export { Polyline, Polygon, Circle } from './mapContent';
 export type {

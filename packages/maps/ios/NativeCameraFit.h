@@ -41,7 +41,7 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   } else {
     if(acceptedScene) {
       NSDictionary *scene=[NSJSONSerialization JSONObjectWithData:[acceptedScene dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-      for(NSDictionary *source in scene[@"sources"])if(![request[@"markersOnly"] boolValue] || source[@"cluster"])EMFitGeometry(source[@"data"],points,0);
+      for(NSDictionary *source in scene[@"sources"])if(![source[@"type"] isEqual:@"raster"] && (![request[@"markersOnly"] boolValue] || source[@"cluster"]))EMFitGeometry(source[@"data"],points,0);
     }
     for(NSArray *coordinate in markerPoints)EMFitAdd(points,[coordinate[0] doubleValue],[coordinate[1] doubleValue]);
   }

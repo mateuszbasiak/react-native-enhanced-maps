@@ -371,7 +371,7 @@ static UIColor *EMColor(id value) {
   if(error || ![scene isKindOfClass:NSDictionary.class] || ![scene[@"sources"] isKindOfClass:NSArray.class] || ![scene[@"layers"] isKindOfClass:NSArray.class]) { [self emitSceneError:@"Invalid scene JSON"];return NO; }
   MLNStyle *style=_map.style;
   std::vector<enhancedmaps::RevisionedSource> revisions;
-  NSMutableArray<MLNShapeSource *> *parsedSources=[NSMutableArray new];
+  NSMutableArray<MLNSource *> *parsedSources=[NSMutableArray new];
   NSMutableSet<NSString *> *metricSources=[NSMutableSet new];
   NSMutableDictionary<NSString *,NSExpression *> *gradients=[NSMutableDictionary new];
   @try {
@@ -383,6 +383,17 @@ static UIColor *EMColor(id value) {
     NSUInteger remainingShapePositions=10000;
     // Validate all source versions and parse geometry before removing the accepted scene.
     for(NSDictionary *entry in scene[@"sources"]) {
+      if([entry[@"type"] isEqual:@"raster"]) {
+        NSString *identifier=entry[@"id"];id revision=entry[@"revision"];
+        EMSceneRequire(!revision || ([revision isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)revision)!=CFBooleanGetTypeID()),@"Source revision must be a number");
+        NSData *identityData=[NSJSONSerialization dataWithJSONObject:entry options:NSJSONWritingSortedKeys error:&error];
+        EMSceneRequire(identityData!=nil,@"Invalid raster source");
+        std::string identity((const char *)identityData.bytes,identityData.length);
+        revisions.push_back({std::string(identifier.UTF8String),revision?std::optional<double>([revision doubleValue]):std::nullopt,identity});
+        NSDictionary *options=@{MLNTileSourceOptionTileSize:entry[@"tileSize"],MLNTileSourceOptionMinimumZoomLevel:entry[@"minZoom"],MLNTileSourceOptionMaximumZoomLevel:entry[@"maxZoom"]};
+        [parsedSources addObject:[[MLNRasterTileSource alloc] initWithIdentifier:identifier tileURLTemplates:@[entry[@"urlTemplate"]] options:options]];
+        continue;
+      }
       id coordinateSpace=entry[@"coordinateSpace"];
       EMGeoJSONRequire(!coordinateSpace || [@"unwrapped" isEqual:coordinateSpace],@"Invalid source coordinate space");
       BOOL generatedShape=[@"unwrapped" isEqual:coordinateSpace];
@@ -417,12 +428,13 @@ static UIColor *EMColor(id value) {
     try { _sourceRevisions.validate(revisions); }
     catch(const std::exception &exception) { [self emitSceneError:@(exception.what())];return NO; }
     NSMutableDictionary *candidateSources=[NSMutableDictionary new];
-    for(MLNShapeSource *source in parsedSources)candidateSources[source.identifier]=source;
+    for(MLNSource *source in parsedSources)candidateSources[source.identifier]=source;
     NSMutableArray<MLNStyleLayer *> *parsedLayers=[NSMutableArray new];
     for(NSDictionary *entry in scene[@"layers"]) {
       MLNSource *source=candidateSources[entry[@"source"]];
       MLNStyleLayer *layer=nil; NSString *type=entry[@"type"]; NSDictionary *s=entry[@"style"]?:@{};
-      if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
+      if([type isEqual:@"raster"]) { MLNRasterStyleLayer *l=[[MLNRasterStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source];if(s[@"rasterOpacity"])l.rasterOpacity=[NSExpression expressionForConstantValue:s[@"rasterOpacity"]];layer=l; }
+      else if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
       else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(gradients[entry[@"id"]])l.lineGradient=gradients[entry[@"id"]]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
       else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }
       if(!layer)@throw [NSException exceptionWithName:@"Scene" reason:@"Unsupported layer type" userInfo:nil];
@@ -435,7 +447,7 @@ static UIColor *EMColor(id value) {
     for(NSString *identifier in [_layerIDs reverseObjectEnumerator]) { MLNStyleLayer *layer=[style layerWithIdentifier:identifier]; if(layer)[style removeLayer:layer]; }
     for(NSString *identifier in _sourceIDs) { MLNSource *source=[style sourceWithIdentifier:identifier]; if(source)[style removeSource:source]; }
     [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; NSMutableDictionary *sources=[NSMutableDictionary new]; _interactiveLayers=[NSMutableSet new];
-    for(MLNShapeSource *source in parsedSources) { [style addSource:source]; [_sourceIDs addObject:source.identifier]; }
+    for(MLNSource *source in parsedSources) { [style addSource:source]; [_sourceIDs addObject:source.identifier]; }
     NSUInteger layerIndex=0;
     for(NSDictionary *entry in scene[@"layers"]) {
       MLNStyleLayer *layer=parsedLayers[layerIndex++];
@@ -450,7 +462,7 @@ static UIColor *EMColor(id value) {
     NSMutableArray<NSDictionary *> *markerLayoutSources=[NSMutableArray new];
     for(NSDictionary *entry in scene[@"sources"]) {
       NSString *identifier=entry[@"id"];
-      if([identifier isEqual:@"em-marker-clusters"] || [identifier hasPrefix:@"em-marker-clusters:"]) {
+      if(![entry[@"type"] isEqual:@"raster"] && entry[@"cluster"] && ([identifier isEqual:@"em-marker-clusters"] || [identifier hasPrefix:@"em-marker-clusters:"])) {
         NSMutableDictionary *metadata=[@{@"id":identifier} mutableCopy];
         if(entry[@"revision"])metadata[@"revision"]=entry[@"revision"];
         [markerLayoutSources addObject:[metadata copy]];

@@ -12,9 +12,20 @@ static double EMSceneNumber(id value,double minimum,double maximum){
   EMSceneRequire([value isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)value)!=CFBooleanGetTypeID(),@"Invalid layer style number");
   double n=[value doubleValue];EMSceneRequire(isfinite(n) && n>=minimum && n<=maximum,@"Invalid layer style number");return n;
 }
+static void EMSceneRaster(NSDictionary *source){
+  NSArray *allowed=@[@"id",@"type",@"revision",@"urlTemplate",@"tileSize",@"minZoom",@"maxZoom"];
+  for(NSString *key in source)EMSceneRequire([allowed containsObject:key],@"Unsupported raster source field");
+  id raw=source[@"urlTemplate"];EMSceneRequire([raw isKindOfClass:NSString.class],@"Invalid raster URL template");NSString *url=raw;
+  NSRegularExpression *pattern=[NSRegularExpression regularExpressionWithPattern:@"^https?://[^/\\s{}?#]+/[^\\s]*\\z" options:0 error:nil];
+  NSRegularExpression *tokens=[NSRegularExpression regularExpressionWithPattern:@"\\{[xyz]\\}" options:0 error:nil];
+  NSString *remaining=[tokens stringByReplacingMatchesInString:url options:0 range:NSMakeRange(0,url.length) withTemplate:@""];
+  EMSceneRequire(url.length<=4096 && ![url containsString:@"#"] && [pattern numberOfMatchesInString:url options:0 range:NSMakeRange(0,url.length)]==1 && [url containsString:@"{x}"] && [url containsString:@"{y}"] && [url containsString:@"{z}"] && [remaining rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"{}"]].location==NSNotFound,@"Invalid raster URL template");
+  double size=EMSceneNumber(source[@"tileSize"],64,1024);EMSceneRequire(floor(size)==size && (((int)size)&((int)size-1))==0,@"Invalid raster tile size");
+  double min=EMSceneNumber(source[@"minZoom"],0,22),max=EMSceneNumber(source[@"maxZoom"],0,22);EMSceneRequire(floor(min)==min && floor(max)==max && min<=max,@"Invalid raster zoom bounds");
+}
 static void EMSceneStyle(id value,NSString *type){
   EMSceneRequire([value isKindOfClass:NSDictionary.class],@"Invalid layer style");
-  NSArray *allowed=[type isEqual:@"circle"]?@[@"circleRadius",@"circleColor",@"circleOpacity"]:[type isEqual:@"fill"]?@[@"fillColor",@"fillOpacity"]:@[@"lineColor",@"lineWidth",@"lineOpacity",@"lineCap",@"lineJoin",@"lineMiterLimit",@"lineDasharray",@"lineGradient"];
+  NSArray *allowed=[type isEqual:@"raster"]?@[@"rasterOpacity"]:[type isEqual:@"circle"]?@[@"circleRadius",@"circleColor",@"circleOpacity"]:[type isEqual:@"fill"]?@[@"fillColor",@"fillOpacity"]:@[@"lineColor",@"lineWidth",@"lineOpacity",@"lineCap",@"lineJoin",@"lineMiterLimit",@"lineDasharray",@"lineGradient"];
   for(NSString *key in value){EMSceneRequire([allowed containsObject:key],@"Unsupported layer style");id v=value[key];
     if([key hasSuffix:@"Color"]){NSRegularExpression *pattern=[NSRegularExpression regularExpressionWithPattern:@"^#[A-Fa-f0-9]{6}([A-Fa-f0-9]{2})?\\z" options:0 error:nil];EMSceneRequire([v isKindOfClass:NSString.class] && [pattern numberOfMatchesInString:v options:0 range:NSMakeRange(0,[v length])]==1,@"Invalid layer color");}
     else if([key isEqual:@"lineCap"])EMSceneRequire([@[@"butt",@"round",@"square"] containsObject:v],@"Invalid line cap");
@@ -32,10 +43,12 @@ static void EMValidateScene(id scene,NSSet<NSString *> *externalSources,NSSet<NS
   EMSceneRequire([scene isKindOfClass:NSDictionary.class],@"Invalid scene JSON");NSArray *sources=scene[@"sources"],*layers=scene[@"layers"];
   NSUInteger ns=EMSceneArray(sources,@"Invalid scene sources"),nl=EMSceneArray(layers,@"Invalid scene layers");EMSceneRequire(ns<=64 && nl<=128,@"Map scene resource limit exceeded");
   NSMutableDictionary *sourceMap=[NSMutableDictionary new];
-  for(id s in sources){EMSceneRequire([s isKindOfClass:NSDictionary.class],@"Invalid scene source");NSString *identifier=EMSceneName(s[@"id"],128);EMSceneRequire(![externalSources containsObject:identifier],@"Scene source ID collides with existing style");EMSceneRequire(!sourceMap[identifier],@"Duplicate scene source ID");sourceMap[identifier]=s;EMSceneRequire(!s[@"type"] || [s[@"type"] isEqual:@"geojson"],@"Unsupported source type");}
+  for(id s in sources){EMSceneRequire([s isKindOfClass:NSDictionary.class],@"Invalid scene source");NSString *identifier=EMSceneName(s[@"id"],128);EMSceneRequire(![externalSources containsObject:identifier],@"Scene source ID collides with existing style");EMSceneRequire(!sourceMap[identifier],@"Duplicate scene source ID");sourceMap[identifier]=s;EMSceneRequire(!s[@"type"] || [@[@"geojson",@"raster"] containsObject:s[@"type"]],@"Unsupported source type");if([s[@"type"] isEqual:@"raster"])EMSceneRaster(s);}
   NSMutableSet *ids=[NSMutableSet new],*inserted=[externalLayers mutableCopy];
   for(id l in layers){EMSceneRequire([l isKindOfClass:NSDictionary.class],@"Invalid scene layer");NSString *identifier=EMSceneName(l[@"id"],135);EMSceneRequire(![externalLayers containsObject:identifier],@"Scene layer ID collides with existing style");EMSceneRequire(![ids containsObject:identifier],@"Duplicate scene layer ID");[ids addObject:identifier];
-    NSString *type=l[@"type"];EMSceneRequire([@[@"circle",@"line",@"fill"] containsObject:type],@"Unsupported layer type");NSString *source=EMSceneName(l[@"source"],128);EMSceneRequire(sourceMap[source]!=nil,@"Layer references missing source");
+    NSString *type=l[@"type"];EMSceneRequire([@[@"circle",@"line",@"fill",@"raster"] containsObject:type],@"Unsupported layer type");NSString *source=EMSceneName(l[@"source"],128);EMSceneRequire(sourceMap[source]!=nil,@"Layer references missing source");
+    BOOL rasterSource=[sourceMap[source][@"type"] isEqual:@"raster"];EMSceneRequire([type isEqual:@"raster"]==rasterSource,@"Layer/source type mismatch");
+    if(rasterSource)EMSceneRequire(![l[@"interactive"] boolValue] && !l[@"clusterFilter"],@"Raster layers cannot be interactive or clustered");
     if(l[@"beforeId"]){NSString *before=EMSceneName(l[@"beforeId"],135);EMSceneRequire(![before isEqual:identifier] && [inserted containsObject:before],@"Invalid layer insertion reference");}
     for(NSString *key in @[@"visible",@"interactive"])if(l[key])EMSceneRequire(CFGetTypeID((__bridge CFTypeRef)l[key])==CFBooleanGetTypeID(),@"Invalid layer boolean");
     if(l[@"clusterFilter"]){EMSceneRequire([@[@"clusters",@"points"] containsObject:l[@"clusterFilter"]],@"Invalid cluster filter");EMSceneRequire([sourceMap[source][@"cluster"] isKindOfClass:NSDictionary.class],@"Cluster filter requires clustered source");}

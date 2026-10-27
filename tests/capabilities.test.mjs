@@ -10,7 +10,7 @@ const report = () => ({
     line: 'unvalidated',
     fill: 'unvalidated',
     symbol: 'unsupported',
-    raster: 'unsupported',
+    raster: 'unvalidated',
     heatmap: 'unsupported',
   },
 });

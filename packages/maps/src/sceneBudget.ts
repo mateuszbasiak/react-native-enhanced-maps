@@ -41,13 +41,16 @@ function positionCount(data: GeoJSONData): number {
   return count;
 }
 export function serializeMapScene(
-  sources: readonly { readonly id: string; readonly data: GeoJSONData }[],
+  sources: readonly (
+    | { readonly id: string; readonly data: GeoJSONData }
+    | { readonly id: string; readonly type: 'raster' }
+  )[],
   layers: readonly Readonly<Record<string, unknown>>[],
 ): string {
   const positions = new Map<string, number>();
   let declared = 0;
   for (const source of sources) {
-    const count = positionCount(source.data);
+    const count = 'data' in source ? positionCount(source.data) : 0;
     declared += count;
     if (declared > 50000) throw new Error('Scene position limit exceeded');
     positions.set(source.id, count);

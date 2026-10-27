@@ -14,9 +14,16 @@ public final class SceneValidation {
   private String name(Object value,int max){require(value instanceof String && ((String)value).length()<=max && NAME.matcher((String)value).matches(),"Invalid scene resource ID");return (String)value;}
   private int array(Object value,String message){require(r.isArray(value),message);return r.length(value);}
   private double number(Object value,double min,double max){require(value instanceof Number,"Invalid layer style number");double n=((Number)value).doubleValue();require(Double.isFinite(n) && n>=min && n<=max,"Invalid layer style number");return n;}
+  private void raster(Object source){
+    for(String key:r.keys(source))require(Set.of("id","type","revision","urlTemplate","tileSize","minZoom","maxZoom").contains(key),"Unsupported raster source field");
+    Object raw=r.get(source,"urlTemplate");require(raw instanceof String,"Invalid raster URL template");String url=(String)raw;
+    require(url.length()<=4096 && !url.contains("#") && url.matches("https?://[^/\\s{}?#]+/[^\\s]*") && url.contains("{x}") && url.contains("{y}") && url.contains("{z}") && !url.replaceAll("\\{[xyz]\\}","").matches("(?s).*[{}].*"),"Invalid raster URL template");
+    double size=number(r.get(source,"tileSize"),64,1024);require(size%1==0 && (((int)size)&((int)size-1))==0,"Invalid raster tile size");
+    double min=number(r.get(source,"minZoom"),0,22),max=number(r.get(source,"maxZoom"),0,22);require(min%1==0 && max%1==0 && min<=max,"Invalid raster zoom bounds");
+  }
   private void style(Object value,String type){
     require(r.isObject(value),"Invalid layer style");
-    Set<String> allowed=type.equals("circle")?Set.of("circleRadius","circleColor","circleOpacity"):type.equals("fill")?Set.of("fillColor","fillOpacity"):Set.of("lineColor","lineWidth","lineOpacity","lineCap","lineJoin","lineMiterLimit","lineDasharray","lineGradient");
+    Set<String> allowed=type.equals("raster")?Set.of("rasterOpacity"):type.equals("circle")?Set.of("circleRadius","circleColor","circleOpacity"):type.equals("fill")?Set.of("fillColor","fillOpacity"):Set.of("lineColor","lineWidth","lineOpacity","lineCap","lineJoin","lineMiterLimit","lineDasharray","lineGradient");
     for(String key:r.keys(value)){
       require(allowed.contains(key),"Unsupported layer style");Object v=r.get(value,key);
       if(key.endsWith("Color"))require(v instanceof String && COLOR.matcher((String)v).matches(),"Invalid layer color");
@@ -36,11 +43,13 @@ public final class SceneValidation {
     require(r.isObject(scene),"Invalid scene JSON");Object sources=r.get(scene,"sources"),layers=r.get(scene,"layers");
     int ns=array(sources,"Invalid scene sources"),nl=array(layers,"Invalid scene layers");require(ns<=64 && nl<=128,"Map scene resource limit exceeded");
     Map<String,Object> sourceMap=new HashMap<>();
-    for(int i=0;i<ns;i++){Object s=r.at(sources,i);require(r.isObject(s),"Invalid scene source");String id=name(r.get(s,"id"),128);require(!externalSources.contains(id),"Scene source ID collides with existing style");require(sourceMap.put(id,s)==null,"Duplicate scene source ID");require(!r.has(s,"type") || "geojson".equals(r.get(s,"type")),"Unsupported source type");}
+    for(int i=0;i<ns;i++){Object s=r.at(sources,i);require(r.isObject(s),"Invalid scene source");String id=name(r.get(s,"id"),128);require(!externalSources.contains(id),"Scene source ID collides with existing style");require(sourceMap.put(id,s)==null,"Duplicate scene source ID");require(!r.has(s,"type") || Set.of("geojson","raster").contains(r.get(s,"type")),"Unsupported source type");if("raster".equals(r.get(s,"type")))raster(s);}
     Set<String> ids=new HashSet<>(),inserted=new HashSet<>(externalLayers);
     for(int i=0;i<nl;i++){Object l=r.at(layers,i);require(r.isObject(l),"Invalid scene layer");String id=name(r.get(l,"id"),135);require(!externalLayers.contains(id),"Scene layer ID collides with existing style");require(ids.add(id),"Duplicate scene layer ID");
-      Object rawType=r.get(l,"type");require(rawType instanceof String && Set.of("circle","line","fill").contains(rawType),"Unsupported layer type");String type=(String)rawType;
+      Object rawType=r.get(l,"type");require(rawType instanceof String && Set.of("circle","line","fill","raster").contains(rawType),"Unsupported layer type");String type=(String)rawType;
       String source=name(r.get(l,"source"),128);require(sourceMap.containsKey(source),"Layer references missing source");
+      boolean rasterSource="raster".equals(r.get(sourceMap.get(source),"type"));require(type.equals("raster")==rasterSource,"Layer/source type mismatch");
+      if(rasterSource)require(!Boolean.TRUE.equals(r.get(l,"interactive")) && !r.has(l,"clusterFilter"),"Raster layers cannot be interactive or clustered");
       if(r.has(l,"beforeId")){String before=name(r.get(l,"beforeId"),135);require(!before.equals(id) && inserted.contains(before),"Invalid layer insertion reference");}
       for(String key:List.of("visible","interactive"))require(!r.has(l,key) || r.get(l,key) instanceof Boolean,"Invalid layer boolean");
       if(r.has(l,"clusterFilter")){Object f=r.get(l,"clusterFilter");require("clusters".equals(f)||"points".equals(f),"Invalid cluster filter");require(r.isObject(r.get(sourceMap.get(source),"cluster")),"Cluster filter requires clustered source");}
