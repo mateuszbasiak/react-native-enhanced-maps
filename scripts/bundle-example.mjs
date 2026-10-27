@@ -2,7 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { assertReleaseBundle } from './release-bundle.mjs';
+import { collectLocalMapsSecrets } from './local-config.mjs';
 const root = process.cwd();
+const secrets = collectLocalMapsSecrets(root, process.env);
 for (const platform of ['ios', 'android']) {
   const output = path.join(root, 'artifacts/bundles', platform);
   mkdirSync(output, { recursive: true });
@@ -27,8 +29,11 @@ for (const platform of ['ios', 'android']) {
     { cwd: 'example', stdio: 'inherit' },
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
-  assertReleaseBundle(readFileSync(path.join(output, 'main.jsbundle'), 'utf8'));
+  assertReleaseBundle(
+    readFileSync(path.join(output, 'main.jsbundle'), 'utf8'),
+    secrets,
+  );
   console.log(
-    `${platform}: development maps globals absent from production bundle`,
+    `${platform}: development maps globals and configured maps secrets absent from production bundle`,
   );
 }

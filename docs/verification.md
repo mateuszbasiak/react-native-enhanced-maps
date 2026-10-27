@@ -874,6 +874,25 @@ Review findings fixed: Android consumer polling under backpressure, native pool 
 
 Remaining limits are documented in [ShaderLayer](shader-layer.md): planar Mercator coverage, fixed atlas resolution, no LOD crossfade, no weather-texture streaming API, no automatic device-loss recovery, and physical-device projection/performance/energy acceptance still open.
 
+## Release bundle secret exclusion (2026-10-27)
+
+`assertReleaseBundle` rejects literal configured local maps key values as well as
+reserved Debug globals. Both `example:bundle` and the isolated optional-peer
+consumer matrix collect the known keys through `collectLocalMapsSecrets` from
+the workspace's supported local configuration files and environment. Empty
+values are ignored. Assertions report a fixed message without the key, bundle
+excerpt or surrounding application data. Required `__enhancedMapsShader`
+runtime transport remains allowed.
+
+The two new regression cases failed before the verifier change and pass after
+it, covering each configured key, literal matching and empty configuration.
+Both iOS and Android production example bundles pass the updated checks.
+This scans known local configuration values in JavaScript text only. It does
+not discover unknown or encoded credentials, inspect native binaries/logs, or
+close the remaining Release-consumer privacy acceptance under TEST-12. The
+optional-peer caller is wired to the same check; its full install/bundle matrix
+was not rerun for this change.
+
 ## Release shader bridge diagnostics (2026-10-23)
 
 Shader aggregate counters and per-pool bridge `stats` are now Debug-only exports.

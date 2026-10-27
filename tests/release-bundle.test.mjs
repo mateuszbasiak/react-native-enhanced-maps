@@ -43,3 +43,33 @@ test('bundle exclusion failure never prints surrounding consumer content', () =>
     },
   );
 });
+
+test('production bundle rejects every configured secret without exposing content', () => {
+  const secrets = ['first-private-key', 'second-private-key'];
+  for (const secret of secrets) {
+    assert.throws(
+      () =>
+        assertReleaseBundle(`private surrounding content ${secret}`, secrets),
+      (error) => {
+        assert.equal(
+          error.message,
+          'Configured maps secret present in production bundle',
+        );
+        assert(!String(error).includes(secret));
+        assert(!String(error).includes('surrounding content'));
+        return true;
+      },
+    );
+  }
+});
+
+test('secret scanning uses literal values and ignores empty configuration', () => {
+  assert.doesNotThrow(() =>
+    assertReleaseBundle('ordinary application code', ['', 'absent-key']),
+  );
+  assert.doesNotThrow(() => assertReleaseBundle('aXb', ['a.b']));
+  assert.throws(
+    () => assertReleaseBundle('token=a.b', ['a.b']),
+    /Configured maps secret present/,
+  );
+});
