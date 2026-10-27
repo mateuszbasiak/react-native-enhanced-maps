@@ -82,7 +82,7 @@ not the current public API.
 
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
 - [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
-- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits; spatial parity remains open.
+- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits and [maximum-zoom transitions with overlapping-group membership/input](docs/cluster-zoom-acceptance.md). General spatial/antimeridian parity remains open.
 
 ## Portable custom GPU shaders
 

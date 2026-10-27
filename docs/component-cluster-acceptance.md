@@ -5,6 +5,9 @@ Pixel 9a ARM64 / Android API 36, React Native 0.85.3 and the pinned native SDKs.
 The fixture uses `Marker.cluster`, a custom React cluster child, lazy `getMembers`
 and the default count bubble. It does not use retired public source-query APIs.
 
+Later [maximum-zoom and overlapping-group checks](cluster-zoom-acceptance.md)
+record additional bounded acceptance.
+
 Both hosts passed these deterministic coincident-point scenarios:
 
 - 3, 1000 and 10000 participating markers produce the expected cluster count.
