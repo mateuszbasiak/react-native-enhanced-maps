@@ -15,8 +15,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertReleaseBundle } from './release-bundle.mjs';
+import { collectLocalMapsSecrets } from './local-config.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const secrets = collectLocalMapsSecrets(root, process.env);
 const args = process.argv.slice(2);
 assert(
   args.length === 0 || (args.length === 1 && args[0] === '--offline'),
@@ -274,7 +276,7 @@ module.exports = mergeConfig(getDefaultConfig(__dirname), {resolver: {resolveReq
       if (entry === 'core' || selected.length === 2)
         pass(result, `${name}: ${label}`);
       if (result.status === 0) {
-        assertReleaseBundle(readFileSync(bundle, 'utf8'));
+        assertReleaseBundle(readFileSync(bundle, 'utf8'), secrets);
         record.bundles.push({
           entry,
           platform,
