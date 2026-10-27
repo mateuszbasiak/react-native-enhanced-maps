@@ -43,3 +43,18 @@ CLUSTER-06/07. Physical-device Release latency/performance and device accessibil
 checks are deferred to the maintainer and do not block this feature's completion
 or PR readiness. No physical-device results are claimed. The 10000 bound is the
 current supported clustered-marker count; no 100000-marker claim is made.
+
+## Cluster participation handover — 2026-10-27
+
+Disabling clustering could crash React rendering with `Cannot read property
+'sourceId' of undefined`. During the render that schedules a marker-version
+update, the old revision still matched an accepted native layout even though
+current marker groups had already changed. Layout rendering now requires the
+current content signature as well as style and source revisions to match.
+
+A host regression models this pending render-phase update, group replacement,
+style invalidation and the subsequently accepted layout. Both iPhone 17 Pro/iOS
+26.1 and Android 16/API 36 ARM64 completed five clustered/unclustered cycles and
+returned all three expected member IDs after every re-enable, without a render
+error. These are bounded functional checks of the JavaScript lifetime guard,
+using compatible native Debug hosts; no native implementation changed.

@@ -31,6 +31,7 @@ import {
   resolveClusterMembers,
 } from './markerClustering';
 import type { MarkerLayout } from './markerClustering';
+import { currentMarkerLayout } from './markerLayoutLifetime';
 import NativeMap, { Commands } from './specs/MapLibreViewNativeComponent';
 import { MapContext } from './maplibreContext';
 import { ShaderMapContext } from './shaderContext';
@@ -207,104 +208,107 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       activeStyle.current = styleRequest.revision;
     }, [markerContent, markerLayout, styleRequest.revision]);
     const ClusterComponent = props.clusterComponent ?? DefaultCluster;
-    const clusterChildren =
-      markerLayout?.styleRevision === styleRequest.revision &&
-      markerLayout.layout.sourceRevision === markerVersion.revision
-        ? markerLayout.layout.features.map((feature) => {
-            if (feature.clusterId === undefined)
-              return markerContent.markers.get(feature.id);
-            const group = markerContent.groups.find(
-              (group) =>
-                group.sourceId === (feature.sourceId ?? markerSourceID),
-            )!;
-            const coordinate = {
-              latitude: feature.latitude,
-              longitude: feature.longitude,
-            };
-            const layout = markerLayout.layout;
-            const handle = clusterHandles.capture(
-              group.sourceId,
-              `cluster:${feature.clusterId}`,
-              {
-                cluster: true,
-                cluster_id: feature.clusterId,
-                point_count: feature.count!,
-              },
-              layout.indexRevision,
-              styleRequest.revision,
-            )!;
-            const current = () =>
-              readiness.getCapabilities() !== null &&
-              activeMarkers.current === markerContent &&
-              activeLayout.current?.layout === layout &&
-              activeStyle.current === styleRequest.revision;
-            const clusterProps: ClusterComponentProps = {
-              ...(group.clusterGroup === undefined
-                ? {}
-                : { clusterGroup: group.clusterGroup }),
-              count: feature.count!,
-              coordinate,
-              getMembers: () =>
-                resolveClusterMembers(
-                  feature.count!,
-                  group.markers,
-                  async (offset) => {
-                    const page = (await queries.request(
-                      'clusterLeaves',
-                      clusterHandles.request(handle, styleRequest.revision, {
-                        offset,
-                        limit: 100,
-                      }),
-                      styleRequest.revision,
-                    )) as NativeClusterPage;
-                    return page.features.map((member) => member.featureId);
-                  },
-                  current,
-                ),
-              expand: async () => {
-                try {
-                  if (!current()) throw new Error('Cluster is obsolete');
-                  const zoom = (await queries.request(
-                    'clusterExpansion',
-                    clusterHandles.request(handle, styleRequest.revision),
+    const renderedMarkerLayout = currentMarkerLayout(
+      markerLayout,
+      styleRequest.revision,
+      markerVersion,
+      markerContent.signature,
+    );
+    const clusterChildren = renderedMarkerLayout
+      ? renderedMarkerLayout.features.map((feature) => {
+          if (feature.clusterId === undefined)
+            return markerContent.markers.get(feature.id);
+          const group = markerContent.groups.find(
+            (group) => group.sourceId === (feature.sourceId ?? markerSourceID),
+          )!;
+          const coordinate = {
+            latitude: feature.latitude,
+            longitude: feature.longitude,
+          };
+          const layout = renderedMarkerLayout;
+          const handle = clusterHandles.capture(
+            group.sourceId,
+            `cluster:${feature.clusterId}`,
+            {
+              cluster: true,
+              cluster_id: feature.clusterId,
+              point_count: feature.count!,
+            },
+            layout.indexRevision,
+            styleRequest.revision,
+          )!;
+          const current = () =>
+            readiness.getCapabilities() !== null &&
+            activeMarkers.current === markerContent &&
+            activeLayout.current?.layout === layout &&
+            activeStyle.current === styleRequest.revision;
+          const clusterProps: ClusterComponentProps = {
+            ...(group.clusterGroup === undefined
+              ? {}
+              : { clusterGroup: group.clusterGroup }),
+            count: feature.count!,
+            coordinate,
+            getMembers: () =>
+              resolveClusterMembers(
+                feature.count!,
+                group.markers,
+                async (offset) => {
+                  const page = (await queries.request(
+                    'clusterLeaves',
+                    clusterHandles.request(handle, styleRequest.revision, {
+                      offset,
+                      limit: 100,
+                    }),
                     styleRequest.revision,
-                  )) as number;
-                  if (!current() || !nativeRef.current)
-                    throw new Error('Cluster is obsolete');
-                  Commands.animateCamera(
-                    nativeRef.current,
-                    coordinate.latitude,
-                    coordinate.longitude,
-                    zoom,
-                    0,
-                    0,
-                    300,
-                  );
-                } catch (error) {
-                  props.onError?.({
-                    code: 'marker-cluster',
-                    message:
-                      error instanceof Error
-                        ? error.message
-                        : 'Cluster expansion failed',
-                    fatal: false,
-                  });
-                  throw error;
-                }
-              },
-            };
-            return (
-              <Marker
-                key={feature.id}
-                id={feature.id}
-                coordinate={coordinate}
-                anchor={{ x: 0.5, y: 0.5 }}
-              >
-                <ClusterComponent {...clusterProps} />
-              </Marker>
-            );
-          })
-        : [];
+                  )) as NativeClusterPage;
+                  return page.features.map((member) => member.featureId);
+                },
+                current,
+              ),
+            expand: async () => {
+              try {
+                if (!current()) throw new Error('Cluster is obsolete');
+                const zoom = (await queries.request(
+                  'clusterExpansion',
+                  clusterHandles.request(handle, styleRequest.revision),
+                  styleRequest.revision,
+                )) as number;
+                if (!current() || !nativeRef.current)
+                  throw new Error('Cluster is obsolete');
+                Commands.animateCamera(
+                  nativeRef.current,
+                  coordinate.latitude,
+                  coordinate.longitude,
+                  zoom,
+                  0,
+                  0,
+                  300,
+                );
+              } catch (error) {
+                props.onError?.({
+                  code: 'marker-cluster',
+                  message:
+                    error instanceof Error
+                      ? error.message
+                      : 'Cluster expansion failed',
+                  fatal: false,
+                });
+                throw error;
+              }
+            },
+          };
+          return (
+            <Marker
+              key={feature.id}
+              id={feature.id}
+              coordinate={coordinate}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <ClusterComponent {...clusterProps} />
+            </Marker>
+          );
+        })
+      : [];
     const [enqueueCamera] = useState(createCameraCommandQueue);
     const controlledSignature = JSON.stringify(
       props.camera ?? props.region ?? null,

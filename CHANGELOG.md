@@ -33,6 +33,9 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Toggling marker clustering or replacing groups no longer renders an old native
+  layout against new marker content while the React source revision catches up.
+
 - Native scene graph and literal-style preflight rejects malformed layer updates
   before replacing working resources. Both hosts construct SDK source/layer
   objects before mutation; strict color/gradient checks prevent iOS newline-color
