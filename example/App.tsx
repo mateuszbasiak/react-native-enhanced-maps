@@ -21,6 +21,7 @@ import NativeSceneVerification from './verification/NativeSceneVerification';
 import ShapePickingVerification from './verification/ShapePickingVerification';
 import GradientVerification from './verification/GradientVerification';
 import FitVerification from './verification/FitVerification';
+import CalloutVerification from './verification/CalloutVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
 import ShaderLifecycleVerification from './gpu/ShaderLifecycleVerification';
@@ -38,6 +39,7 @@ type DebugGlobal = typeof globalThis & {
   > & { scenarios: typeof scenarios };
 };
 const controls: readonly [Scenario, string][] = [
+  ['callouts', 'Marker callouts'],
   ['fit', 'Dateline fits'],
   ['settings', 'settings'],
   ['runtime', 'verification'],
@@ -121,7 +123,9 @@ export default function App() {
         <Button title="Examples" onPress={() => setPickerOpen(true)} />
       </View>
       <View key={selection.generation} style={{ flex: 1 }}>
-        {id === 'native-scene' && __DEV__ ? (
+        {id === 'callouts' && __DEV__ ? (
+          <CalloutVerification />
+        ) : id === 'native-scene' && __DEV__ ? (
           <NativeSceneVerification />
         ) : id === 'fit' && __DEV__ ? (
           <FitVerification />

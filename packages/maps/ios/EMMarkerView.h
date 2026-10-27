@@ -7,6 +7,7 @@
 - (void)configureDrag:(BOOL)enabled revision:(double)revision coordinate:(CLLocationCoordinate2D)coordinate changed:(BOOL)changed;
 - (void)cancelMarkerDrag;
 @property(nonatomic) double markerZIndex;
+@property(nonatomic) BOOL callout;
 @property(nonatomic) NSUInteger mountSequence;
 @property(nonatomic) double anchorX;
 @property(nonatomic) double anchorY;
@@ -19,5 +20,6 @@
 @interface EMMarkerView : RCTViewComponentView
 @property(nonatomic,readonly) EMMarkerAnnotation *annotation;
 @property(nonatomic,readonly) NSString *markerIdentifier;
+@property(nonatomic,readonly) BOOL callout;
 - (void)attachWithSequence:(NSUInteger)sequence;
 @end

@@ -1,2 +1,5 @@
 import { createContext } from 'react';
-export const MapContext = createContext(false);
+import type { createCalloutSelection } from './calloutSelection';
+export const MapContext = createContext<ReturnType<
+  typeof createCalloutSelection
+> | null>(null);

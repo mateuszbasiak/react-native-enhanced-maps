@@ -1,7 +1,9 @@
 # React Native Enhanced Maps
 
 Private package-owned MapLibre Native integration. Not ready for production.
-Exports `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`.
+Exports `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon` and `Circle`.
+Nest `Callout` inside `Marker` for interactive content, or use marker title/description.
+Refs expose `showCallout()` and `hideCallout()`. See [callouts](../../docs/marker-callouts.md).
 
 ```tsx
 import { MapView, Marker } from 'react-native-maplibre-maps';

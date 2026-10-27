@@ -424,7 +424,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private fun synchronizeOrder() {
     val style = map?.style ?: return
     if (!orderDirty && style === orderStyle) return
-    val ordered = markers.sortedWith(compareBy<EnhancedMarkerView> { it.markerZIndex }.thenBy { it.mountOrder })
+    val ordered = markers.sortedWith(Comparator { a,b -> MarkerOrder.compare(a.callout,a.markerZIndex,a.mountOrder,b.callout,b.markerZIndex,b.mountOrder) })
     if (ordered.any { textures[it]?.orderingStyle() !== style }) return
     ordered.forEachIndexed { rank, marker -> marker.translationZ = (rank + 1).toFloat(); bringChildToFront(marker) }
     var previous: String? = null

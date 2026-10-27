@@ -7,6 +7,10 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- React marker callouts with default text or interactive custom content, show/hide
+  refs, map-local selection/press events, native attachment and lifecycle cleanup
+  on iOS and Android. See [the contract](docs/marker-callouts.md).
+
 - Foreground native or app-owned user location, gesture-interruptible camera
   following, mounted-map PNG/JPEG snapshots and native draggable markers. See
   [contracts and limits](docs/location-snapshots-dragging.md); permission prompts

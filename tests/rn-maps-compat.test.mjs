@@ -145,9 +145,16 @@ test('provider-specific settings and unsupported marker features fail explicitly
     () => rejectUnsupportedProps({ provider: 'google' }, 'MapView'),
     /provider/,
   );
-  assert.throws(
-    () => rejectUnsupportedProps({ title: 'Callout' }, 'Marker'),
-    /title/,
+  assert.doesNotThrow(() =>
+    rejectUnsupportedProps(
+      {
+        title: 'Callout',
+        description: 'Boat',
+        calloutAnchor: { x: 0.5, y: 0 },
+        calloutOffset: { x: 0, y: 0 },
+      },
+      'Marker',
+    ),
   );
   assert.doesNotThrow(() =>
     rejectUnsupportedProps({ initialRegion: {} }, 'MapView'),

@@ -1,5 +1,6 @@
 #import "EMMarkerView.h"
 #include <cmath>
+#include "MarkerOrder.h"
 #import <react/renderer/components/EnhancedMapsSpec/ComponentDescriptors.h>
 #import <react/renderer/components/EnhancedMapsSpec/Props.h>
 #import <react/renderer/components/EnhancedMapsSpec/EventEmitters.h>
@@ -109,8 +110,7 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
   NSMutableArray<EMMarkerAnnotation *> *markers=[NSMutableArray new];
   for (UIView *v in parent.subviews) if ([v isKindOfClass:EMMarkerAnnotation.class]) [markers addObject:(EMMarkerAnnotation *)v];
   [markers sortUsingComparator:^NSComparisonResult(EMMarkerAnnotation *a,EMMarkerAnnotation *b) {
-    if(a.markerZIndex!=b.markerZIndex) return a.markerZIndex<b.markerZIndex?NSOrderedAscending:NSOrderedDescending;
-    return a.mountSequence==b.mountSequence?NSOrderedSame:(a.mountSequence<b.mountSequence?NSOrderedAscending:NSOrderedDescending);
+    return (NSComparisonResult)enhancedmaps::compareMarkerOrder(a.callout,a.markerZIndex,a.mountSequence,b.callout,b.markerZIndex,b.mountSequence);
   }];
   NSUInteger rank=0; for(EMMarkerAnnotation *m in markers) { m.layer.zPosition=rank++; [parent bringSubviewToFront:m]; }
 }
@@ -133,6 +133,7 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
 }
 - (EMMarkerAnnotation *)annotation { return _annotation; }
 - (NSString *)markerIdentifier { const auto &p=*std::static_pointer_cast<const EnhancedMarkerViewProps>(_props);return @(p.markerID.c_str()); }
+- (BOOL)callout { return _annotation.callout; }
 - (UIView *)hitTest:(CGPoint)p withEvent:(UIEvent *)e { UIView *hit=[super hitTest:p withEvent:e]; return hit==self?nil:hit; }
 - (void)attachWithSequence:(NSUInteger)sequence { _annotation.mountSequence=sequence; [_annotation sortSiblings]; }
 - (void)mountChildComponentView:(UIView<RCTComponentViewProtocol> *)child index:(NSInteger)index { [_children insertObject:child atIndex:index]; [_annotation insertSubview:child atIndex:index]; [_annotation setMarkerContent:_children.firstObject]; [self updateAnnotationLayout]; }
@@ -152,6 +153,7 @@ static void *EMMarkerContentBoundsContext = &EMMarkerContentBoundsContext;
   const auto &old=*previous;
   [_annotation configureDrag:p.draggable revision:p.dragRevision coordinate:CLLocationCoordinate2DMake(p.latitude,p.longitude) changed:old.latitude!=p.latitude || old.longitude!=p.longitude];
   _annotation.markerZIndex=p.markerZIndex;
+  _annotation.callout=p.callout;
   [self updateAnnotationLayout]; [_annotation sortSiblings];
 }
 @end

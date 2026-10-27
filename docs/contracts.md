@@ -1,6 +1,6 @@
 # Current contract references
 
-The public component API is `MapView`, `Marker`, `Polyline`, `Polygon` and `Circle`.
+The public component API is `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon` and `Circle`.
 Experimental `ShaderLayer` is a separate `/shaders` entry point. MapLibre Native
 is the only engine. Public source/layer descriptors and source-oriented cluster
 queries have been retired; their contracts remain internal implementation records.
@@ -10,14 +10,17 @@ Current contracts and acceptance limits:
 - [Camera provenance](camera-origins.md), [projection and fitting](map-geometry.md),
   [map presses](map-presses.md) and [gestures](gestures.md).
 - [Shapes](shapes.md), [marker synchronization](marker-coordinate-sync.md) and
-  [marker input](marker-gestures.md).
+  [marker input](marker-gestures.md) and [callouts](marker-callouts.md).
 - [Component clustering](clustering.md) and
   [current package API](../packages/maps/README.md).
 - [ShaderLayer](shader-layer.md), [capabilities](capabilities.md),
   [scene budgets](scene-budgets.md) and [internal source revisions](source-revisions.md).
 
 Controlled camera props, animation completion promises, user location, snapshots,
-image/drag/callout marker APIs and broad RN Maps parity are not current exports.
+image pins, dragging and React callouts are implemented. See the
+[RN Maps migration guide](rn-maps-migration.md) and
+[location/snapshot/drag contract](location-snapshots-dragging.md) for limits.
+Broad RN Maps parity remains incomplete.
 See the [checklist](../FEATURE_CHECKLIST.md) for unresolved contracts and gates.
 
 The following record documents retired provider and TypeGPU experiments; it is
