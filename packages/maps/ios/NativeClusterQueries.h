@@ -18,7 +18,7 @@ static NSDictionary *EMClusterQuery(MLNMapView *map,NSDictionary *request,uint64
   MLNSource *nativeSource=[map.style sourceWithIdentifier:sourceID];
   EMClusterQueryRequire([nativeSource isKindOfClass:MLNShapeSource.class],@"Cluster source is unavailable");
   MLNShapeSource *source=(MLNShapeSource *)nativeSource;
-  NSUInteger clusterID=integer(@"clusterId",0,UINT32_MAX),count=integer(@"pointCount",2,10000),limit=integer(@"limit",1,100),offset=integer(@"offset",0,10000);
+  NSUInteger clusterID=integer(@"clusterId",0,UINT32_MAX),count=integer(@"pointCount",2,9007199254740991.),limit=integer(@"limit",1,100),offset=integer(@"offset",0,9007199254740991.);
   MLNPointFeatureCluster *cluster=[MLNPointFeatureCluster new];
   cluster.coordinate=CLLocationCoordinate2DMake(0,0);
   cluster.attributes=@{@"cluster":@YES,@"cluster_id":@(clusterID),@"point_count":@(count)};
@@ -30,7 +30,7 @@ static NSDictionary *EMClusterQuery(MLNMapView *map,NSDictionary *request,uint64
   }
   BOOL children=[kind isEqual:@"clusterChildren"];
   NSArray<id<MLNFeature>> *all=children?[source childrenOfCluster:cluster]:[source leavesOfCluster:cluster offset:offset limit:limit];
-  EMClusterQueryRequire(all!=nil && all.count<=10000,@"Invalid cluster child count");
+  EMClusterQueryRequire(all!=nil,@"Invalid cluster child count");
   NSUInteger start=children?MIN(offset,all.count):0,length=children?MIN(limit,all.count-start):all.count;
   EMClusterQueryRequire(length<=limit,@"Cluster page limit exceeded");
   NSMutableArray *features=[NSMutableArray new];

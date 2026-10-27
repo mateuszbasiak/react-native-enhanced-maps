@@ -60,7 +60,7 @@ static NSUInteger EMValidateGeoJSON(id value,BOOL generatedShape) {
   NSDictionary *data=value;
   id rawFeatures=data[@"features"];
   NSUInteger count=EMGeoJSONArray(rawFeatures,@"Expected GeoJSON features array");
-  EMGeoJSONRequire(count<=(generatedShape?1:10000),@"GeoJSON feature limit exceeded");
+  EMGeoJSONRequire(!generatedShape || count<=1,@"GeoJSON feature limit exceeded");
   NSMutableSet<NSString *> *ids=[NSMutableSet new];
   NSUInteger positions=0;
   for(id raw in (NSArray *)rawFeatures) {

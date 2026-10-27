@@ -46,8 +46,8 @@ export function parseClusterQueryResult(
   if (
     !sourceID(value.sourceId) ||
     !integer(value.indexRevision, 1, Number.MAX_SAFE_INTEGER) ||
-    !integer(value.total, 0, 10000) ||
-    !integer(value.offset, 0, 10000) ||
+    !integer(value.total, 0, Number.MAX_SAFE_INTEGER) ||
+    !integer(value.offset, 0, Number.MAX_SAFE_INTEGER) ||
     !Array.isArray(value.features) ||
     value.features.length > 100 ||
     value.features.length > Math.max(0, value.total - value.offset)
@@ -110,7 +110,7 @@ export function createClusterHandles() {
       properties.cluster !== true ||
       !sourceID(sourceId) ||
       !integer(properties.cluster_id, 0, 4294967295) ||
-      !integer(properties.point_count, 2, 10000) ||
+      !integer(properties.point_count, 2, Number.MAX_SAFE_INTEGER) ||
       featureId !== `cluster:${properties.cluster_id}` ||
       !integer(indexRevision, 1, Number.MAX_SAFE_INTEGER) ||
       !integer(styleRevision, 0, Number.MAX_SAFE_INTEGER)
@@ -150,7 +150,10 @@ export function createClusterHandles() {
         throw new Error('Cluster handle is foreign or obsolete');
       const limit = page.limit === undefined ? 100 : page.limit,
         offset = page.offset === undefined ? 0 : page.offset;
-      if (!integer(limit, 1, 100) || !integer(offset, 0, 10000))
+      if (
+        !integer(limit, 1, 100) ||
+        !integer(offset, 0, Number.MAX_SAFE_INTEGER)
+      )
         throw new RangeError('Invalid cluster page options');
       return {
         sourceId: entry.sourceId,

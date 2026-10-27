@@ -57,16 +57,6 @@ test('marker scene rejects duplicate IDs, invalid opt-in and invalid geographic 
     { id: 'em-cluster:1' },
   ])
     assert.throws(() => collectMarkers(marker('a', props), Marker));
-  assert.throws(
-    () =>
-      collectMarkers(
-        Array.from({ length: 10001 }, (_, i) =>
-          marker(String(i), { cluster: true }),
-        ),
-        Marker,
-      ),
-    /limit/,
-  );
 });
 
 test('native marker layouts validate bounds, cluster counts, duplicate IDs and source generation', async () => {
@@ -471,4 +461,83 @@ test('cluster-prefixed public marker IDs survive scene compilation, layout and m
       1,
     ),
   );
+});
+
+test('markers above 10k compile, deliver layouts and resolve all members', async () => {
+  const { collectMarkers, parseMarkerLayout, resolveClusterMembers } =
+    await load();
+  const count = 10001;
+  const content = collectMarkers(
+    Array.from({ length: count }, (_, i) =>
+      marker(String(i), { cluster: true }),
+    ),
+    Marker,
+  );
+  assert.equal(content.markers.size, count);
+  const url = new URL(
+    '../packages/maps/lib/maplibreContent.js',
+    import.meta.url,
+  );
+  const code = readFileSync(url, 'utf8')
+    .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
+    .replace(
+      /from '(\.\/[^']+)'/g,
+      (_, path) => `from '${new URL(path + '.js', url).href}'`,
+    );
+  const { compileScene, InternalSource, InternalLayer } = await import(
+    `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+  );
+  const scene = compileScene(
+    React.createElement(
+      InternalSource,
+      {
+        id: 'em-marker-clusters',
+        revision: 1,
+        data: content.data,
+        cluster: true,
+      },
+      React.createElement(InternalLayer, { id: 'dots', type: 'circle' }),
+    ),
+  );
+  assert.equal(JSON.parse(scene.json).sources[0].data.features.length, count);
+  const features = [...content.markers.keys()].map((id) => ({
+    id,
+    latitude: 54,
+    longitude: 18,
+  }));
+  assert.equal(
+    parseMarkerLayout(
+      JSON.stringify({ sourceRevision: 1, indexRevision: 1, features }),
+      1,
+    ).features.length,
+    count,
+  );
+  assert.equal(
+    parseMarkerLayout(
+      JSON.stringify({
+        sourceRevision: 1,
+        indexRevision: 1,
+        features: [
+          {
+            id: 'em-cluster:1',
+            latitude: 54,
+            longitude: 18,
+            clusterId: 1,
+            count,
+          },
+        ],
+      }),
+      1,
+    ).features[0].count,
+    count,
+  );
+  const ids = [...content.markers.keys()];
+  const members = await resolveClusterMembers(
+    count,
+    content.markers,
+    async (offset) => ids.slice(offset, offset + 100),
+    () => true,
+  );
+  assert.equal(members.length, count);
+  assert.equal(members.at(-1).id, '10000');
 });

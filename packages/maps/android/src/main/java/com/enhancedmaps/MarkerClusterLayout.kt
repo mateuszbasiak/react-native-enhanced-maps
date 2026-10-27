@@ -52,7 +52,6 @@ internal object MarkerClusterLayout {
         val longitude=((point.longitude()+180)%360+360)%360-180
         val entry=Entry(sourceId,id,point.latitude(),longitude,clusterId,if(cluster)feature.getNumberProperty("point_count").toLong() else null)
         entries[id]=entry // Deduplicate tile boundaries and wrapped world copies.
-        require(entries.size<=10000) { "Marker cluster layout limit exceeded" }
       }
     }
     if(sourceRevision==null) return null

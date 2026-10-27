@@ -115,7 +115,7 @@ characters. Custom cluster components receive `clusterGroup`, undefined for the
 default group. Each group uses one source/layer within shared scene limits of
 64 sources and 128 layers. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
-cluster operations. The current participating-marker input bound is 10000. Native marker dragging is supported. See
+cluster operations. There is no fixed participating-marker count cap; scene byte and geometry budgets still apply. Native marker dragging is supported. See
 [location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
 
 Set `draggable` to enable native long-press dragging. `onDragStart`, `onDrag`,

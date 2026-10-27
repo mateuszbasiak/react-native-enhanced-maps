@@ -125,14 +125,8 @@ function validateData(data: GeoJSONData): number {
     throw new Error('Expected GeoJSON FeatureCollection');
   const cached = validatedData.get(data);
   if (cached !== undefined) return cached;
-  if (
-    data.type !== 'FeatureCollection' ||
-    !Array.isArray(data.features) ||
-    data.features.length > 10000
-  )
-    throw new Error(
-      'Expected GeoJSON FeatureCollection with at most 10000 features',
-    );
+  if (data.type !== 'FeatureCollection' || !Array.isArray(data.features))
+    throw new Error('Expected GeoJSON FeatureCollection');
   let positions = 0;
   const position = (p: GeoJSONPosition) => {
     if (

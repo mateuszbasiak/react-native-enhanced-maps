@@ -5,7 +5,7 @@ export interface ClusterOptions {
   readonly radius?: number;
   /** Last integer zoom with clustering; 0–17. Default 14. */
   readonly maxZoom?: number;
-  /** Minimum original points per cluster; 2–10000. Default 2. */
+  /** Minimum original points per cluster; 2–2147483647 (native SDK integer range). Default 2. */
   readonly minPoints?: number;
 }
 export function normalizeClusterOptions(
@@ -35,7 +35,7 @@ export function normalizeClusterOptions(
   for (const [key, min, max] of [
     ['radius', 1, 512],
     ['maxZoom', 0, 17],
-    ['minPoints', 2, 10000],
+    ['minPoints', 2, 2147483647],
   ] as const) {
     const number = result[key];
     if (

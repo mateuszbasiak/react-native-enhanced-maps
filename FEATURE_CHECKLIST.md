@@ -148,7 +148,7 @@ Deferred physical-device checks are owned by the maintainer, below.
 These checks do not block feature completion or feature PR readiness. The maintainer
 will perform them later and make any resulting tweaks. They are not recorded as passes.
 
-- [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate 100k separately: the current clustered-marker/source limit is 10k.
+- [ ] **CLUSTER-08, SRC-08** — Deterministic release-device 1k/10k benchmarks, update latency and cross-platform semantics. Evaluate larger counts separately: the fixed clustered-marker count cap is removed, while scene byte and geometry budgets remain.
 - [ ] **GPU-15** — Physical-device Release frame time, alignment, memory, dependency-size and build-cost budgets.
 - [ ] **PERF-02–05, PERF-09** — Choose physical reference devices and numeric budgets; compare equivalent native-only/pinned RN Maps scenarios. Measure frame-time percentiles, dropped frames, UI responsiveness and busy-JS behavior with repeatable artifacts.
 - [ ] **GATE-04** — Physical-device Release performance, stability, accessibility and size budgets pass.

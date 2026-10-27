@@ -49,7 +49,7 @@ cluster together; distance and zoom still determine membership. Names are nonbla
 strings of at most 512 characters. Different groups can overlap visually.
 
 Each active group consumes one source and one layer from the map's shared
-64-source/128-layer budget. The total participating-marker input limit is 10000.
+64-source/128-layer budget. There is no fixed participating-marker count cap. Scene byte and aggregate geometry budgets still apply; membership queries retain 100-member pages.
 Clustered coordinates are within ±85° latitude and ±180° longitude. Input arrays,
 coordinates and metadata should be immutable. Replace references for updates.
 
@@ -103,5 +103,4 @@ without explicit generated-cluster metadata. Both native Debug builds pass.
 
 Output/index-memory bounds, background cancellation, overlap, zoom-boundary and
 antimeridian fixtures remain under CLUSTER-06/07. Physical-device benchmarks and
-resulting tweaks are maintainer-owned follow-up. The 10000-marker limit does not
-establish 100000-marker support.
+resulting tweaks are maintainer-owned follow-up. Removing the marker-count cap does not establish performance at larger counts.

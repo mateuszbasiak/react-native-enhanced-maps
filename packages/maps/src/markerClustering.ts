@@ -75,8 +75,6 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
             throw new RangeError(
               'Clustered markers require latitude within ±85 degrees',
             );
-          if (markers.size >= 10000)
-            throw new RangeError('Clustered marker limit exceeded');
           markers.set(p.id, normalized);
           const feature: GeoJSONData['features'][number] = {
             type: 'Feature',
@@ -156,8 +154,7 @@ export function parseMarkerLayout(
       value.sourceRevision !== revision ||
       !Number.isSafeInteger(value.indexRevision) ||
       value.indexRevision < 1 ||
-      !Array.isArray(value.features) ||
-      value.features.length > 10000
+      !Array.isArray(value.features)
     )
       return;
     const ids = new Set<string>();
@@ -190,7 +187,6 @@ export function parseMarkerLayout(
           feature.clusterId > 4294967295 ||
           !Number.isSafeInteger(feature.count) ||
           feature.count! < 2 ||
-          feature.count! > 10000 ||
           feature.id !==
             `${clusterMarkerPrefix}${suffix ? suffix.slice(1) + ':' : ''}${feature.clusterId}`
         )
