@@ -36,6 +36,10 @@ changes, not accepted production support or closed release gates.
 - Native GeoJSON preflight rejects malformed geometry and coerced numeric strings
   before replacing working scenes on either platform. Private generated-shape
   transport preserves dateline/world-copy geometry with separate bounded checks.
+- Clustered markers preserve public Unicode, generated and `cluster:`-prefixed
+  identifiers through private source compilation, native membership and layout.
+  Private feature IDs follow the public 512-code-unit marker bound while source
+  and layer names keep their separate SDK grammar.
 
 - Android map rendering and marker frame work pause when detached or backgrounded;
   host resume cannot restart a detached or disposed map. Shared SDK file-source

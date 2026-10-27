@@ -32,8 +32,6 @@ static NSDictionary *EMClusterOptions(NSDictionary *entry) {
   NSArray *features=entry[@"data"][@"features"];
   if(features.count>10000)@throw [NSException exceptionWithName:@"Cluster" reason:@"Cluster source point limit exceeded" userInfo:nil];
   for(NSDictionary *feature in features) {
-    if([feature[@"id"] isKindOfClass:NSString.class] && [feature[@"id"] hasPrefix:@"cluster:"])
-      @throw [NSException exceptionWithName:@"Cluster" reason:@"Reserved cluster input ID" userInfo:nil];
     if(![feature[@"geometry"][@"type"] isEqual:@"Point"])
       @throw [NSException exceptionWithName:@"Cluster" reason:@"Clustered sources require Point features" userInfo:nil];
     id properties=feature[@"properties"];

@@ -70,8 +70,11 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 Current implementation compiles opt-in `Marker.cluster` children into a private
 MapLibre index, renders default/custom React cluster children, and exposes lazy
-membership and expansion through cluster component props. Source query APIs and
-their old fixtures describe internal/historical behavior, not the current public API.
+membership and expansion through cluster component props. Public marker IDs retain
+Unicode, generated paths and `cluster:` prefixes through membership and layout;
+both simulators have boundary-ID membership and prefix-marker selection evidence.
+Source query APIs and their old fixtures describe internal/historical behavior,
+not the current public API.
 [Contract](docs/clustering.md), [implementation](packages/maps/src/markerClustering.ts),
 [regressions](tests/marker-clustering.test.mjs).
 

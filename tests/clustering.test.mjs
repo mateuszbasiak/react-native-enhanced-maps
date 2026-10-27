@@ -88,7 +88,7 @@ test('cluster input requires points without reserved generated-cluster propertie
   assert.doesNotThrow(() => validateClusterData(data(point, null)));
   const reservedID = data(point);
   reservedID.features[0].id = 'cluster:14';
-  assert.throws(() => validateClusterData(reservedID));
+  assert.doesNotThrow(() => validateClusterData(reservedID));
   for (const name of [
     'cluster',
     'cluster_id',

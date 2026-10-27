@@ -39,7 +39,6 @@ internal object NativeClustering {
       require(features.length()<=10000) { "Cluster source point limit exceeded" }
       for(i in 0 until features.length()) {
         val feature=features.getJSONObject(i)
-        require(!feature.getString("id").startsWith("cluster:")) { "Reserved cluster input ID" }
         require(feature.getJSONObject("geometry").getString("type")=="Point") { "Clustered sources require Point features" }
         val properties=feature.optJSONObject("properties")
         require(listOf("cluster","cluster_id","point_count","point_count_abbreviated",INDEX_PROPERTY).none { properties?.has(it)==true }) { "Reserved cluster input property" }
