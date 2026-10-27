@@ -24,6 +24,52 @@ or frame-time benchmark. iOS immediate cancellation and Android cancellation aft
 
 Generated snapshots are saved under `artifacts/verification/lifecycle-*-2026-10-23.json`.
 
+## Android host and window lifecycle (2026-10-27)
+
+The Android map now starts/resumes MapLibre only when both its React application
+host is resumed and its native window is attached. Detach pauses SDK rendering;
+a later host-resume event cannot restart a detached map. Attaching while the
+host is backgrounded stays paused. SDK start/stop is balanced separately: a
+transient detach retains its shared file-source activation until host pause or
+disposal, while reattachment resumes rendering without a duplicate activation.
+Disposal permanently closes this state.
+Marker frame scheduling, frame execution and cluster-layout publication use
+the same running state. Detach and backgrounding cancel snapshots, pause native
+location, cancel marker drags/gestures and remove marker frame callbacks;
+foreground host pause preserves delivery of the snapshot cancellation response.
+
+The production Java gate is exercised through native helper tests for both event
+orders, duplicate events, background attachment, detach/resume, disposal and
+100 independent two-map transition cycles. A mutation removing the attachment
+constraint fails that test. These are lifecycle-transition assertions, not
+measurements of MapLibre allocations or rendered frame counts. Package checks
+pass all 283 contracts, type checks, lint/format, Codegen and packed declarations;
+the Android Debug example builds and both production JavaScript bundles pass.
+
+The final gate passed all 100 strict remount/readiness/stale-ref/native-bounds
+cycles on EnhancedMapsVerification / Android 16 API 36 ARM64 Debug, started from
+the native UI without a JS debugger. The final viewport displayed the basemap
+without interaction, and one Home/foreground return preserved map rendering and
+the completed result. Local scoped logs and screenshots are under
+`artifacts/verification/android-host-lifecycle-final-2026-10-27.*`. Metro reported
+a Fast Refresh disconnect during this final run as well; the harness still
+completed. These are bounded correctness and final-viewport observations, not
+per-cycle visual assertions, hardware results or allocation measurements.
+
+An initial implementation that fully stopped the SDK on detach passed a retry
+of the 100-cycle readiness/query harness but left a blank basemap until a pan.
+A comparison APK using the unchanged main view implementation passed the same
+100-cycle harness and displayed the basemap without interaction. The final gate
+therefore separates pause/resume from start/stop rather than treating each window
+detach as a full SDK stop. This comparison does not establish which underlying
+SDK/network operation caused the blank viewport.
+
+The first emulator remount attempt timed out waiting for generation 9 after eight
+completed cycles; Metro also reported a connection abort during the run. No
+native process crash was observed, and background/foreground restored visible
+map rendering. This failed attempt is not a pass and its cause was not isolated.
+The broader lifecycle/failure/resource matrix remains open.
+
 ## Debugger limitation
 
 An Android run with the JS debugger attached crashed on the JS thread with a

@@ -7,6 +7,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.common.LifecycleState
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.UIManagerHelper
 import com.facebook.react.uimanager.TouchTargetHelper
@@ -90,14 +91,16 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var orderStyle: Style? = null
   private var disposed = false
   private var configured = false
-  private var resumed = false
+  private val lifecycle = MapLifecycleGate(reactContext.reactApplicationContext.lifecycleState==LifecycleState.RESUMED,
+    { onStart() }, { onResume(); userLocation.resume(); scheduleFrame() },
+    { onPause() }, { onStop() })
   private var framePending = false
   private var sdkLayoutPending = false
   private val clock = Choreographer.getInstance()
   private val frame = object : Choreographer.FrameCallback {
     override fun doFrame(time: Long) {
       framePending = false
-      if (disposed || !isAttachedToWindow || markers.isEmpty()) return
+      if (disposed || !lifecycle.isRunning || markers.isEmpty()) return
       updatePositions()
       textures.values.forEach { it.update() }
       synchronizeOrder()
@@ -197,7 +200,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     addOnDidFailLoadingMapListener { message -> error("style-load", message) }
   }
   private fun publishMarkerClusters() {
-    if(disposed || !isAttachedToWindow || readyStyleRevision!=styleRevision) return
+    if(disposed || !lifecycle.isRunning || readyStyleRevision!=styleRevision) return
     val nativeMap=map ?: return
     try {
       val markerExtent=markers.maxOfOrNull { marker ->
@@ -412,9 +415,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     ordered.forEach { marker -> previous = textures[marker]?.placeAbove(previous) }
     orderDirty = false; orderStyle = style
   }
-  private fun scheduleFrame() { if(!framePending && !disposed && isAttachedToWindow && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
-  override fun onAttachedToWindow() { super.onAttachedToWindow(); if(!resumed) onHostResume(); userLocation.resume(); scheduleFrame() }
-  override fun onDetachedFromWindow() { cancelSnapshot();userLocation.pause();cancelNativeGestures(); markerGestures.end(); clock.removeFrameCallback(frame); framePending = false; super.onDetachedFromWindow() }
+  private fun scheduleFrame() { if(!framePending && !disposed && lifecycle.isRunning && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
+  private fun pauseMapWork() { snapshotOperation?.cancel();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); lifecycle.setAttached(true) }
+  override fun onDetachedFromWindow() { cancelSnapshot();pauseMapWork();lifecycle.setAttached(false);super.onDetachedFromWindow() }
   override fun requestLayout() {
     super.requestLayout()
     // Fabric owns this view's frame and can omit the ordinary Android measure pass
@@ -661,8 +665,8 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       if(durationMs<=0) nativeMap.moveCamera(update,callback) else nativeMap.animateCamera(update,durationMs.toInt().coerceAtLeast(1),callback)
     } catch(error:Exception) { cameraOrigins.finishApplicationCommand(command); throw error }
   }
-  override fun onHostResume() { if(isAttachedToWindow)userLocation.resume(); if(!disposed && !resumed) { onStart(); onResume(); resumed=true } }
-  override fun onHostPause() { snapshotOperation?.cancel();userLocation.pause(); markers.forEach{it.cancelDrag()}; cancelNativeGestures(); markerGestures.end(); if(resumed) { onPause(); onStop(); resumed=false } }
+  override fun onHostResume() { lifecycle.setHostResumed(true) }
+  override fun onHostPause() { pauseMapWork();if(disposed)lifecycle.close() else lifecycle.setHostResumed(false) }
   override fun onHostDestroy() { dispose() }
   fun dispose() { if(disposed)return; cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
   private fun error(code:String,message:String) { emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message) }) }
