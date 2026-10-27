@@ -57,8 +57,7 @@ Group names must be nonblank strings of at most 512 characters; names compare
 exactly. Custom cluster components receive `clusterGroup` (undefined for the
 default group), count, coordinate, lazy `getMembers()` and `expand()`.
 Each active group uses one native source and one layer, sharing the map's existing
-64-source/128-layer limits with other content. The total clustered marker limit
-remains 10000. Distinct groups can overlap visually at the same coordinate.
+64-source/128-layer limits with other content. There is no fixed marker-count cap; scene byte and geometry budgets still apply. Distinct groups can overlap visually at the same coordinate.
 Changing a group rebuilds the indexes and invalidates previous cluster callbacks.
 Sources and style layers are private implementation details.
 

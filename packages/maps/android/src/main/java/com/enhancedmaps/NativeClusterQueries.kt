@@ -19,8 +19,8 @@ internal object NativeClusterQueries {
     require(sourceId in sources) { "Cluster source is unavailable" }
     val source=requireNotNull(map.style?.getSourceAs<GeoJsonSource>(sourceId)) { "Cluster source is unavailable" }
     val clusterId=integer("clusterId",0,4294967295L)
-    val count=integer("pointCount",2,10000)
-    val limit=integer("limit",1,100);val offset=integer("offset",0,10000)
+    val count=integer("pointCount",2,9007199254740991L)
+    val limit=integer("limit",1,100);val offset=integer("offset",0,9007199254740991L)
     val cluster=Feature.fromGeometry(Point.fromLngLat(0.0,0.0)).apply { addBooleanProperty("cluster",true);addNumberProperty("cluster_id",clusterId);addNumberProperty("point_count",count) }
     val kind=request.getString("kind")
     if(kind=="clusterExpansion") {
@@ -29,8 +29,7 @@ internal object NativeClusterQueries {
       return JSONObject().put("zoom",zoom)
     }
     val all=if(kind=="clusterChildren") source.getClusterChildren(cluster).features() ?: emptyList() else source.getClusterLeaves(cluster,limit,offset).features() ?: emptyList()
-    require(all.size<=10000) { "Cluster child limit exceeded" }
-    val page=if(kind=="clusterChildren")all.drop(offset.toInt()).take(limit.toInt()) else all
+    val page=if(kind=="clusterChildren")all.drop(offset.coerceAtMost(all.size.toLong()).toInt()).take(limit.toInt()) else all
     require(page.size<=limit) { "Cluster page limit exceeded" }
     val features=JSONArray()
     for(feature in page) {

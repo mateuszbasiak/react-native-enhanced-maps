@@ -33,7 +33,6 @@ static NSDictionary *EMMarkerClusterLayout(MLNMapView *map,NSArray<NSDictionary 
       }
       if(!identifier.length)return nil;
       entry[@"id"]=identifier;entries[identifier]=entry;
-      if(entries.count>10000)@throw [NSException exceptionWithName:@"MarkerClusterLayout" reason:@"Marker cluster layout limit exceeded" userInfo:nil];
     }
   }
   if(!sourceRevision)return nil;

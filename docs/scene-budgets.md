@@ -54,7 +54,7 @@ broader geographic acceptance.
 
 Both hosts validate source framing and geometry before SDK conversion and before
 removing the accepted scene. The native checks require a FeatureCollection with
-at most 10,000 Features, unique nonempty string IDs of at most 512 UTF-16 code
+unique nonempty string IDs of at most 512 UTF-16 code
 units, object-or-null properties and one of the six supported geometry kinds.
 Coordinates must be actual finite numbers in exactly two-axis arrays; numeric
 strings and booleans are rejected. Ordinary source coordinates stay within

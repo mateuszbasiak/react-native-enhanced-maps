@@ -28,9 +28,8 @@ static NSDictionary *EMClusterOptions(NSDictionary *entry) {
       @throw [NSException exceptionWithName:@"Cluster" reason:@"Invalid cluster number" userInfo:nil];
     return @(value);
   };
-  NSNumber *radius=integer(@"radius",1,512),*zoom=integer(@"maxZoom",0,17),*minimum=integer(@"minPoints",2,10000);
+  NSNumber *radius=integer(@"radius",1,512),*zoom=integer(@"maxZoom",0,17),*minimum=integer(@"minPoints",2,INT32_MAX);
   NSArray *features=entry[@"data"][@"features"];
-  if(features.count>10000)@throw [NSException exceptionWithName:@"Cluster" reason:@"Cluster source point limit exceeded" userInfo:nil];
   for(NSDictionary *feature in features) {
     if(![feature[@"geometry"][@"type"] isEqual:@"Point"])
       @throw [NSException exceptionWithName:@"Cluster" reason:@"Clustered sources require Point features" userInfo:nil];

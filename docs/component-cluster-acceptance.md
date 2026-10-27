@@ -44,8 +44,8 @@ overlapping clusters, stale in-flight native work, visible output/index-memory
 bounds, background cancellation and repeated stress remain separate work under
 CLUSTER-06/07. Physical-device Release latency/performance and device accessibility
 checks are deferred to the maintainer and do not block this feature's completion
-or PR readiness. No physical-device results are claimed. The 10000 bound is the
-current supported clustered-marker count; no 100000-marker claim is made.
+or PR readiness. No physical-device results are claimed. These recorded runtime checks cover up to 10000 clustered markers. The count cap
+has since been removed; no larger-count runtime or performance result is claimed.
 
 ## Cluster participation handover — 2026-10-27
 

@@ -73,7 +73,7 @@ public final class GeoJSONValidation {
     GeoJSONValidation validation=new GeoJSONValidation(reader,generatedShape);
     Object features=reader.get(data,"features");
     int count=validation.array(features,"Expected GeoJSON features array");
-    require(count<=(generatedShape?1:10000),"GeoJSON feature limit exceeded");
+    require(!generatedShape || count<=1,"GeoJSON feature limit exceeded");
     Set<String> ids=new HashSet<>();
     for(int i=0;i<count;i++) {
       Object feature=reader.at(features,i);

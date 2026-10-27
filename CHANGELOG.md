@@ -37,6 +37,10 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Removed the arbitrary 10,000 clustered-marker cap across collection, native
+  sources, visible layouts and membership queries. Existing scene byte/geometry
+  budgets and query page sizes remain in force.
+
 - Toggling marker clustering or replacing groups no longer renders an old native
   layout against new marker content while the React source revision catches up.
 

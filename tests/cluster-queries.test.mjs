@@ -42,7 +42,7 @@ test('cluster handles reject copies, foreign maps and stale styles; paging is bo
     { limit: 101 },
     { limit: 1.5 },
     { offset: -1 },
-    { offset: 10001 },
+    { offset: Number.MAX_SAFE_INTEGER + 1 },
     { offset: NaN },
   ])
     assert.throws(() => owner.request(handle, 0, page));
@@ -122,7 +122,7 @@ test('cluster pages validate and freeze data, and child clusters retain index ow
   assert.equal(parseClusterQueryResult('clusterExpansion', '{"zoom":15}'), 15);
   for (const invalid of [
     { ...page, indexRevision: 0 },
-    { ...page, total: 10001 },
+    { ...page, total: Number.MAX_SAFE_INTEGER + 1 },
     { ...page, features: Array(101).fill(page.features[0]) },
     { ...page, features: [{ ...page.features[0], latitude: NaN }] },
   ])
@@ -142,5 +142,36 @@ test('cluster pages validate and freeze data, and child clusters retain index ow
         ],
       }),
     ),
+  );
+});
+
+test('cluster counts and page offsets accept values beyond 10k', async () => {
+  const { createClusterHandles, parseClusterQueryResult } = await load();
+  const owner = createClusterHandles();
+  const handle = owner.capture(
+    'places',
+    'cluster:14',
+    { cluster: true, cluster_id: 14, point_count: 20001 },
+    1,
+    0,
+  );
+  assert.ok(handle);
+  assert.equal(owner.request(handle, 0, { offset: 20000 }).offset, 20000);
+  const page = {
+    sourceId: 'places',
+    indexRevision: 1,
+    total: 20001,
+    offset: 20000,
+    features: [
+      { featureId: 'last', latitude: 1, longitude: 1, properties: {} },
+    ],
+  };
+  assert.equal(
+    parseClusterQueryResult('clusterLeaves', JSON.stringify(page)).total,
+    20001,
+  );
+  assert.equal(
+    owner.request(handle, 0, { offset: Number.MAX_SAFE_INTEGER }).offset,
+    Number.MAX_SAFE_INTEGER,
   );
 });

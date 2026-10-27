@@ -34,9 +34,8 @@ internal object NativeClustering {
         require(value is Number && value.toDouble().isFinite() && value.toDouble()%1==0.0 && value.toDouble() in min.toDouble()..max.toDouble()) { "Invalid cluster $key" }
         return value.toInt()
       }
-      val radius=integer("radius",1,512);val zoom=integer("maxZoom",0,17);val minimum=integer("minPoints",2,10000)
+      val radius=integer("radius",1,512);val zoom=integer("maxZoom",0,17);val minimum=integer("minPoints",2,Int.MAX_VALUE)
       val features=raw.getJSONArray("features")
-      require(features.length()<=10000) { "Cluster source point limit exceeded" }
       for(i in 0 until features.length()) {
         val feature=features.getJSONObject(i)
         require(feature.getJSONObject("geometry").getString("type")=="Point") { "Clustered sources require Point features" }

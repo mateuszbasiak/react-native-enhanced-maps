@@ -227,14 +227,14 @@ export function nativeGeoJSONFixtures() {
     );
   for (const count of [10000, 10001])
     add(
-      'feature bound ' + count,
+      'feature count ' + count,
       {
         type: 'FeatureCollection',
         features: Array.from({ length: count }, (_, i) =>
           feature(point, 'f' + i),
         ),
       },
-      count === 10000 ? count : null,
+      count,
     );
   const generated = [
     React.createElement(Polyline, {

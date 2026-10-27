@@ -17,6 +17,7 @@ test('cluster options normalize defaults and reject unbounded or ambiguous input
     normalizeClusterOptions({ radius: 80, maxZoom: 0, minPoints: 3 }),
     { radius: 80, maxZoom: 0, minPoints: 3 },
   );
+  assert.equal(normalizeClusterOptions({ minPoints: 10001 }).minPoints, 10001);
   for (const input of [
     null,
     1,
@@ -28,7 +29,7 @@ test('cluster options normalize defaults and reject unbounded or ambiguous input
     { maxZoom: 18 },
     { maxZoom: NaN },
     { minPoints: 1 },
-    { minPoints: 10001 },
+    { minPoints: 2147483648 },
     { extra: true },
   ])
     assert.throws(() => normalizeClusterOptions(input));

@@ -67,8 +67,7 @@ explicit `cluster={false}` overrides it. Omitting both props keeps a marker
 independent. Group names must be nonblank strings of at
 most 512 characters. Custom cluster components receive the group's name, or
 undefined for the default group. Each group consumes one source and one layer
-within the map's shared 64-source/128-layer scene limits. The total clustered
-marker limit remains 10000. Different groups may overlap visually. Changing a
+within the map's shared 64-source/128-layer scene limits. There is no fixed clustered-marker count cap; scene byte and geometry budgets still apply. Different groups may overlap visually. Changing a
 group invalidates existing cluster operations.
 
 ```tsx
@@ -82,7 +81,7 @@ group invalidates existing cluster operations.
 </Marker>
 ```
 
-The current input limit is 10,000 clustered markers. Component acceptance covers 1k/10k membership and updates on both simulators.
+Clustered markers have no fixed count cap; scene byte and geometry budgets still apply. Existing simulator acceptance covers 1k/10k membership and updates; it does not establish performance at larger counts.
 Broader spatial parity remains open; physical-device performance checks are
 maintainer-owned deferred follow-up. Source-oriented query
 APIs in older documents describe internal or historical infrastructure.
