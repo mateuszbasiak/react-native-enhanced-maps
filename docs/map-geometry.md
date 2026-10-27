@@ -51,6 +51,9 @@ Default padding is zero. Padding must leave a positive native viewport.
 
 `fitElements` gathers accepted package GeoJSON source geometry and mounted marker
 anchors. It excludes rejected candidate source updates and basemap features.
+Accepted generated shapes may contain continuous longitudes beyond ±180°.
+The fitter normalizes those world copies before choosing the shortest arc;
+explicit fit coordinates and mounted marker anchors remain geographic.
 An empty collection rejects. Native traversal is bounded to 100000 positions and
 32 nesting levels. Serialized requests are limited to 64KiB of UTF-8; results
 retain the query limits above.
@@ -81,3 +84,21 @@ The existing count, padding, duration and 64KiB request-budget checks remain.
 This is JavaScript request validation only. It does not add native fit, projection,
 viewport, animation or lifecycle acceptance beyond the separately recorded
 checks. No simulator or native application build is required for this input fix.
+
+## Generated dateline fits — 2026-10-27
+
+Both native collectors previously rejected accepted generated shape longitudes
+beyond ±180°, causing `fitElements` to reject with `Invalid fit coordinate`.
+The source-geometry traversal now normalizes finite world-copy longitudes while
+explicit inputs retain their bounds. Java and C++ regression tests exercise
+positive/negative copies, multiple worlds, canonical boundaries and nonfinite
+rejections.
+
+The Debug **Dateline fits** scenario uses public Circle, geodesic Polyline and
+Polygon components and the public `fitElements` ref. iOS 26.1 (iPhone 17 Pro)
+and Android 16/API 36 ARM64 each pass all three fits with 40-point padding,
+projected sample points inside that padding and a camera centered on the dateline
+arc. An explicit longitude of 181° still rejects. Both Debug native builds pass.
+This covers the reproduced collector failure; the broader heading/pitch,
+resize and interruption matrix above remains open. Physical-device validation
+is maintainer-owned follow-up.

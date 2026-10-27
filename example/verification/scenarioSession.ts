@@ -1,4 +1,5 @@
 export const scenarios = [
+  'fit',
   'markers',
   'shapes',
   'settings',
@@ -37,6 +38,7 @@ type Options = {
 };
 const instrumented: readonly Scenario[] = [
   'native-scene',
+  'fit',
   'shader-lifecycle',
   'shapes',
   'settings',

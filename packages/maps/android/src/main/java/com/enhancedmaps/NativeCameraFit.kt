@@ -10,14 +10,15 @@ internal object NativeCameraFit {
   data class Target(val bounds:LatLngBounds,val corners:List<LatLng>,val edges:List<Double>,val padding:IntArray)
   fun camera(map:MapLibreMap, request:JSONObject, acceptedScene:String?, markers:List<EnhancedMarkerView>, density:Float,persistent:IntArray):Target {
     val points=mutableListOf<LatLng>()
-    fun add(latitude:Double,longitude:Double) {
-      require(latitude.isFinite() && longitude.isFinite() && kotlin.math.abs(latitude)<=90 && kotlin.math.abs(longitude)<=180) { "Invalid fit coordinate" }
+    fun add(latitude:Double,longitude:Double,acceptedGeometry:Boolean=false) {
+      require(latitude.isFinite() && kotlin.math.abs(latitude)<=90) { "Invalid fit coordinate" }
+      val normalized=FitLongitude.coordinate(longitude,acceptedGeometry)
       require(points.size<100000) { "Too many fit positions" }
-      points.add(LatLng(latitude,longitude))
+      points.add(LatLng(latitude,normalized))
     }
     fun positions(value:JSONArray,depth:Int) {
       require(depth<=32)
-      if(value.length()>=2 && value.opt(0) is Number && value.opt(1) is Number) add(value.getDouble(1),value.getDouble(0))
+      if(value.length()>=2 && value.opt(0) is Number && value.opt(1) is Number) add(value.getDouble(1),value.getDouble(0),true)
       else for(i in 0 until value.length()) positions(value.getJSONArray(i),depth+1)
     }
     fun geometry(value:JSONObject,depth:Int) {
