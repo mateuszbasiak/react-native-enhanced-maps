@@ -33,6 +33,11 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Native scene graph and literal-style preflight rejects malformed layer updates
+  before replacing working resources. Both hosts construct SDK source/layer
+  objects before mutation; strict color/gradient checks prevent iOS newline-color
+  coercion. Existing fitting and native feature hits survive rejected updates.
+
 - Native GeoJSON preflight rejects malformed geometry and coerced numeric strings
   before replacing working scenes on either platform. Private generated-shape
   transport preserves dateline/world-copy geometry with separate bounded checks.

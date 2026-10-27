@@ -18,6 +18,16 @@ import { compileScene } from '../../packages/maps/src/maplibreContent';
 const origin = { latitude: 54.37, longitude: 18.66 };
 const repaired = { latitude: 55.37, longitude: 20.66 };
 const cases = [
+  'unsupported-layer',
+  'invalid-style',
+  'invalid-color',
+  'invalid-gradient',
+  'duplicate-layer',
+  'missing-source',
+  'invalid-before',
+  'invalid-boolean',
+  'layer-budget',
+  'duplicate-source',
   'numeric-strings',
   'out-of-range',
   'extra-axis',
@@ -31,9 +41,20 @@ const cases = [
   'repaired',
   'dateline-circle',
   'dateline-geodesic',
+  'dateline-gradient',
 ] as const;
 type Case = (typeof cases)[number];
 const rejectionReasons: Partial<Record<Case, string>> = {
+  'unsupported-layer': 'Unsupported layer type',
+  'invalid-style': 'Invalid layer style number',
+  'invalid-color': 'Invalid layer color',
+  'invalid-gradient': 'Invalid line gradient',
+  'duplicate-layer': 'Duplicate scene layer ID',
+  'missing-source': 'Layer references missing source',
+  'invalid-before': 'Invalid layer insertion reference',
+  'invalid-boolean': 'Invalid layer boolean',
+  'layer-budget': 'Map scene resource limit exceeded',
+  'duplicate-source': 'Duplicate scene source ID',
   'numeric-strings': 'GeoJSON longitude must be a number',
   'out-of-range': 'GeoJSON position is outside geographic bounds',
   'extra-axis': 'GeoJSON position needs exactly two axes',
@@ -66,7 +87,7 @@ function scene(name?: Case) {
         onPress: () => {},
       }),
     ).json;
-  if (name === 'dateline-geodesic')
+  if (name === 'dateline-geodesic' || name === 'dateline-gradient')
     return compileScene(
       React.createElement(Polyline, {
         id: name,
@@ -77,6 +98,9 @@ function scene(name?: Case) {
         geodesic: true,
         strokeColor: '#e53935',
         strokeWidth: 26,
+        ...(name === 'dateline-gradient'
+          ? { strokeColors: ['#e53935', '#0000ff'] }
+          : {}),
         tappable: true,
         onPress: () => {},
       }),
@@ -147,19 +171,36 @@ function scene(name?: Case) {
       }),
     });
   }
-  return JSON.stringify({
-    sources,
-    layers: [
-      {
-        id: 'native-scene-circle',
-        source: 'native-scene-fixture',
-        type: 'circle',
-        visible: true,
-        interactive: true,
-        style: { circleColor: '#e53935', circleOpacity: 1, circleRadius: 26 },
-      },
-    ],
-  });
+  const layers: Record<string, unknown>[] = [
+    {
+      id: 'native-scene-circle',
+      source: 'native-scene-fixture',
+      type: name === 'unsupported-layer' ? 'unsupported' : 'circle',
+      visible: true,
+      interactive: true,
+      style: { circleColor: '#e53935', circleOpacity: 1, circleRadius: 26 },
+    },
+  ];
+  if (name === 'invalid-style') layers[0]!.style = { circleRadius: '26' };
+  if (name === 'invalid-color') layers[0]!.style = { circleColor: '#112233\n' };
+  if (name === 'invalid-gradient') {
+    layers[0]!.type = 'line';
+    layers[0]!.style = {
+      lineGradient: [
+        [0, '#112233\n'],
+        [1, '#445566'],
+      ],
+    };
+  }
+  if (name === 'duplicate-layer') layers.push({ ...layers[0] });
+  if (name === 'missing-source') layers[0]!.source = 'missing-source';
+  if (name === 'invalid-before') layers[0]!.beforeId = 'missing-layer';
+  if (name === 'invalid-boolean') layers[0]!.visible = 'false';
+  if (name === 'layer-budget')
+    for (let i = 1; i < 129; i++)
+      layers.push({ ...layers[0], id: `overflow-${i}` });
+  if (name === 'duplicate-source') sources.push({ ...sources[0]! });
+  return JSON.stringify({ sources, layers });
 }
 type Evidence = {
   ready: boolean;
@@ -181,7 +222,10 @@ type Evidence = {
   error: string;
 };
 type DebugGlobal = typeof globalThis & {
-  __enhancedMapsNativeScene?: { snapshot(): Evidence; run(): Promise<void> };
+  __enhancedMapsNativeScene?: {
+    snapshot(): Evidence;
+    run(names?: readonly Case[]): Promise<void>;
+  };
 };
 
 /** Deliberately bypasses the public compiler to exercise raw Fabric scene transport. */
@@ -212,8 +256,16 @@ export default function NativeSceneVerification() {
       Commands.queryMap(native.current, id, JSON.stringify(request));
     }),
   );
-  const run = useRef<() => Promise<void>>(async () => {});
-  run.current = async () => {
+  const run = useRef<(names?: readonly Case[]) => Promise<void>>(
+    async () => {},
+  );
+  run.current = async (names = cases) => {
+    if (
+      !names.length ||
+      names.length > cases.length ||
+      names.some((name) => !cases.includes(name))
+    )
+      throw new Error('Invalid native scene cases');
     if (running.current || evidence.current.status !== 'idle')
       throw new Error('Remount this fixture before another run');
     running.current = true;
@@ -241,11 +293,13 @@ export default function NativeSceneVerification() {
           frame.current.height > 0,
         15000,
       );
-      for (const name of cases) {
+      for (const name of names) {
         const before = evidence.current.rejectionCount;
         const reason = rejectionReasons[name];
         const generated =
-          name === 'dateline-circle' || name === 'dateline-geodesic';
+          name === 'dateline-circle' ||
+          name === 'dateline-geodesic' ||
+          name === 'dateline-gradient';
         evidence.current.phase = name;
         setSummary(`Checking ${name}`);
         setSceneJSON(scene(name));
@@ -358,13 +412,13 @@ export default function NativeSceneVerification() {
           sourceId: pressed.sourceId,
         });
         console.info(
-          `EnhancedMaps native scene completed ${evidence.current.checks.length}/${cases.length}`,
+          `EnhancedMaps native scene completed ${evidence.current.checks.length}/${names.length}`,
         );
       }
       if (!alive.current) throw new Error('Native scene run cancelled');
       evidence.current.phase = 'complete';
       evidence.current.status = 'passed';
-      setSummary(`Passed ${cases.length} native scene checks`);
+      setSummary(`Passed ${names.length} native scene checks`);
       console.info(
         'EnhancedMaps native scene result ' + JSON.stringify(evidence.current),
       );
@@ -383,7 +437,7 @@ export default function NativeSceneVerification() {
     const target = globalThis as DebugGlobal;
     const api = {
       snapshot: () => JSON.parse(JSON.stringify(evidence.current)) as Evidence,
-      run: () => run.current(),
+      run: (names?: readonly Case[]) => run.current(names),
     };
     target.__enhancedMapsNativeScene = api;
     return () => {
