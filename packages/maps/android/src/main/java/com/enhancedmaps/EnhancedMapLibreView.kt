@@ -68,11 +68,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var loadedURL: String? = null
   private var appliedScene: String? = null
   private var acceptedScene: String? = null
+  private var markerLayoutSources = emptyList<MarkerClusterLayout.Source>()
   private val sourceRevisions = SourceRevisionGate()
   private var styleGeneration = 0L
   private var sceneSources = listOf<String>()
   private var clusteredSources = setOf<String>()
-  private var lastMarkerLayout: String? = null
+  private var lastMarkerLayout: MarkerClusterLayout.Layout? = null
   private var clusterIndexRevision = 0L
   private var sceneLayers = listOf<String>()
   private val interactiveLayers = mutableSetOf<String>()
@@ -195,10 +196,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         val (w,h)=marker.getContentSize()
         maxOf(w*maxOf(marker.anchorX,1f-marker.anchorX)+kotlin.math.abs(marker.offsetX),h*maxOf(marker.anchorY,1f-marker.anchorY)+kotlin.math.abs(marker.offsetY))
       } ?: 0f
-      val layout=MarkerClusterLayout.read(nativeMap,acceptedScene,clusterIndexRevision,width,height,markerExtent,resources.displayMetrics.density) ?: return
+      val layout=MarkerClusterLayout.read(nativeMap,markerLayoutSources,clusterIndexRevision,width,height,markerExtent,resources.displayMetrics.density) ?: return
       if(layout==lastMarkerLayout) return
+      val json=layout.toJSON()
       lastMarkerLayout=layout
-      emit("topMarkerClusters",Arguments.createMap().apply { putString("layoutJSON",layout);putDouble("styleRevision",readyStyleRevision) })
+      emit("topMarkerClusters",Arguments.createMap().apply { putString("layoutJSON",json);putDouble("styleRevision",readyStyleRevision) })
     } catch(exception:Exception) { error("marker-cluster",exception.message ?: "Marker cluster layout failed") }
   }
   private fun emitMapPress(action: String, coordinate: LatLng) {
@@ -319,6 +321,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         SourceRevisionGate.Source(source.getString("id"), (rawRevision as? Number)?.toDouble(), parsedSources[it].identity)
       } }
       sourceRevisions.validate(revisions)
+      // Extract before mutating the style; commit only after the scene succeeds.
+      val nextMarkerLayoutSources=(0 until sources.length()).map { sources.getJSONObject(it) }
+        .filter { it.getString("id").let { id -> id=="em-marker-clusters" || id.startsWith("em-marker-clusters:") } }
+        .map { MarkerClusterLayout.Source(it.getString("id"),it.getLong("revision")) }
       val parsedLayers = (0 until layers.length()).map { layers.getJSONObject(it).also { layer -> require(!layer.has("clusterFilter") || layer.getString("clusterFilter") in listOf("clusters","points")) { "Invalid cluster filter" } } }
       val metricSources=(0 until sources.length()).map { sources.getJSONObject(it) }.filter { it.optBoolean("lineMetrics",false) }.map { it.getString("id") }.toSet()
       val gradients=parsedLayers.associate { definition ->
@@ -354,6 +360,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       }
       sourceRevisions.commit(revisions)
       clusteredSources=parsedSources.filter { it.options["cluster"]==true }.map { it.id }.toSet()
+      markerLayoutSources = nextMarkerLayoutSources
       appliedScene = json; acceptedScene = json; orderDirty = true
       return true
     } catch (exception: Exception) { error("layer-scene", exception.message ?: "Invalid scene"); return false }

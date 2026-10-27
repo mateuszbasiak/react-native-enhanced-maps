@@ -8,19 +8,33 @@ import org.maplibre.geojson.Point
 
 /** Private layout transport. Application marker data never enters this index. */
 internal object MarkerClusterLayout {
-  fun read(map:MapLibreMap, scene:String?, index:Long, width:Int, height:Int, markerExtent:Float, density:Float):String? {
-    if(scene==null || width<=0 || height<=0) return null
-    val sources=JSONObject(scene).getJSONArray("sources")
+  data class Source(val id:String, val revision:Long)
+
+  data class Entry(val sourceId:String, val id:String, val latitude:Double, val longitude:Double, val clusterId:Long?, val count:Long?)
+  data class Layout(val sourceRevision:Long, val indexRevision:Long, val entries:Map<String,Entry>) {
+    fun toJSON():String {
+      val features=entries.toSortedMap().values.map { entry ->
+        JSONObject().put("sourceId",entry.sourceId).put("id",entry.id).put("latitude",entry.latitude).put("longitude",entry.longitude).apply {
+          if(entry.clusterId!=null)put("clusterId",entry.clusterId).put("count",entry.count)
+        }
+      }
+      val result=JSONObject().put("sourceRevision",sourceRevision).put("indexRevision",indexRevision).put("features",JSONArray(features)).toString()
+      require(result.toByteArray(Charsets.UTF_8).size<=4*1024*1024) { "Marker cluster layout exceeds 4 MiB" }
+      return result
+    }
+  }
+
+  fun read(map:MapLibreMap, sources:List<Source>, index:Long, width:Int, height:Int, markerExtent:Float, density:Float):Layout? {
+    if(sources.isEmpty() || width<=0 || height<=0) return null
     var sourceRevision:Long?=null
-    val entries=sortedMapOf<String,JSONObject>()
-    for(i in 0 until sources.length()) {
-      val source=sources.getJSONObject(i)
-      val sourceId=source.getString("id")
+    val entries=mutableMapOf<String,Entry>()
+    for(source in sources) {
+      val sourceId=source.id
       if(sourceId!="em-marker-clusters" && !sourceId.startsWith("em-marker-clusters:")) continue
       val suffix=sourceId.removePrefix("em-marker-clusters")
       val layerId="em-marker-clusters-layout$suffix"
       if(map.style?.getLayer(layerId)==null) return null
-      val revision=source.getLong("revision")
+      val revision=source.revision
       if(sourceRevision!=null && sourceRevision!=revision) return null
       sourceRevision=revision
       // Query a bounded spatial region, with enough room for measured marker
@@ -36,15 +50,12 @@ internal object MarkerClusterLayout {
         val clusterId=if(cluster)feature.getNumberProperty("cluster_id").toLong() else null
         val id=if(cluster)"em-cluster:${if(suffix.isEmpty()) "" else suffix.drop(1)+":"}$clusterId" else feature.id() ?: return null
         val longitude=((point.longitude()+180)%360+360)%360-180
-        val entry=JSONObject().put("sourceId",sourceId).put("id",id).put("latitude",point.latitude()).put("longitude",longitude)
-        if(cluster)entry.put("clusterId",clusterId).put("count",feature.getNumberProperty("point_count"))
+        val entry=Entry(sourceId,id,point.latitude(),longitude,clusterId,if(cluster)feature.getNumberProperty("point_count").toLong() else null)
         entries[id]=entry // Deduplicate tile boundaries and wrapped world copies.
         require(entries.size<=10000) { "Marker cluster layout limit exceeded" }
       }
     }
     if(sourceRevision==null) return null
-    val result=JSONObject().put("sourceRevision",sourceRevision).put("indexRevision",index).put("features",JSONArray(entries.values.toList())).toString()
-    require(result.toByteArray(Charsets.UTF_8).size<=4*1024*1024) { "Marker cluster layout exceeds 4 MiB" }
-    return result
+    return Layout(sourceRevision,index,entries)
   }
 }

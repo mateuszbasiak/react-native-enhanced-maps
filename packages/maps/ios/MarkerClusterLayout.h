@@ -2,12 +2,11 @@
 #import <MapLibre/MapLibre.h>
 #import "NativeClustering.h"
 
-static NSString *EMMarkerClusterLayout(MLNMapView *map,NSString *scene,uint64_t index,CGFloat markerExtent) {
-  if(!scene || CGRectIsEmpty(map.bounds))return nil;
-  NSDictionary *decoded=[NSJSONSerialization JSONObjectWithData:[scene dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+static NSDictionary *EMMarkerClusterLayout(MLNMapView *map,NSArray<NSDictionary *> *sources,uint64_t index,CGFloat markerExtent) {
+  if(!sources.count || CGRectIsEmpty(map.bounds))return nil;
   NSNumber *sourceRevision=nil;
   NSMutableDictionary<NSString *,NSDictionary *> *entries=[NSMutableDictionary new];
-  for(NSDictionary *source in decoded[@"sources"]) {
+  for(NSDictionary *source in sources) {
     NSString *sourceID=source[@"id"];
     if(![sourceID isEqual:@"em-marker-clusters"] && ![sourceID hasPrefix:@"em-marker-clusters:"])continue;
     NSString *suffix=[sourceID substringFromIndex:[@"em-marker-clusters" length]];
@@ -38,9 +37,15 @@ static NSString *EMMarkerClusterLayout(MLNMapView *map,NSString *scene,uint64_t 
     }
   }
   if(!sourceRevision)return nil;
+  return @{@"sourceRevision":sourceRevision,@"indexRevision":@(index),@"features":entries};
+}
+
+// Sort and encode only after the structured layout differs from the last event.
+static NSString *EMMarkerClusterLayoutJSON(NSDictionary *layout) {
+  NSDictionary *entries=layout[@"features"];
   NSMutableArray *ordered=[NSMutableArray new];
   for(NSString *key in [entries.allKeys sortedArrayUsingSelector:@selector(compare:)])[ordered addObject:entries[key]];
-  NSData *json=[NSJSONSerialization dataWithJSONObject:@{@"sourceRevision":sourceRevision,@"indexRevision":@(index),@"features":ordered} options:NSJSONWritingSortedKeys error:nil];
+  NSData *json=[NSJSONSerialization dataWithJSONObject:@{@"sourceRevision":layout[@"sourceRevision"],@"indexRevision":layout[@"indexRevision"],@"features":ordered} options:NSJSONWritingSortedKeys error:nil];
   if(!json || json.length>4*1024*1024)@throw [NSException exceptionWithName:@"MarkerClusterLayout" reason:@"Marker cluster layout exceeds 4 MiB" userInfo:nil];
   return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 }

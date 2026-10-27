@@ -109,7 +109,8 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   uint64_t _clusterIndexRevision;
   NSSet<NSString *> *_clusteredSources;
   NSString *_acceptedSceneJSON;
-  NSString *_lastMarkerLayout;
+  NSArray<NSDictionary *> *_markerLayoutSources;
+  NSDictionary *_lastMarkerLayout;
   enhancedmaps::GestureEventGate _gestureEvents;
   enhancedmaps::CameraOperationOrigin _cameraOrigins;
   BOOL _fitPreflight;
@@ -239,10 +240,11 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
       CGSize size=view.bounds.size;
       markerExtent=MAX(markerExtent,MAX(size.width*MAX(view.anchorX,1-view.anchorX)+fabs(view.offsetX),size.height*MAX(view.anchorY,1-view.anchorY)+fabs(view.offsetY)));
     }
-    NSString *layout=EMMarkerClusterLayout(map,_acceptedSceneJSON,_clusterIndexRevision,markerExtent);
+    NSDictionary *layout=EMMarkerClusterLayout(map,_markerLayoutSources,_clusterIndexRevision,markerExtent);
     if(!layout || [layout isEqual:_lastMarkerLayout])return;
-    _lastMarkerLayout=[layout copy];
-    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMarkerClusters({std::string(layout.UTF8String),_readyStyleRevision});
+    NSString *json=EMMarkerClusterLayoutJSON(layout);
+    _lastMarkerLayout=layout;
+    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMarkerClusters({std::string(json.UTF8String),_readyStyleRevision});
   } @catch(NSException *exception) {
     std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"marker-cluster",std::string(exception.reason.UTF8String ?: "Marker cluster layout failed")});
   }
@@ -397,6 +399,17 @@ static UIColor *EMColor(id value) {
     NSMutableSet *clustered=[NSMutableSet new];
     for(NSDictionary *entry in scene[@"sources"])if(entry[@"cluster"])[clustered addObject:entry[@"id"]];
     _clusteredSources=[clustered copy];
+    // Retain only layout metadata; frame callbacks never decode the GeoJSON scene.
+    NSMutableArray<NSDictionary *> *markerLayoutSources=[NSMutableArray new];
+    for(NSDictionary *entry in scene[@"sources"]) {
+      NSString *identifier=entry[@"id"];
+      if([identifier isEqual:@"em-marker-clusters"] || [identifier hasPrefix:@"em-marker-clusters:"]) {
+        NSMutableDictionary *metadata=[@{@"id":identifier} mutableCopy];
+        if(entry[@"revision"])metadata[@"revision"]=entry[@"revision"];
+        [markerLayoutSources addObject:[metadata copy]];
+      }
+    }
+    _markerLayoutSources=[markerLayoutSources copy];
     _acceptedSceneJSON=[json copy];
     return YES;
   } @catch(NSException *exception) { [self emitSceneError:exception.reason?:@"Could not apply scene"];return NO; }
