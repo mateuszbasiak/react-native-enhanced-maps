@@ -80,6 +80,8 @@ export function FillLayer(_props: FillLayerProps): ReactNode {
   throw new Error('FillLayer must be inside MapView or GeoJSONSource');
 }
 export interface SourceDefinition {
+  /** Private generated-shape transport, including continuous world copies. */
+  readonly coordinateSpace?: 'unwrapped';
   readonly lineMetrics?: boolean;
   readonly id: string;
   readonly type: 'geojson';

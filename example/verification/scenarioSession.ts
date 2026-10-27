@@ -3,6 +3,7 @@ export const scenarios = [
   'shapes',
   'settings',
   'runtime',
+  'native-scene',
   'clusters',
   'lifecycle',
   'shape-picking',
@@ -35,6 +36,7 @@ type Options = {
   sleep: (ms: number) => Promise<void>;
 };
 const instrumented: readonly Scenario[] = [
+  'native-scene',
   'shader-lifecycle',
   'shapes',
   'settings',

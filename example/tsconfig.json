@@ -3,6 +3,10 @@
   "compilerOptions": {
     "types": ["react", "react-native"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../packages/maps/src/normalize-colors.d.ts"
+  ],
   "exclude": ["**/node_modules", "**/Pods"]
 }

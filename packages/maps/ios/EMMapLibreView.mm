@@ -3,6 +3,7 @@
 #import "MapUserLocation.h"
 #import "MapSnapshot.h"
 #import "SourceRevisionGate.h"
+#import "GeoJSONValidation.h"
 #import "NativeMapCapabilities.h"
 #import "CameraOrigin.h"
 #import "NativeCameraFit.h"
@@ -373,8 +374,18 @@ static UIColor *EMColor(id value) {
   NSMutableSet<NSString *> *metricSources=[NSMutableSet new];
   NSMutableDictionary<NSString *,NSExpression *> *gradients=[NSMutableDictionary new];
   @try {
+    NSUInteger remainingPositions=50000;
+    NSUInteger remainingShapePositions=10000;
     // Validate all source versions and parse geometry before removing the accepted scene.
     for(NSDictionary *entry in scene[@"sources"]) {
+      id coordinateSpace=entry[@"coordinateSpace"];
+      EMGeoJSONRequire(!coordinateSpace || [@"unwrapped" isEqual:coordinateSpace],@"Invalid source coordinate space");
+      BOOL generatedShape=[@"unwrapped" isEqual:coordinateSpace];
+      EMGeoJSONRequire(!generatedShape || !entry[@"cluster"],@"Generated shapes cannot use clustering");
+      NSUInteger positions=EMValidateGeoJSON(entry[@"data"],generatedShape);
+      EMGeoJSONRequire(positions<=remainingPositions,@"Scene GeoJSON position limit exceeded");
+      remainingPositions-=positions;
+      if(generatedShape) { EMGeoJSONRequire(positions<=remainingShapePositions,@"Scene shape position limit exceeded");remainingShapePositions-=positions; }
       id rawRevision=entry[@"revision"];
       if(rawRevision && (![rawRevision isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)rawRevision)==CFBooleanGetTypeID())) { [self emitSceneError:@"Source revision must be a number"];return NO; }
       NSData *data=[NSJSONSerialization dataWithJSONObject:entry[@"data"] options:NSJSONWritingSortedKeys error:&error];
@@ -383,6 +394,7 @@ static UIColor *EMColor(id value) {
       if(![identifier isKindOfClass:NSString.class]) { [self emitSceneError:@"Invalid source ID"];return NO; }
       NSDictionary *options=EMClusterOptions(entry);
       std::string identity((const char *)data.bytes,data.length);
+      if(generatedShape)identity+="\ncoordinateSpace:unwrapped";
       if([entry[@"lineMetrics"] boolValue]) { identity+="\nlineMetrics:true";[metricSources addObject:identifier]; }
       if(entry[@"cluster"]) {
         NSData *configuration=[NSJSONSerialization dataWithJSONObject:entry[@"cluster"] options:NSJSONWritingSortedKeys error:&error];
