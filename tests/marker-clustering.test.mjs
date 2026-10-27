@@ -346,3 +346,38 @@ test('generated marker identities respect array and fragment key scopes', async 
     2,
   );
 });
+
+test('draggable markers reject clustered participation but permit explicit opt-out', async () => {
+  const { collectMarkers } = await load();
+  assert.throws(
+    () =>
+      collectMarkers(
+        marker('boat', { draggable: true, cluster: true }),
+        Marker,
+      ),
+    /dragg|Dragg/,
+  );
+  assert.throws(
+    () =>
+      collectMarkers(
+        marker('boat', { draggable: true, clusterGroup: 'fleet' }),
+        Marker,
+      ),
+    /dragg|Dragg/,
+  );
+  assert.equal(
+    collectMarkers(
+      marker('boat', {
+        draggable: true,
+        clusterGroup: 'fleet',
+        cluster: false,
+      }),
+      Marker,
+    ).content.length,
+    1,
+  );
+  assert.equal(
+    collectMarkers(marker('boat', { draggable: true }), Marker).content.length,
+    1,
+  );
+});

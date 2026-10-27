@@ -324,3 +324,32 @@ void familiarRef;
     onPress={(event) => event.stopPropagation()}
   />
 </MapView>;
+
+map
+  .takeSnapshot({
+    width: 320,
+    height: 240,
+    format: 'jpg',
+    quality: 0.8,
+    result: 'base64',
+  })
+  .then((value) => value.length);
+map.resumeUserLocationFollow();
+<MapView
+  styleURL="https://example.com/style.json"
+  showsUserLocation
+  followsUserLocation
+  userLocation={{ latitude: 54, longitude: 18, accuracy: 6 }}
+  onUserLocationChange={(event) => event.nativeEvent.coordinate.heading}
+>
+  <Marker
+    coordinate={camera.center}
+    draggable
+    onDragStart={(event) => event.nativeEvent.coordinate}
+    onDrag={(event) => event.nativeEvent.id}
+    onDragEnd={(event) => event.nativeEvent.coordinate}
+    onDragCancel={(event) => event.nativeEvent.coordinate}
+  />
+</MapView>;
+// @ts-expect-error snapshot format is portable PNG/JPEG only
+map.takeSnapshot({ format: 'webp' });

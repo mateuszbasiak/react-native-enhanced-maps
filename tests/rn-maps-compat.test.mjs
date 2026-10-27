@@ -146,8 +146,8 @@ test('provider-specific settings and unsupported marker features fail explicitly
     /provider/,
   );
   assert.throws(
-    () => rejectUnsupportedProps({ draggable: true }, 'Marker'),
-    /draggable/,
+    () => rejectUnsupportedProps({ title: 'Callout' }, 'Marker'),
+    /title/,
   );
   assert.doesNotThrow(() =>
     rejectUnsupportedProps({ initialRegion: {} }, 'MapView'),

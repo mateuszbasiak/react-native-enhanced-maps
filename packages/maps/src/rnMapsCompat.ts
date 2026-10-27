@@ -162,19 +162,8 @@ export function rejectUnsupportedProps(
 ) {
   const names =
     component === 'MapView'
-      ? [
-          'provider',
-          'mapType',
-          'customMapStyle',
-          'googleMapId',
-          'showsUserLocation',
-          'followsUserLocation',
-        ]
+      ? ['provider', 'mapType', 'customMapStyle', 'googleMapId']
       : [
-          'draggable',
-          'onDrag',
-          'onDragStart',
-          'onDragEnd',
           'title',
           'description',
           'calloutAnchor',

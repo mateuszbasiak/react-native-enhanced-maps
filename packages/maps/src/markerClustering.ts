@@ -66,6 +66,10 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
           Math.abs(p.coordinate.longitude) > 180
         )
           throw new RangeError('Invalid marker coordinate');
+        if (p.draggable && (p.cluster ?? p.clusterGroup !== undefined))
+          throw new Error(
+            'Draggable markers must opt out of clustering with cluster={false}',
+          );
         if (p.cluster ?? p.clusterGroup !== undefined) {
           if (Math.abs(p.coordinate.latitude) > 85)
             throw new RangeError(

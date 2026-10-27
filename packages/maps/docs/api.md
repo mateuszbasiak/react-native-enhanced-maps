@@ -77,7 +77,8 @@ characters. Custom cluster components receive `clusterGroup`, undefined for the
 default group. Each group uses one source/layer within shared scene limits of
 64 sources and 128 layers. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
-cluster operations. The current participating-marker input bound is 10000. Marker dragging and callout APIs are not implemented.
+cluster operations. The current participating-marker input bound is 10000. Native marker dragging is supported; callout APIs remain unavailable. See
+[location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
 
 ## Shapes
 
@@ -111,8 +112,9 @@ Core components do not require those peers. See the
 [shader contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md)
 for WGSL, resource, placement, adapter and lifecycle constraints.
 
-Provider selection, user-location/tracking/permission ownership, snapshots,
-marker dragging/callouts and public source/layer components are not implemented. Expo
+User location/following, snapshots and native marker dragging are supported; see
+[their contract and limits](../../../docs/location-snapshots-dragging.md). Provider
+selection, callouts and public source/layer components are not implemented. Expo
 SDK 56 custom native builds use the package config plugin; see
 [Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in

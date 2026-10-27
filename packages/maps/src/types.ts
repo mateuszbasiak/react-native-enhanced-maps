@@ -1,3 +1,5 @@
+import type { UserLocation, UserLocationChangeEvent } from './userLocation';
+import type { SnapshotOptions } from './snapshots';
 import type { ComponentType, ReactNode } from 'react';
 import type { StyleProp, ViewStyle, ViewProps } from 'react-native';
 import type { JSONValue } from './layers';
@@ -118,6 +120,11 @@ export interface MapViewProps
       | 'importantForAccessibility'
       | 'pointerEvents'
     > {
+  readonly showsUserLocation?: boolean;
+  readonly followsUserLocation?: boolean;
+  /** undefined uses native fixes; null explicitly disables the native watcher. */
+  readonly userLocation?: UserLocation | null;
+  readonly onUserLocationChange?: (event: UserLocationChangeEvent) => void;
   readonly initialRegion?: Region;
   readonly region?: Region;
   readonly camera?: Camera;
@@ -151,6 +158,8 @@ export interface MapViewProps
   readonly onError?: (error: MapError) => void;
 }
 export interface MapViewRef {
+  takeSnapshot(options?: SnapshotOptions): Promise<string>;
+  resumeUserLocationFollow(): Promise<void>;
   /** Resolves when the native fit command is accepted, not when animation completes. */
   fitCoordinates(
     coordinates: readonly Coordinate[],

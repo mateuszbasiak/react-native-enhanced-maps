@@ -1,7 +1,9 @@
+import { parseSnapshotResult } from './snapshots.ts';
 import type { Camera, Coordinate, MapBounds, MapPoint } from './types';
 import type { ClusterQueryKind, NativeClusterPage } from './clusterQueries';
 
 export type MapQueryKind =
+  | 'snapshot'
   | 'camera'
   | 'point'
   | 'coordinate'
@@ -10,6 +12,7 @@ export type MapQueryKind =
   | 'shaderLayer'
   | ClusterQueryKind;
 type Result =
+  | string
   | Camera
   | Coordinate
   | MapPoint
@@ -47,6 +50,7 @@ export function parseMapQueryResult(
   clusterParser?: ClusterParser,
 ): Result {
   try {
+    if (kind === 'snapshot') return parseSnapshotResult(json);
     if (
       kind === 'clusterChildren' ||
       kind === 'clusterLeaves' ||
