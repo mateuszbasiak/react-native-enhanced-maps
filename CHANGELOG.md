@@ -33,6 +33,11 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Android map rendering and marker frame work pause when detached or backgrounded;
+  host resume cannot restart a detached or disposed map. Shared SDK file-source
+  activation is retained across transient detaches and stopped on host pause or
+  disposal.
+
 - Camera fit requests reject sparse coordinate arrays before they serialize into
   invalid native point payloads.
 
