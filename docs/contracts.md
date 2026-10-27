@@ -1,6 +1,6 @@
 # Current contract references
 
-The public component API is `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon` and `Circle`.
+The public component API is `MapView`, `Marker`, `Callout`, `UrlTile`, `Polyline`, `Polygon` and `Circle`.
 Experimental `ShaderLayer` is a separate `/shaders` entry point. MapLibre Native
 is the only engine. Public source/layer descriptors and source-oriented cluster
 queries have been retired; their contracts remain internal implementation records.
@@ -9,7 +9,7 @@ Current contracts and acceptance limits:
 
 - [Camera provenance](camera-origins.md), [projection and fitting](map-geometry.md),
   [map presses](map-presses.md) and [gestures](gestures.md).
-- [Shapes](shapes.md), [marker synchronization](marker-coordinate-sync.md) and
+- [Native XYZ tiles](url-tiles.md), [Shapes](shapes.md), [marker synchronization](marker-coordinate-sync.md) and
   [marker input](marker-gestures.md) and [callouts](marker-callouts.md).
 - [Component clustering](clustering.md) and
   [current package API](../packages/maps/README.md).

@@ -27,7 +27,8 @@ are implemented with explicit permission, composition and clustering limits.
 [React callouts and map-local selection](marker-callouts.md) are implemented.
 Provider selection remains unavailable. [Expo SDK 56 custom builds](expo.md) have core
 consumer build/simulator acceptance; Expo Go is outside the target. Public source/layer components
-and their old cluster-query APIs were retired. Symbol/icon, raster/tile, heatmap
+and their old cluster-query APIs were retired. [Native XYZ raster tiles](url-tiles.md)
+are implemented through `UrlTile`. Symbol/icon, heatmap
 and expression/filter requirements still need reconciliation with the component
 API. Complete RNGH/input, accessibility, lifecycle and spatial-parity matrices
 remain checklist work.

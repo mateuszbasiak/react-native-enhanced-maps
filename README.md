@@ -1,7 +1,7 @@
 # React Native MapLibre Maps
 
 A package-owned React Native Fabric integration with MapLibre Native on iOS and Android.
-The core package exports `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
+The core package exports `MapView`, `Marker`, `Callout`, `UrlTile`, `Polyline`, `Polygon` and `Circle`; examples consume those exports. Apple Maps and Google Maps experiments
 have been removed. No React Native MapLibre wrapper or dependency patches are required.
 
 Custom markers accept React Native children. Android draws marker textures inside

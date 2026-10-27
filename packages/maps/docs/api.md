@@ -1,6 +1,6 @@
 # Public component API
 
-The package root exports `MapView` (also default), `Marker`, `Callout`, `Polyline`, `Polygon`
+The package root exports `MapView` (also default), `Marker`, `Callout`, `UrlTile`, `Polyline`, `Polygon`
 and `Circle`, plus `validateCamera` and `createRevisionGate`. Public TypeScript
 types are exported beside them. Sources, layers and source-oriented cluster
 queries are internal infrastructure, not public components. Import experimental
@@ -136,6 +136,14 @@ default container. `MarkerRef` exposes `showCallout()` and `hideCallout()`.
 `calloutAnchor` / `calloutOffset` adjust attachment. `MapCallout` / `MapCalloutProps`,
 `MarkerSelectionEvent` and `CalloutPressEvent` are exported. See the
 [full contract and verification](../../../docs/marker-callouts.md).
+
+## UrlTile
+
+`UrlTile` is a direct MapView child for HTTP(S) XYZ imagery. `urlTemplate` is
+required; `tileSize` defaults to 256, `minimumZ` to 0 and `maximumZ` to 22.
+It accepts `id`, `opacity`, `visible` and `zIndex`. Tiles and shapes share draw
+ordering; imagery is excluded from fitting, clustering and picking. See
+[limits and verification](../../../docs/url-tiles.md).
 
 ## Shapes
 

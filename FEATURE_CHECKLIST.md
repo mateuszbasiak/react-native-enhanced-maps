@@ -3,7 +3,7 @@
 Last reviewed: **2026-10-25**, against the current working tree.
 
 Package-owned MapLibre Native on iOS/Android, React Native New Architecture only.
-The public API is component-based: `MapView`, `Marker`, `Callout`, `Polyline`, `Polygon`,
+The public API is component-based: `MapView`, `Marker`, `Callout`, `UrlTile`, `Polyline`, `Polygon`,
 `Circle`, and experimental `ShaderLayer` through `/shaders`. Sources and style
 layers are internal infrastructure; marker clustering replaces the former public
 source-oriented clustering API. See the [clustering contract](docs/clustering.md)
@@ -47,6 +47,8 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Map lifetime, camera and gestures
 
+- [ ] **Fast Refresh readiness recovery** — Editing a map-content module after readiness left both Debug hosts' ref commands rejecting `Map is not ready` until a fresh fixture generation remounted the map. Reproduce and fix recovery without accepting stale native generations; the UrlTile source-update and lifecycle checks pass outside this development reload path. [Observation](docs/url-tiles.md#acceptance--2026-10-27).
+
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Android now gates native rendering on independent host/window state, with terminal disposal and native transition regressions. Complete memory/resource counts and the remaining lifecycle/failure matrix.
 - [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
 - [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).
@@ -58,12 +60,14 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Markers, shapes and internal rendering
 
+- [x] **Native XYZ raster tiles** — `UrlTile` supplies validated templates, source zoom bounds, tile size, opacity/visibility and shared tile/shape ordering on both platforms. [Contract and bounded acceptance](docs/url-tiles.md). TMS, local files and generic source/layer APIs are not implied.
+
 - [x] **Marker selection/callouts** — Default/custom React bubbles, show/hide refs, map-local selection/press events, native attachment, interactive controls and cleanup are implemented and checked on both simulator hosts. [Contract and evidence](docs/marker-callouts.md). Full accessibility/gesture matrices remain separate validation work.
 
 - [ ] **COMPAT-03–04, COMPAT-10–11** — Verify React marker child updates, overlap/zIndex, selection, accessibility, lifecycle and Android texture/coordinate alignment. Image/default pins and marker presses are implemented; native dragging and React callouts are implemented. [Marker sync evidence](docs/marker-coordinate-sync.md).
 - [ ] **SHAPE-02, LAYER-02, LAYER-04–05, LAYER-10–11** — The reproduced pinned-SDK fill-query hits inside polygon holes are fixed. Native graph/literal-style preflight preserves accepted fitting/picking after malformed updates on both simulators; SDK resource objects are constructed before replacement. Complete visibility, insertion/draw/hit order, antimeridian and cross-platform semantic fixtures. [Scene preflight](docs/scene-budgets.md#native-scene-graph-and-style-preflight--2026-10-27), [remaining geometry limits](docs/polygon-hole-picking.md).
 - [ ] **SHAPE-03** — React Native color strings, geodesic Polyline/Polygon edges (including holes) and per-vertex Polyline gradients are implemented. Decide remaining dash-phase compatibility. [Shapes](docs/shapes.md).
-- [ ] **LAYER-03, LAYER-06–09, SRC-02** — Reconcile required symbol/icon, raster/tile, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
+- [ ] **LAYER-03, LAYER-06–09, SRC-02** — Native XYZ raster/tile support is implemented through `UrlTile`. Reconcile remaining symbol/icon, heatmap, expression/filter and zoom-range work with the component-only API before implementation. Existing literal styles and scene rebuilds are only a subset; do not restore the retired public `Layer` API by assumption.
 - [ ] **SRC-04, SRC-07, ARCH-09** — Measure parsing/rebuild cost; design incremental updates, off-UI-thread work, cancellation and bounded queues where needed. Android currently uses synchronous source updates for alignment.
 - [ ] **SRC-05–06** — Host-side GeoJSON validation rejects sparse coordinates at every geometry depth. Both native hosts enforce source framing/geometry and aggregate position limits before SDK parsing or accepted-scene replacement, preserving generated world-copy geometry. [GeoJSON preflight](docs/scene-budgets.md#native-geojson-preflight--2026-10-27) covers 122 shared fixtures. [Graph/style preflight](docs/scene-budgets.md#native-scene-graph-and-style-preflight--2026-10-27) adds 56 shared fixtures and both simulators' raw-transport rejection/preserved fitting/picking/corrected replacement checks. The [polygon-helper corpus](docs/polygon-hole-picking.md#shared-native-helper-corpus--2026-10-25) covers matching C++/Java geographic cases. Complete deep property/parser complexity, unexpected SDK failure handling and broader geographic rendering/picking acceptance. Existing 4 MiB scene bounds remain in force.
 - [ ] **PICK-02–03, PICK-05** — Complete visibility/overlap and marker/shape/cluster routing coverage, hit-test cost and accessible alternatives; decide public hit-radius/multiple-hit requirements.
