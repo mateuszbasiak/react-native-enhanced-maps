@@ -17,6 +17,7 @@ import MapDemo from './maplibre/MapLibrePrototype';
 import RuntimeVerification from './verification/RuntimeVerification';
 import ClusterVerification from './verification/ClusterVerification';
 import LifecycleVerification from './verification/LifecycleVerification';
+import NativeSceneVerification from './verification/NativeSceneVerification';
 import ShapePickingVerification from './verification/ShapePickingVerification';
 import GradientVerification from './verification/GradientVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
@@ -38,6 +39,7 @@ type DebugGlobal = typeof globalThis & {
 const controls: readonly [Scenario, string][] = [
   ['settings', 'settings'],
   ['runtime', 'verification'],
+  ['native-scene', 'Native scene validation'],
   ['clusters', 'clustering'],
   ['lifecycle', 'lifecycle'],
   ['shader', 'GPU prototype'],
@@ -117,7 +119,9 @@ export default function App() {
         <Button title="Examples" onPress={() => setPickerOpen(true)} />
       </View>
       <View key={selection.generation} style={{ flex: 1 }}>
-        {id === 'gradients' && __DEV__ ? (
+        {id === 'native-scene' && __DEV__ ? (
+          <NativeSceneVerification />
+        ) : id === 'gradients' && __DEV__ ? (
           <GradientVerification />
         ) : id === 'shape-picking' && __DEV__ ? (
           <ShapePickingVerification />

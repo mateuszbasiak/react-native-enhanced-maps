@@ -1,0 +1,144 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { nativeGeoJSONFixtures } from './fixtures/nativeGeoJSON.mjs';
+import React from 'react';
+import {
+  compileMapContent,
+  Polyline,
+} from '../packages/maps/lib/mapContent.js';
+import { nativeShapes } from '../packages/maps/lib/nativeShapes.js';
+
+const output = path.resolve('artifacts/native-tests/geojson');
+mkdirSync(output, { recursive: true });
+const fixtures = nativeGeoJSONFixtures();
+test('generated shape transport explicitly declares its unwrapped coordinate space', () => {
+  const scene = nativeShapes(
+    compileMapContent(
+      React.createElement(Polyline, {
+        id: 'generated',
+        geodesic: true,
+        coordinates: [
+          { latitude: 0, longitude: 179 },
+          { latitude: 0, longitude: -179 },
+        ],
+      }),
+    ),
+    { sources: [], layers: [] },
+  );
+  assert.equal(scene.sources[0].coordinateSpace, 'unwrapped');
+});
+test('combined scene serialization tags generated shapes without relaxing authored GeoJSON', async () => {
+  const url = new URL(
+    '../packages/maps/lib/maplibreContent.js',
+    import.meta.url,
+  );
+  const code = readFileSync(url, 'utf8')
+    .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
+    .replace(
+      /from '(\.\/[^']+)'/g,
+      (_, name) => `from '${new URL(name + '.js', url).href}'`,
+    );
+  const { compileScene, InternalSource } = await import(
+    'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
+  );
+  const authored = React.createElement(InternalSource, {
+    id: 'authored',
+    coordinateSpace: 'unwrapped',
+    data: { type: 'FeatureCollection', features: [] },
+  });
+  const shape = React.createElement(Polyline, {
+    id: 'generated',
+    geodesic: true,
+    coordinates: [
+      { latitude: 0, longitude: 179 },
+      { latitude: 0, longitude: -179 },
+    ],
+  });
+  const scene = JSON.parse(compileScene([authored, shape]).json);
+  assert.equal(
+    scene.sources.find((s) => s.id === 'generated').coordinateSpace,
+    'unwrapped',
+  );
+  assert.equal(
+    scene.sources.find((s) => s.id === 'authored').coordinateSpace,
+    undefined,
+  );
+});
+const corpus = path.join(output, 'fixtures.json');
+writeFileSync(corpus, JSON.stringify(fixtures));
+// Preserve the same raw JSON tree in the JVM without a test-only JSON dependency.
+// Tags: null, false, true, double, UTF-8 string, array, object; lengths are uint32 BE.
+const chunks = [];
+const tags = Array.from({ length: 7 }, (_, i) => Buffer.from([i]));
+const integers = new Map(),
+  strings = new Map();
+const size = (value) => {
+  if (!integers.has(value)) {
+    const bytes = Buffer.alloc(4);
+    bytes.writeUInt32BE(value);
+    integers.set(value, bytes);
+  }
+  chunks.push(integers.get(value));
+};
+function encode(value) {
+  if (value === null) chunks.push(tags[0]);
+  else if (typeof value === 'boolean') chunks.push(tags[value ? 2 : 1]);
+  else if (typeof value === 'number') {
+    const bytes = Buffer.alloc(8);
+    bytes.writeDoubleBE(value);
+    chunks.push(tags[3], bytes);
+  } else if (typeof value === 'string') {
+    if (!strings.has(value)) strings.set(value, Buffer.from(value, 'utf8'));
+    const bytes = strings.get(value);
+    chunks.push(tags[4]);
+    size(bytes.length);
+    chunks.push(bytes);
+  } else if (Array.isArray(value)) {
+    chunks.push(tags[5]);
+    size(value.length);
+    for (const entry of value) encode(entry);
+  } else {
+    const entries = Object.entries(value);
+    chunks.push(tags[6]);
+    size(entries.length);
+    for (const [key, entry] of entries) {
+      encode(key);
+      encode(entry);
+    }
+  }
+}
+encode(fixtures);
+const binary = path.join(output, 'fixtures.bin');
+writeFileSync(binary, Buffer.concat(chunks));
+
+test('Android native GeoJSON validator enforces the shared transport corpus', () => {
+  execFileSync('javac', [
+    '-d',
+    output,
+    'packages/maps/android/src/main/java/com/enhancedmaps/GeoJSONValidation.java',
+    'tests/native/GeoJSONValidationTest.java',
+  ]);
+  assert.doesNotThrow(() =>
+    execFileSync('java', ['-cp', output, 'GeoJSONValidationTest', binary]),
+  );
+});
+test(
+  'iOS native GeoJSON validator enforces the same transport corpus',
+  { skip: process.platform !== 'darwin' },
+  () => {
+    const executable = path.join(output, 'geojson-validation');
+    execFileSync('clang', [
+      '-fobjc-arc',
+      '-framework',
+      'Foundation',
+      '-Ipackages/maps/ios',
+      'tests/native/GeoJSONValidationTest.m',
+      '-o',
+      executable,
+    ]);
+    assert.doesNotThrow(() => execFileSync(executable, [corpus]));
+  },
+);

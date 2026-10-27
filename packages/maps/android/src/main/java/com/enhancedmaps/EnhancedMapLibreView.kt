@@ -329,7 +329,14 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val scene = JSONObject(json)
       val sources = scene.getJSONArray("sources")
       val layers = scene.getJSONArray("layers")
-      val parsedSources=(0 until sources.length()).map { NativeClustering.parse(sources.getJSONObject(it),clusterIndexRevision+1) }
+      var remainingPositions=50000
+      var remainingShapePositions=10000
+      val parsedSources=(0 until sources.length()).map {
+        NativeClustering.parse(sources.getJSONObject(it),clusterIndexRevision+1,remainingPositions,remainingShapePositions).also { source ->
+          remainingPositions-=source.positions
+          if(source.generatedShape)remainingShapePositions-=source.positions
+        }
+      }
       // Parse first so malformed JSON never removes a working scene.
       val revisions = (0 until sources.length()).map { sources.getJSONObject(it).let { source ->
         val rawRevision = if (source.has("revision")) source.get("revision") else null

@@ -55,10 +55,15 @@ export function nativeShapes(
       return {
         id: item.id,
         type: 'geojson' as const,
+        coordinateSpace: 'unwrapped' as const,
         ...(lineMetrics ? { lineMetrics: true } : {}),
         revision: old
           ? old.revision +
-            (old.data === data && !!old.lineMetrics === lineMetrics ? 0 : 1)
+            (old.data === data &&
+            !!old.lineMetrics === lineMetrics &&
+            old.coordinateSpace === 'unwrapped'
+              ? 0
+              : 1)
           : 0,
         data,
       };
@@ -110,6 +115,7 @@ export function nativeShapes(
         old.id === source.id &&
         old.revision === source.revision &&
         old.lineMetrics === source.lineMetrics &&
+        old.coordinateSpace === source.coordinateSpace &&
         old.data === source.data
       );
     })

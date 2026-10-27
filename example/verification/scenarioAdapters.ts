@@ -6,6 +6,7 @@ export function inspectScenario(scenario: Scenario): Observation | undefined {
     shapes: '__enhancedMapsShapes',
     settings: '__enhancedMapsSettings',
     runtime: '__enhancedMapsVerification',
+    'native-scene': '__enhancedMapsNativeScene',
     clusters: '__enhancedMapsClusters',
     'shape-picking': '__enhancedMapsShapePicking',
     gradients: '__enhancedMapsGradient',

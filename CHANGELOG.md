@@ -33,6 +33,10 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Native GeoJSON preflight rejects malformed geometry and coerced numeric strings
+  before replacing working scenes on either platform. Private generated-shape
+  transport preserves dateline/world-copy geometry with separate bounded checks.
+
 - Android map rendering and marker frame work pause when detached or backgrounded;
   host resume cannot restart a detached or disposed map. Shared SDK file-source
   activation is retained across transient detaches and stopped on host pause or

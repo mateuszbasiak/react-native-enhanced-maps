@@ -62,6 +62,7 @@ export function compileScene(children: ReactNode) {
       data: GeoJSONData;
       revision?: number;
       lineMetrics?: boolean;
+      coordinateSpace?: 'unwrapped';
       cluster?: Readonly<Required<ClusterOptions>>;
     }[] = [],
     layers: Record<string, unknown>[] = [],
@@ -193,6 +194,7 @@ export function compileScene(children: ReactNode) {
       sources.push({
         id: s.id,
         data: s.data,
+        ...(s.coordinateSpace ? { coordinateSpace: s.coordinateSpace } : {}),
         ...(s.lineMetrics ? { lineMetrics: true } : {}),
       });
     layers.push(...scene.layers);
