@@ -3,11 +3,8 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { readFileSync } from 'node:fs';
 
-async function load() {
-  const url = new URL(
-    '../packages/maps/lib/markerClustering.js',
-    import.meta.url,
-  );
+async function load(module = 'markerClustering') {
+  const url = new URL(`../packages/maps/lib/${module}.js`, import.meta.url);
   const code = readFileSync(url, 'utf8')
     .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
     .replace(
@@ -379,5 +376,99 @@ test('draggable markers reject clustered participation but permit explicit opt-o
   assert.equal(
     collectMarkers(marker('boat', { draggable: true }), Marker).content.length,
     1,
+  );
+});
+
+test('cluster-prefixed public marker IDs survive scene compilation, layout and member resolution', async () => {
+  const { collectMarkers, parseMarkerLayout, resolveClusterMembers } =
+    await load();
+  const url = new URL(
+    '../packages/maps/lib/maplibreContent.js',
+    import.meta.url,
+  );
+  const code = readFileSync(url, 'utf8')
+    .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
+    .replace(
+      /from '(\.\/[^']+)'/g,
+      (_, path) => `from '${new URL(path + '.js', url).href}'`,
+    );
+  const { compileScene, InternalSource, InternalLayer } = await import(
+    `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+  );
+  const ids = [
+    'cluster:14',
+    'cluster:boat',
+    'cluster:',
+    'cluster:😀',
+    '船'.repeat(512),
+  ];
+  const content = collectMarkers(
+    [
+      ...ids.map((id) => marker(id, { cluster: true })),
+      marker(undefined, { key: 'generated/船', cluster: true }),
+    ],
+    Marker,
+  );
+  ids.push(content.data.features.at(-1).id);
+  const scene = compileScene(
+    content.groups.map((group) =>
+      React.createElement(
+        InternalSource,
+        {
+          key: group.sourceId,
+          id: group.sourceId,
+          revision: 1,
+          data: group.data,
+          cluster: true,
+        },
+        React.createElement(InternalLayer, {
+          id: group.layerId,
+          type: 'circle',
+        }),
+      ),
+    ),
+  );
+  assert.deepEqual(
+    JSON.parse(scene.json).sources[0].data.features.map(
+      (feature) => feature.id,
+    ),
+    ids,
+  );
+  const layout = parseMarkerLayout(
+    JSON.stringify({
+      sourceRevision: 1,
+      indexRevision: 1,
+      features: ids.map((id) => ({ id, latitude: 54, longitude: 18 })),
+    }),
+    1,
+  );
+  assert.deepEqual(
+    layout.features.map((feature) => feature.id),
+    ids,
+  );
+  const members = await resolveClusterMembers(
+    ids.length,
+    content.markers,
+    async () => ids,
+    () => true,
+  );
+  assert.deepEqual(
+    members.map((member) => member.id),
+    ids,
+  );
+  const { createClusterHandles } = await load('clusterQueries');
+  const handles = createClusterHandles();
+  assert.equal(
+    handles.capture('em-marker-clusters', 'cluster:14', {}, 1, 1),
+    undefined,
+  );
+  assert.ok(
+    handles.capture(
+      'em-marker-clusters',
+      'cluster:14',
+      { cluster: true, cluster_id: 14, point_count: 2 },
+      1,
+      1,
+    ),
   );
 });

@@ -83,6 +83,7 @@ type DebugGlobal = typeof globalThis & {
       clustered?: boolean;
       moved?: boolean;
       grouped?: boolean;
+      identityCases?: boolean;
     }): void;
     remount(): void;
     reloadStyle(): void;
@@ -118,18 +119,23 @@ export default function ClusterVerification() {
   const [generation, setGeneration] = useState(0);
   const [styleEpoch, setStyleEpoch] = useState(0);
   const [moved, setMoved] = useState(false);
+  const [identityCases, setIdentityCases] = useState(false);
   const [summary, setSummary] = useState('Waiting for map');
   const markers = useMemo(
     () =>
       Array.from({ length: count }, (_, index) => ({
-        id: `vessel-${index}`,
+        id:
+          identityCases && index < 5
+            ? ['cluster:14', 'cluster:boat', '船', '船'.repeat(512)][index]
+            : `vessel-${index}`,
+        key: `vessel-${index}`,
         coordinate: { latitude: 54.37, longitude: 18.66 + (moved ? 0.02 : 0) },
         data: {
           name: `Vessel ${index}`,
           status: index % 2 ? 'moving' : 'moored',
         },
       })),
-    [count, moved],
+    [count, moved, identityCases],
   );
   useEffect(() => {
     if (!__DEV__) return;
@@ -169,6 +175,7 @@ export default function ClusterVerification() {
         clustered?: boolean;
         moved?: boolean;
         grouped?: boolean;
+        identityCases?: boolean;
       }) => {
         if (options.count !== undefined) {
           if (
@@ -184,6 +191,8 @@ export default function ClusterVerification() {
         if (options.clustered !== undefined) setCluster(options.clustered);
         if (options.grouped !== undefined) setGrouped(options.grouped);
         if (options.moved !== undefined) setMoved(options.moved);
+        if (options.identityCases !== undefined)
+          setIdentityCases(options.identityCases);
       },
       remount: () => setGeneration((v) => v + 1),
       reloadStyle: () => setStyleEpoch((v) => v + 1),
@@ -247,6 +256,13 @@ export default function ClusterVerification() {
                 onPress={() => setCustom((value) => !value)}
               />
               <Button
+                title={identityCases ? 'Ordinary IDs' : 'Boundary IDs'}
+                onPress={() => {
+                  setCount(5);
+                  setIdentityCases((value) => !value);
+                }}
+              />
+              <Button
                 title="Zoom 13"
                 onPress={() => map.current?.animateCamera(initialCamera, 0)}
               />
@@ -295,9 +311,9 @@ export default function ClusterVerification() {
             }}
           >
             {present &&
-              markers.map((marker) => (
+              markers.map(({ key, ...marker }) => (
                 <Marker
-                  key={marker.id}
+                  key={key}
                   {...marker}
                   {...(grouped && cluster ? {} : { cluster })}
                   {...(grouped ? { clusterGroup: marker.data.status } : {})}

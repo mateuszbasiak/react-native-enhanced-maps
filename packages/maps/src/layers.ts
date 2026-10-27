@@ -199,7 +199,14 @@ function validateData(data: GeoJSONData): number {
   for (const feature of data.features) {
     if (!feature || feature.type !== 'Feature')
       throw new Error('Expected GeoJSON Feature');
-    id(feature.id);
+    // Public marker IDs (including generated React paths) travel as feature IDs.
+    // Source/layer names retain their separate SDK-name grammar.
+    if (
+      typeof feature.id !== 'string' ||
+      !feature.id ||
+      feature.id.length > 512
+    )
+      throw new Error('Feature ID must contain 1–512 characters');
     if (ids.has(feature.id)) throw new Error('Duplicate feature ID');
     ids.add(feature.id);
     if (

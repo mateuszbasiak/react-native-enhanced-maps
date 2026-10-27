@@ -50,8 +50,6 @@ export function normalizeClusterOptions(
 }
 export function validateClusterData(data: GeoJSONData): void {
   for (const feature of data.features) {
-    if (feature.id.startsWith('cluster:'))
-      throw new TypeError('Clustered input IDs must not start with cluster:');
     if (feature.geometry.type !== 'Point')
       throw new TypeError('Clustered sources require Point features');
     if (

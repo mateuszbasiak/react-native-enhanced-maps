@@ -266,3 +266,36 @@ test('unsupported source and layer options fail explicitly', async () => {
     /Unsupported/,
   );
 });
+
+test('feature identifiers preserve public marker strings without loosening source names', async () => {
+  const { compileLayers, GeoJSONSource } = await load();
+  const source = (featureID) =>
+    React.createElement(GeoJSONSource, {
+      id: 'source',
+      revision: 0,
+      data: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            id: featureID,
+            properties: null,
+            geometry: { type: 'Point', coordinates: [18, 54] },
+          },
+        ],
+      },
+    });
+  for (const id of [
+    'cluster:14',
+    '船'.repeat(512),
+    '😀'.repeat(256),
+    'em-auto:/.$boat%2F0',
+  ]) {
+    assert.equal(compileLayers(source(id)).sources[0].data.features[0].id, id);
+  }
+  for (const id of ['', null, 1, '船'.repeat(513), '😀'.repeat(257)])
+    assert.throws(() => compileLayers(source(id)));
+  assert.throws(() =>
+    compileLayers(React.cloneElement(source('boat'), { id: '船' })),
+  );
+});

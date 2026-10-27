@@ -53,6 +53,12 @@ Each active group consumes one source and one layer from the map's shared
 Clustered coordinates are within ±85° latitude and ±180° longitude. Input arrays,
 coordinates and metadata should be immutable. Replace references for updates.
 
+Marker IDs are nonempty strings of at most 512 UTF-16 code units. Unicode and
+`cluster:` prefixes are preserved through membership queries and unclustered
+layout; only `em-cluster:` is reserved for generated React cluster children.
+Omitted IDs use generated identities derived from stable React keys. Source/layer
+names use a separate private grammar and do not restrict application marker IDs.
+
 The private index uses radius 50 in the SDK's 512-unit tile convention, maximum
 clustering zoom 14 and minimum count 2. These are implementation defaults, not
 public tuning props. Membership near fractional zoom, world wrapping and spatial
@@ -85,6 +91,15 @@ default/custom children, expansion, updates, opt-out behavior, stale callbacks a
 complete 3/1000/10000 coincident-member ID/metadata audits. These are bounded
 functional checks, not spatial parity or performance measurements. Group semantics
 also have [compiler regressions](../tests/marker-clustering.test.mjs).
+
+On 2026-10-27, the **Boundary IDs** option in the Debug clustering scenario passed
+five-member native ID/metadata round trips on iOS 26.1 (iPhone 17 Pro) and Android
+16/API 36 ARM64: `cluster:14`, `cluster:boat`, Unicode, a 512-code-unit ID and an
+omitted/generated ID. A single `cluster:14` marker also appears in native
+unclustered layout at zoom 16 and selects its original metadata on both hosts.
+Compiler regressions cover these
+paths, 512/513-unit and surrogate-pair boundaries, and reject cluster handles
+without explicit generated-cluster metadata. Both native Debug builds pass.
 
 Output/index-memory bounds, background cancellation, overlap, zoom-boundary and
 antimeridian fixtures remain under CLUSTER-06/07. Physical-device benchmarks and
