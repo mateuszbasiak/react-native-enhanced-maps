@@ -40,6 +40,9 @@ changes, not accepted production support or closed release gates.
   identifiers through private source compilation, native membership and layout.
   Private feature IDs follow the public 512-code-unit marker bound while source
   and layer names keep their separate SDK grammar.
+- `fitElements` fits generated dateline circles, geodesic lines and polygons by
+  normalizing accepted scene world copies before choosing the longitude arc.
+  Explicit fit coordinates retain their geographic bounds.
 
 - Android map rendering and marker frame work pause when detached or backgrounded;
   host resume cannot restart a detached or disposed map. Shared SDK file-source

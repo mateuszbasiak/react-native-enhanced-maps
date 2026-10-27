@@ -2,20 +2,22 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include "FitLongitude.h"
 
 static void EMFitRequire(BOOL valid,NSString *message) {
   if(!valid)@throw [NSException exceptionWithName:@"MapFit" reason:message userInfo:nil];
 }
-static void EMFitAdd(NSMutableArray *points,double latitude,double longitude) {
-  EMFitRequire(std::isfinite(latitude) && std::isfinite(longitude) && std::abs(latitude)<=90 && std::abs(longitude)<=180,@"Invalid fit coordinate");
+static void EMFitAdd(NSMutableArray *points,double latitude,double longitude,BOOL acceptedGeometry=NO) {
+  double normalized;
+  EMFitRequire(std::isfinite(latitude) && std::abs(latitude)<=90 && EMFitLongitude(longitude,acceptedGeometry,normalized),@"Invalid fit coordinate");
   EMFitRequire(points.count<100000,@"Too many fit positions");
-  [points addObject:@[@(latitude),@(longitude)]];
+  [points addObject:@[@(latitude),@(normalized)]];
 }
 static void EMFitGeometry(id value,NSMutableArray *points,int depth) {
   EMFitRequire(depth<=32,@"Fit geometry is too deep");
   if([value isKindOfClass:NSArray.class]) {
     NSArray *a=value;
-    if(a.count>=2 && [a[0] isKindOfClass:NSNumber.class] && [a[1] isKindOfClass:NSNumber.class]) EMFitAdd(points,[a[1] doubleValue],[a[0] doubleValue]);
+    if(a.count>=2 && [a[0] isKindOfClass:NSNumber.class] && [a[1] isKindOfClass:NSNumber.class]) EMFitAdd(points,[a[1] doubleValue],[a[0] doubleValue],YES);
     else for(id item in a)EMFitGeometry(item,points,depth+1);
   } else if([value isKindOfClass:NSDictionary.class]) {
     NSDictionary *v=value;
