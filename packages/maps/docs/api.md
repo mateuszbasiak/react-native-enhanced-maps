@@ -9,9 +9,16 @@ queries are internal infrastructure, not public components. Import experimental
 ## MapView
 
 Provide a `styleURL` and a nonzero layout through `style`. Optional `initialCamera`
-is mount-only: `{center: {latitude, longitude}, zoom, heading, pitch}`. Camera
-changes use the ref; there is no controlled region/camera prop. `testID` is passed
-to the native host. Ordinary map content is supplied through `children`.
+is mount-only: `{center: {latitude, longitude}, zoom, heading, pitch}`.
+`initialRegion` is a mount-only geographic envelope with `latitude`, `longitude`,
+`latitudeDelta` and `longitudeDelta`; `initialCamera` takes precedence when both
+are supplied. Initial region fitting finishes before `onMapReady`.
+Controlled `camera` and `region` props apply changed values without animation;
+`camera` takes precedence over `region`. Value-equivalent rerenders and region
+callback echoes do not refit. Camera changes are also available through the ref.
+See the [migration contract](../../../docs/rn-maps-migration.md) for envelope and
+precedence limits. `testID` is passed to the native host. Ordinary map content is
+supplied through `children`.
 
 Settings are `scrollEnabled`, `zoomEnabled`, `rotateEnabled`, `pitchEnabled`,
 `showsCompass`, `minZoomLevel`, `maxZoomLevel` and `mapPadding`. Gesture/control
@@ -20,28 +27,59 @@ a nonnegative logical-point number or `{top, right, bottom, left}`. Undefined
 restores the setting default. Native viewport constraints can clamp camera zoom.
 
 Callbacks are `onMapReady`, `onError`, `onCapabilitiesChange`, `onCameraIdle`,
-`onPress`, `onLongPress` and `onGesture`. Map press callbacks receive
-`{action, coordinate, position}` directly, with logical map-relative points.
-Shape callbacks instead receive a `nativeEvent` wrapper. Camera idle receives
+`onPress`, `onLongPress`, `onGesture`, `onRegionChange` and
+`onRegionChangeComplete`. Region callbacks receive `(region, {isGesture})`;
+there is no fixed event-rate promise. Map press callbacks receive
+`{nativeEvent:{action, coordinate, position}, stopPropagation}`, with logical
+map-relative points. `nativeEvent.action` is `press` or `long-press`; legacy
+top-level `action` (`tap` or `long-press`), `coordinate` and `position` fields
+remain available. Shape callbacks also receive a `nativeEvent` wrapper. Camera idle receives
 `{camera, origin}`; origin is `gesture`, `application`, `sdk` or `unknown`.
 Gestures receive `{kind, phase, id, timestampMs, position}`. Set
 `gestureEventIntervalMs` within 16–1000ms (default 50); begin/end/cancel bypass it.
 Errors contain `{code, message, fatal}`.
 
+Foreground location uses `showsUserLocation`, `followsUserLocation`,
+`userLocation` and `onUserLocationChange`. An omitted `userLocation` selects the
+native foreground watcher; explicit `null` disables it. The application owns
+permission requests. Controlled camera/region props take precedence over
+following, and map gestures interrupt following until explicitly resumed. See
+the [location contract](../../../docs/location-snapshots-dragging.md) for fix
+validation, event payloads and lifecycle behavior.
+
 A ready `MapViewRef` supplies:
 
 - `animateCamera(partialCamera, { duration }?)`: sends a command, not an animation-completion
   promise. Duration defaults to 300ms and must be within 0–60000ms; numeric durations remain accepted.
+- `getCamera()`: an asynchronous authoritative native camera read.
+- `setCamera(partialCamera)`: applies a serialized partial update without animation.
+- `animateToRegion(region, duration?)`: fits an envelope; duration defaults to 300ms.
 - `pointForCoordinate(coordinate)` and `coordinateForPoint(point)`: asynchronous
   native projection in logical map-relative points.
 - `getVisibleBounds()`: asynchronous `{north, south, east, west}` envelope;
   antimeridian bounds can have east less than west.
 - `fitCoordinates(coordinates, options?)` and `fitElements(options?)`: asynchronous
   acceptance, not animation completion. Options contain `padding` and `durationMs`.
+  `fitElements` also accepts `{edgePadding, animated}` and includes supported
+  scene geometry as well as markers.
+- `fitToCoordinates(coordinates, {edgePadding, animated}?)` and
+  `fitToElements({edgePadding, animated}?)`: RN Maps-style fit aliases.
+  `fitToElements` fits markers, including clustered inputs, rather than shapes
+  or the user-location dot. See the [fit contract](../../../docs/rn-maps-migration.md).
+- `getMapBoundaries()`: the visible envelope as `{northEast, southWest}`.
+- `takeSnapshot(options?)`: returns a mounted-viewport PNG/JPEG file URI or raw
+  base64 string. Options are `width`, `height`, `format`, `quality` and `result`;
+  dimensions are physical pixels. Active shader layers reject. Composition,
+  size, retention and iOS pitch/padding limits are defined in the
+  [snapshot contract](../../../docs/location-snapshots-dragging.md#snapshots).
+- `resumeUserLocationFollow()`: resumes following the latest valid fix, subject
+  to controlled camera/region precedence; without a fix it does not move the map.
 - `getCapabilities()`: the current frozen report, or null before readiness,
   during style replacement or after disposal/fatal error.
 
-Catch query rejections. Commands and queries require readiness; style replacement
+Catch query and command-acceptance promise rejections. `animateCamera` returns
+void and reports asynchronous command failures through `onError`. Camera and
+geometry commands/queries and snapshots require readiness; style replacement
 or disposal invalidates pending queries. Capabilities are evidence states
 (`supported`, `unsupported`, `unvalidated`), not a claim that every underlying SDK
 feature is available. Current shaders and circle/line/fill quality remain
@@ -79,6 +117,14 @@ default group. Each group uses one source/layer within shared scene limits of
 zoom still control clustering within each group. Changing groups invalidates old
 cluster operations. The current participating-marker input bound is 10000. Native marker dragging is supported; callout APIs remain unavailable. See
 [location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
+
+Set `draggable` to enable native long-press dragging. `onDragStart`, `onDrag`,
+`onDragEnd` and `onDragCancel` receive `{nativeEvent:{id, coordinate}}`.
+Cancellation restores the latest coordinate prop; successful completion retains
+the native endpoint until the application changes that value. A draggable marker
+must use `cluster={false}` if a cluster group would otherwise enable clustering.
+The [dragging contract](../../../docs/location-snapshots-dragging.md#marker-dragging)
+defines coordinate echoes, press suppression and lifecycle cancellation.
 
 ## Shapes
 
