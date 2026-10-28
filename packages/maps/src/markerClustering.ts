@@ -4,6 +4,9 @@ import type { MarkerProps } from './Marker';
 import type { GeoJSONData } from './layers';
 import type { ClusterMember } from './types';
 
+import { Geojson, expandGeojson, geojsonScope } from './geojson.ts';
+import type { GeojsonProps } from './geojson';
+
 export const markerSourceID = 'em-marker-clusters';
 export const markerLayerID = 'em-marker-clusters-layout';
 export const clusterMarkerPrefix = 'em-cluster:';
@@ -21,7 +24,13 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
     if (depth > 32) throw new Error('Map child nesting limit exceeded');
     Children.toArray(nodes).forEach((node, index) => {
       const childPath = `${path}/${encodeURIComponent(isValidElement(node) ? String(node.key ?? index) : String(index))}`;
-      if (isValidElement(node) && node.type === Fragment) {
+      if (isValidElement<GeojsonProps>(node) && node.type === Geojson) {
+        visit(
+          expandGeojson(node.props, markerType, geojsonScope(childPath)),
+          depth + 1,
+          childPath,
+        );
+      } else if (isValidElement(node) && node.type === Fragment) {
         visit(
           (node.props as { children?: ReactNode }).children,
           depth + 1,

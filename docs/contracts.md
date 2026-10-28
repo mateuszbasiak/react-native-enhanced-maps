@@ -7,6 +7,8 @@ queries have been retired; their contracts remain internal implementation record
 
 Current contracts and acceptance limits:
 
+- [Approved v1 rendering scope](rendering-contract.md) and [current component support](rn-maps-rendering.md).
+
 - [Camera provenance](camera-origins.md), [projection and fitting](map-geometry.md),
   [map presses](map-presses.md) and [gestures](gestures.md).
 - [Native XYZ tiles](url-tiles.md), [Shapes](shapes.md), [marker synchronization](marker-coordinate-sync.md) and

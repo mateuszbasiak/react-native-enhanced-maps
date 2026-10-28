@@ -137,3 +137,7 @@ MapLibre SPM hook; Android uses autolinking. Use a custom native build, not Expo
 See [Expo setup and validation](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md)
 for the pinned template, optional-peer resolver requirement and reproducible
 consumer command. Do not combine a manual iOS hook with plugin management.
+
+RN Maps rendering children also include `Geojson`, `Heatmap`, `Overlay`,
+`WMSTile` and `LocalTile`. See the [API reference](docs/api.md) for the supported
+initial surface and explicit compatibility limits.

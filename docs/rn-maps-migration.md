@@ -110,6 +110,11 @@ local files, TMS, custom request headers and full provider parity are not implie
 
 ## Remaining differences
 
+`Geojson`, `Heatmap`, `Overlay`, `WMSTile` and `LocalTile` have initial
+implementations alongside `UrlTile`. See [rendering support](rn-maps-rendering.md)
+for supported props, tuple conventions and limitations. The
+[approved v1 contract](rendering-contract.md) remains the compatibility target.
+
 This is common API compatibility, not complete provider parity. Location, snapshots
 and native marker dragging are covered by the [follow-up contract](location-snapshots-dragging.md).
 [React callouts](marker-callouts.md) support title/description, custom content,

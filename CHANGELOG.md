@@ -5,6 +5,10 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Add initial RN Maps Geojson, Heatmap, Overlay, WMSTile and LocalTile children,
+  with bounded native preflight and a deterministic rendering verification scenario.
+  Unsupported tile controls and broader asynchronous image recovery remain tracked.
+
 ### Added
 
 - `MapViewRef.reloadStyle()` retries the current style without remounting, with

@@ -15,6 +15,8 @@
 #import "MarkerClusterLayout.h"
 #import "PolygonHitTest.h"
 #import "LineGradient.h"
+#import "HeatmapLayer.h"
+#import "ImageOverlay.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
@@ -392,6 +394,8 @@ static UIColor *EMColor(id value) {
         EMSceneRequire(identityData!=nil,@"Invalid raster source");
         std::string identity((const char *)identityData.bytes,identityData.length);
         revisions.push_back({std::string(identifier.UTF8String),revision?std::optional<double>([revision doubleValue]):std::nullopt,identity});
+        if([entry[@"tileKind"] isEqual:@"image"]) { [parsedSources addObject:EMImageOverlaySource(entry)];continue; }
+        EMSceneRequire(![entry[@"urlTemplate"] hasPrefix:@"asset:"],@"LocalTile useAssets is Android-only");
         NSDictionary *options=@{MLNTileSourceOptionTileSize:entry[@"tileSize"],MLNTileSourceOptionMinimumZoomLevel:entry[@"minZoom"],MLNTileSourceOptionMaximumZoomLevel:entry[@"maxZoom"]};
         [parsedSources addObject:[[MLNRasterTileSource alloc] initWithIdentifier:identifier tileURLTemplates:@[entry[@"urlTemplate"]] options:options]];
         continue;
@@ -435,7 +439,8 @@ static UIColor *EMColor(id value) {
     for(NSDictionary *entry in scene[@"layers"]) {
       MLNSource *source=candidateSources[entry[@"source"]];
       MLNStyleLayer *layer=nil; NSString *type=entry[@"type"]; NSDictionary *s=entry[@"style"]?:@{};
-      if([type isEqual:@"raster"]) { MLNRasterStyleLayer *l=[[MLNRasterStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source];if(s[@"rasterOpacity"])l.rasterOpacity=[NSExpression expressionForConstantValue:s[@"rasterOpacity"]];layer=l; }
+      if([type isEqual:@"heatmap"]) { layer=EMHeatmapLayer(entry[@"id"],source,s); }
+      else if([type isEqual:@"raster"]) { MLNRasterStyleLayer *l=[[MLNRasterStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source];if(s[@"rasterOpacity"])l.rasterOpacity=[NSExpression expressionForConstantValue:s[@"rasterOpacity"]];layer=l; }
       else if([type isEqual:@"circle"]) { MLNCircleStyleLayer *l=[[MLNCircleStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"circleColor"])l.circleColor=[NSExpression expressionForConstantValue:EMColor(s[@"circleColor"])]; if(s[@"circleRadius"])l.circleRadius=[NSExpression expressionForConstantValue:s[@"circleRadius"]]; if(s[@"circleOpacity"])l.circleOpacity=[NSExpression expressionForConstantValue:s[@"circleOpacity"]]; layer=l; }
       else if([type isEqual:@"line"]) { MLNLineStyleLayer *l=[[MLNLineStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(gradients[entry[@"id"]])l.lineGradient=gradients[entry[@"id"]]; if(s[@"lineColor"])l.lineColor=[NSExpression expressionForConstantValue:EMColor(s[@"lineColor"])]; if(s[@"lineWidth"])l.lineWidth=[NSExpression expressionForConstantValue:s[@"lineWidth"]]; if(s[@"lineOpacity"])l.lineOpacity=[NSExpression expressionForConstantValue:s[@"lineOpacity"]]; if(s[@"lineCap"])l.lineCap=[NSExpression expressionForConstantValue:s[@"lineCap"]]; if(s[@"lineJoin"])l.lineJoin=[NSExpression expressionForConstantValue:s[@"lineJoin"]]; if(s[@"lineMiterLimit"])l.lineMiterLimit=[NSExpression expressionForConstantValue:s[@"lineMiterLimit"]]; if(s[@"lineDasharray"])l.lineDashPattern=[NSExpression expressionForConstantValue:s[@"lineDasharray"]]; layer=l; }
       else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }

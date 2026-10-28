@@ -23,6 +23,7 @@ Native on iOS/Android and targets React Native's New Architecture.
   event and ref contracts, plus explicit remaining differences.
 - [Location, snapshots and marker dragging](location-snapshots-dragging.md):
   permission ownership, follow interruption, export limits and native input.
+- [RN Maps rendering components](rn-maps-rendering.md) and the [approved v1 contract](rendering-contract.md): initial Geojson, Heatmap, Overlay and tile support with explicit limits.
 - [Compatibility and unavailable APIs](compatibility.md) and
   [remaining checklist](../FEATURE_CHECKLIST.md).
 

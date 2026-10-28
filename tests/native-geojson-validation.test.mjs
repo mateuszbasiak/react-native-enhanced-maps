@@ -67,6 +67,39 @@ test('combined scene serialization tags generated shapes without relaxing author
     undefined,
   );
 });
+// Exercise the exact Overlay footprint through both native geometry validators.
+const overlayURL = new URL(
+  '../packages/maps/lib/maplibreContent.js',
+  import.meta.url,
+);
+const overlayCode = readFileSync(overlayURL, 'utf8')
+  .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
+  .replace(
+    /from '(\.\/[^']+)'/g,
+    (_, name) => `from '${new URL(name + '.js', overlayURL).href}'`,
+  );
+const { compileScene: compileOverlayScene } = await import(
+  'data:text/javascript;base64,' + Buffer.from(overlayCode).toString('base64')
+);
+const { Overlay } = await import('../packages/maps/lib/imageOverlay.js');
+const overlayFootprint = JSON.parse(
+  compileOverlayScene(
+    React.createElement(Overlay, {
+      image: { uri: 'https://example.com/image.png' },
+      bounds: [
+        [2, -179],
+        [-2, 179],
+      ],
+      bearing: 30,
+    }),
+  ).json,
+).sources.find((s) => s.data);
+fixtures.push({
+  label: 'rotated dateline Overlay footprint',
+  data: overlayFootprint.data,
+  positions: 5,
+  generatedShape: true,
+});
 const corpus = path.join(output, 'fixtures.json');
 writeFileSync(corpus, JSON.stringify(fixtures));
 // Preserve the same raw JSON tree in the JVM without a test-only JSON dependency.

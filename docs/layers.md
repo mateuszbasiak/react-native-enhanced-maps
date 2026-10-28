@@ -20,8 +20,10 @@ Both hosts still rebuild scene resources; parsing and update performance remain
 checklist work. Numeric geometry validation does not establish complete wrapping,
 polar or self-intersection parity.
 
-Symbol/icon, raster/tile, heatmap, expression/filter and zoom-range requirements
-remain open under LAYER-03/06–09 and SRC-02. Their component contracts must be
-reconciled before implementation. The underlying SDK's capabilities do not make
-those APIs available through this package. Historical source/layer usage examples
-are preserved in Git history rather than offered as current installation examples.
+The approved [v1 rendering contract](rendering-contract.md) maps the remaining
+requirements to RN Maps-compatible `Heatmap`, `Overlay`, `Geojson`, `UrlTile`,
+`WMSTile` and `LocalTile`. Initial implementations are exported; see
+[current support and limits](rn-maps-rendering.md). Icons/labels use `Marker`;
+expressions and sources/layers stay private. Component props replace generic
+public filtering and zoom APIs. Full implementation/acceptance remains open
+under LAYER-03/06–09 and SRC-02.

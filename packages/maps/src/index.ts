@@ -62,3 +62,20 @@ export type {
 
 export type { UserLocation, UserLocationChangeEvent } from './userLocation';
 export type { SnapshotOptions } from './snapshots';
+
+export { Geojson } from './geojson';
+export type {
+  GeojsonProps,
+  GeojsonData,
+  GeojsonFeature,
+  GeojsonPressEvent,
+} from './geojson';
+
+export { Heatmap } from './heatmap';
+export type { HeatmapProps, HeatmapGradient, WeightedLatLng } from './heatmap';
+
+export { WMSTile, LocalTile } from './rnTiles';
+export type { WMSTileProps, LocalTileProps } from './rnTiles';
+
+export { Overlay } from './imageOverlay';
+export type { OverlayProps, OverlayPressEvent } from './imageOverlay';

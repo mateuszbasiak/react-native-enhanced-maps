@@ -196,6 +196,37 @@ SDK 56 custom native builds use the package config plugin; see
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in
 compatibility. Legacy React Native architecture is outside the target.
 
+## Additional RN Maps rendering children
+
+`Geojson`, `Heatmap`, `Overlay`, `WMSTile` and `LocalTile` are named exports.
+Their props and events are exported as `GeojsonProps`, `GeojsonPressEvent`,
+`HeatmapProps`, `HeatmapGradient`, `WeightedLatLng`, `OverlayProps`,
+`OverlayPressEvent`, `WMSTileProps` and `LocalTileProps`.
+
+- `Geojson`: FeatureCollection expansion into markers and shapes, including
+  multi-geometries and polygon holes. Styling props and feature style properties
+  are supported. Its press callback receives the original-feature overlay
+  description, not a nativeEvent wrapper. Custom point content uses
+  `markerComponent`; nonzero dash phase remains unsupported.
+- `Heatmap`: weighted LatLng `points`, radius (10–50; default 20), opacity
+  (default 0.7), and gradient `{colors, startPoints, colorMapSize?}`. The native
+  kernel differs from Google Maps. There is no heatmap press callback.
+- `Overlay`: required asset or URI `image`, `bounds` as northeast/southwest
+  `[latitude, longitude]` tuples, optional clockwise `bearing`, `opacity`,
+  `tappable` and `onPress`. Events have `nativeEvent.action: 'overlay-press'`,
+  coordinate and map-relative position. Up to eight image sources are allowed.
+- `WMSTile`: `urlTemplate` with contiguous `{minX},{minY},{maxX},{maxY}` Web
+  Mercator bbox and `{width}`/`{height}` placeholders; remaining display props
+  match the current UrlTile subset. Separate/reordered bbox tokens reject.
+- `LocalTile`: absolute/file `pathTemplate` with x/y/z tokens, `tileSize`,
+  `zIndex`, optional `id`, and Android-only `useAssets` for relative asset paths.
+
+These are initial compatibility implementations. Tile cache/offline controls,
+maximumNativeZ, density/basemap replacement and flipY remain unsupported and
+reject explicitly. Image request headers/data URIs are unsupported. Overlay
+asynchronous replacement/failure recovery and decoded-image resource limits
+remain acceptance work. No public MapLibre source/layer/expression API is added.
+
 ## Style retry
 
 Call `mapRef.current?.reloadStyle()` to retry the same style URL without remounting.

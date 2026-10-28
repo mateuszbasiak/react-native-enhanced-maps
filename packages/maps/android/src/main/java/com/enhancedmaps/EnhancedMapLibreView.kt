@@ -367,15 +367,18 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val sdkSources=parsedSources.mapIndexed { index, source ->
         if(source!=null) GeoJsonSource(source.id,source.data,source.options) else {
           val raw=sources.getJSONObject(index)
+          if(raw.optString("tileKind")=="image") NativeImageOverlay.source(reactContext,raw) else {
           val tiles=TileSet("2.2.0",raw.getString("urlTemplate"))
           tiles.setMinZoom(raw.getInt("minZoom").toFloat());tiles.setMaxZoom(raw.getInt("maxZoom").toFloat())
           RasterSource(raw.getString("id"),tiles,raw.getInt("tileSize"))
+          }
         }
       }
       val sdkLayers=parsedLayers.map { definition ->
         val id = definition.getString("id"); val source = definition.getString("source"); val properties = definition.optJSONObject("style") ?: JSONObject()
         val layer: Layer = when (definition.getString("type")) {
           "raster" -> RasterLayer(id,source).apply { if(properties.has("rasterOpacity")) setProperties(rasterOpacity(properties.getDouble("rasterOpacity").toFloat())) }
+          "heatmap" -> NativeHeatmap.layer(id,source,properties)
           "circle" -> CircleLayer(id,source).apply { if(properties.has("circleColor")) setProperties(circleColor(properties.getString("circleColor"))); if(properties.has("circleRadius")) setProperties(circleRadius(properties.getDouble("circleRadius").toFloat())); if(properties.has("circleOpacity")) setProperties(circleOpacity(properties.getDouble("circleOpacity").toFloat())) }
           "line" -> LineLayer(id,source).apply { gradients[id]?.let { setProperties(lineGradient(it)) }; if(properties.has("lineColor")) setProperties(lineColor(properties.getString("lineColor"))); if(properties.has("lineWidth")) setProperties(lineWidth(properties.getDouble("lineWidth").toFloat())); if(properties.has("lineOpacity")) setProperties(lineOpacity(properties.getDouble("lineOpacity").toFloat())); if(properties.has("lineCap")) setProperties(lineCap(properties.getString("lineCap"))); if(properties.has("lineJoin")) setProperties(lineJoin(properties.getString("lineJoin"))); if(properties.has("lineMiterLimit")) setProperties(lineMiterLimit(properties.getDouble("lineMiterLimit").toFloat())); if(properties.has("lineDasharray")) { val d=properties.getJSONArray("lineDasharray"); setProperties(lineDasharray(Array(d.length()) { d.getDouble(it).toFloat() })) } }
           "fill" -> FillLayer(id,source).apply { if(properties.has("fillColor")) setProperties(fillColor(properties.getString("fillColor"))); if(properties.has("fillOpacity")) setProperties(fillOpacity(properties.getDouble("fillOpacity").toFloat())) }
