@@ -89,7 +89,8 @@ not the current public API.
 
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
 - [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
-- [ ] **CLUSTER-07** — Port membership audits to the component API and add overlap, zoom-boundary and antimeridian fixtures. Both simulators passed complete component 1k/10k coincident-point membership/metadata audits and [maximum-zoom transitions with overlapping-group membership/input](docs/cluster-zoom-acceptance.md). General spatial/antimeridian parity remains open.
+- [x] **CLUSTER-07** — Component 1k/10k membership/metadata audits, [maximum-zoom/overlap input](docs/cluster-zoom-acceptance.md) and [spatial/antimeridian fixtures](docs/cluster-spatial-acceptance.md) pass on both native hosts. The latter checks exact membership, coordinates/metadata, groups, world-copy deduplication and source/style/remount lifetimes. Output/index-memory/cancellation and spatial performance remain under CLUSTER-06.
+- [ ] Android native 16 KB alignment — The isolated API 37 emulator reported a LOAD alignment failure for the owned `libem_shader_layer.so`. Cluster acceptance ran in compatibility mode and does not close this native-binary issue. [Observation and limits](docs/cluster-spatial-acceptance.md#limits-and-separate-failures).
 
 ## Portable custom GPU shaders
 

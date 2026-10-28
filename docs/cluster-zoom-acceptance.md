@@ -35,7 +35,8 @@ accessibility trees at zoom 15 and the native-tap membership result.
 Android layout publication lagged a camera-idle observation during the transition;
 the checks waited for layout convergence rather than treating camera idle as a
 cluster-layout completion promise. These results assert eventual functional
-behavior, not frame alignment or a latency bound. Arbitrary spatial membership,
-antimeridian behavior, general overlap ordering, in-flight source cancellation
+behavior, not frame alignment or a latency bound. Subsequent
+[spatial/antimeridian acceptance](cluster-spatial-acceptance.md) checks tile
+boundaries and world copies. General overlap ordering, in-flight source cancellation
 and visible-output/memory bounds remain open. Physical-device performance and
 full screen-reader acceptance remain maintainer follow-up.
