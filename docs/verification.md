@@ -1119,3 +1119,14 @@ invalidates retained/queued targets, and the internal location dot is excluded
 from app-marker fitting. These bounded checks do not establish accessibility,
 minimum-OS, leak-stress or physical-device performance results. Physical-device
 validation remains maintainer-owned follow-up.
+
+## RN Maps rendering components — 2026-10-28
+
+Initial Geojson, Heatmap, Overlay, WMSTile and LocalTile implementations now join
+UrlTile without adding public source/layer/expression APIs. Full local package
+checks pass 336 tests, types, Codegen, lint/format and packed declarations; native
+iOS/Android arm64 Debug builds pass. Dedicated simulator checks cover feature
+presses/hole fall-through, weighted heatmap updates, image bounds/rotation/assets,
+WMS and local files, style reload/removal/remount, and stable overlay fitting.
+See [the bounded acceptance and remaining requirements](rn-maps-rendering.md#bounded-acceptance--2026-10-28).
+The complete v1 compatibility and image/tile resource/failure gates remain open.

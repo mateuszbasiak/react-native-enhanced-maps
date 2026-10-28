@@ -431,4 +431,60 @@ const invalidMarkerState = (
 );
 void invalidMarkerState;
 
+// RN Maps-compatible rendering children, distinct from private source/layer APIs.
+import { Geojson, Heatmap } from '../src/index.js';
+<Geojson
+  geojson={{
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { name: 'Port' },
+        geometry: { type: 'Point', coordinates: [18, 54] },
+      },
+    ],
+  }}
+  onPress={(event) => {
+    void event.feature.properties;
+    void event.type;
+  }}
+/>;
+<Heatmap
+  points={[{ latitude: 54, longitude: 18, weight: 2 }]}
+  gradient={{
+    colors: ['transparent', 'red'],
+    startPoints: [0, 1],
+    colorMapSize: 256,
+  }}
+/>;
+// @ts-expect-error heatmap locations use RN Maps LatLng objects
+<Heatmap points={[[18, 54]]} />;
+// @ts-expect-error Geojson is a FeatureCollection helper, not a native source URL
+<Geojson geojson="https://example.com/data.json" />;
+
+import { Overlay, WMSTile, LocalTile } from '../src/index.js';
+<Overlay
+  image={{ uri: 'https://example.com/image.png' }}
+  bounds={[
+    [54.4, 18.8],
+    [54.3, 18.5],
+  ]}
+  onPress={(event) => {
+    const action: 'overlay-press' = event.nativeEvent.action;
+    void action;
+  }}
+/>;
+<WMSTile urlTemplate="https://example.com/wms?bbox={minX},{minY},{maxX},{maxY}&width={width}&height={height}" />;
+<LocalTile pathTemplate="/app/tiles/{z}/{x}/{y}.png" useAssets={false} />;
+declare const objectBounds: readonly [
+  { latitude: number; longitude: number },
+  { latitude: number; longitude: number },
+];
+// @ts-expect-error Overlay bounds use numeric tuples, not LatLng objects
+const invalidOverlayBounds: import('../src/index.js').OverlayProps['bounds'] =
+  objectBounds;
+void invalidOverlayBounds;
+// @ts-expect-error LocalTile does not silently accept unimplemented offline download behavior
+<LocalTile pathTemplate="/app/tiles/{z}/{x}/{y}.png" offlineMode />;
+
 map.reloadStyle();

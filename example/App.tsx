@@ -22,6 +22,7 @@ import ShapePickingVerification from './verification/ShapePickingVerification';
 import GradientVerification from './verification/GradientVerification';
 import FitVerification from './verification/FitVerification';
 import CalloutVerification from './verification/CalloutVerification';
+import RenderingVerification from './verification/RenderingVerification';
 import UrlTileVerification from './verification/UrlTileVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
@@ -40,6 +41,7 @@ type DebugGlobal = typeof globalThis & {
   > & { scenarios: typeof scenarios };
 };
 const controls: readonly [Scenario, string][] = [
+  ['rendering', 'RN Maps rendering'],
   ['url-tiles', 'Native XYZ tiles'],
   ['callouts', 'Marker callouts'],
   ['fit', 'Dateline fits'],
@@ -125,7 +127,9 @@ export default function App() {
         <Button title="Examples" onPress={() => setPickerOpen(true)} />
       </View>
       <View key={selection.generation} style={{ flex: 1 }}>
-        {id === 'callouts' && __DEV__ ? (
+        {id === 'rendering' && __DEV__ ? (
+          <RenderingVerification />
+        ) : id === 'callouts' && __DEV__ ? (
           <CalloutVerification />
         ) : id === 'url-tiles' && __DEV__ ? (
           <UrlTileVerification />

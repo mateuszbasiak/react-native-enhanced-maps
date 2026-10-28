@@ -11,7 +11,7 @@ const report = () => ({
     fill: 'unvalidated',
     symbol: 'unsupported',
     raster: 'unvalidated',
-    heatmap: 'unsupported',
+    heatmap: 'unvalidated',
   },
 });
 test('native capability reports preserve evidence states and freeze snapshots', async () => {

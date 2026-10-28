@@ -42,15 +42,25 @@ function positionCount(data: GeoJSONData): number {
 }
 export function serializeMapScene(
   sources: readonly (
-    | { readonly id: string; readonly data: GeoJSONData }
+    | {
+        readonly id: string;
+        readonly data: GeoJSONData;
+        readonly coordinateSpace?: 'unwrapped';
+      }
     | { readonly id: string; readonly type: 'raster' }
   )[],
   layers: readonly Readonly<Record<string, unknown>>[],
 ): string {
   const positions = new Map<string, number>();
-  let declared = 0;
+  let declared = 0,
+    generated = 0;
   for (const source of sources) {
     const count = 'data' in source ? positionCount(source.data) : 0;
+    if ('coordinateSpace' in source && source.coordinateSpace === 'unwrapped') {
+      generated += count;
+      if (generated > 10000)
+        throw new Error('Scene generated-shape position limit exceeded');
+    }
     declared += count;
     if (declared > 50000) throw new Error('Scene position limit exceeded');
     positions.set(source.id, count);

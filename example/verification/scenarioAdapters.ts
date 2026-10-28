@@ -3,6 +3,7 @@ import type { Observation, Scenario } from './scenarioSession';
 export function inspectScenario(scenario: Scenario): Observation | undefined {
   if (!__DEV__) return;
   const names: Partial<Record<Scenario, string>> = {
+    rendering: '__enhancedMapsRendering',
     callouts: '__enhancedMapsCallouts',
     'url-tiles': '__enhancedMapsUrlTiles',
     fit: '__enhancedMapsFit',

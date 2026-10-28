@@ -55,6 +55,99 @@ for (const [label, component, props] of [
     scene: JSON.parse(compileScene(React.createElement(component, props)).json),
     accepted: true,
   });
+const { Heatmap } = await import('../packages/maps/lib/heatmap.js');
+const heatmapScene = JSON.parse(
+  compileScene(
+    React.createElement(Heatmap, {
+      points: [{ latitude: 0, longitude: 0, weight: 2 }],
+    }),
+  ).json,
+);
+fixtures.push({
+  label: 'weighted heatmap',
+  scene: heatmapScene,
+  accepted: true,
+});
+for (const [label, mutate] of [
+  ['heatmap invalid radius', (s) => (s.layers[0].style.heatmapRadius = -1)],
+  ['heatmap invalid opacity', (s) => (s.layers[0].style.heatmapOpacity = 2)],
+  [
+    'heatmap bad gradient color',
+    (s) => (s.layers[0].style.heatmapGradient[0][1] = 'invalid'),
+  ],
+  [
+    'heatmap duplicate stop',
+    (s) => (s.layers[0].style.heatmapGradient[1][0] = 0),
+  ],
+  [
+    'heatmap unknown expression',
+    (s) => (s.layers[0].style.heatmapWeight = ['get', 'untrusted']),
+  ],
+]) {
+  const scene = structuredClone(heatmapScene);
+  mutate(scene);
+  fixtures.push({ label, scene, accepted: false });
+}
+const { WMSTile, LocalTile } = await import('../packages/maps/lib/rnTiles.js');
+for (const [label, component, props] of [
+  [
+    'WMS tile',
+    WMSTile,
+    {
+      urlTemplate:
+        'https://example.com/wms?bbox={minX},{minY},{maxX},{maxY}&width={width}&height={height}',
+    },
+  ],
+  ['local tile', LocalTile, { pathTemplate: '/tmp/tiles/{z}/{x}/{y}.png' }],
+]) {
+  const scene = JSON.parse(
+    compileScene(React.createElement(component, props)).json,
+  );
+  fixtures.push({ label, scene, accepted: true });
+  for (const [suffix, mutate] of [
+    ['wrong tile kind', (s) => (s.sources[0].tileKind = 'unknown')],
+    [
+      'wrong URI',
+      (s) => (s.sources[0].urlTemplate = 'https://example.com/{z}/{x}/{y}.png'),
+    ],
+  ]) {
+    const invalid = structuredClone(scene);
+    mutate(invalid);
+    fixtures.push({ label: label + suffix, scene: invalid, accepted: false });
+  }
+}
+const { Overlay } = await import('../packages/maps/lib/imageOverlay.js');
+const overlayScene = JSON.parse(
+  compileScene(
+    React.createElement(Overlay, {
+      image: { uri: 'https://example.com/image.png' },
+      bounds: [
+        [2, 3],
+        [0, 1],
+      ],
+      tappable: true,
+      onPress: () => {},
+    }),
+  ).json,
+);
+fixtures.push({
+  label: 'image overlay and hit geometry',
+  scene: overlayScene,
+  accepted: true,
+});
+for (const [label, mutate] of [
+  ['overlay malformed quad', (s) => s.sources[0].coordinates.pop()],
+  ['overlay nonfinite corner', (s) => (s.sources[0].coordinates[0][0] = null)],
+  [
+    'overlay unsupported URI',
+    (s) => (s.sources[0].uri = 'data:image/png;base64,large'),
+  ],
+  ['overlay unknown field', (s) => (s.sources[0].untrusted = true)],
+]) {
+  const scene = structuredClone(overlayScene);
+  mutate(scene);
+  fixtures.push({ label, scene, accepted: false });
+}
 mkdirSync(output, { recursive: true });
 writeFileSync(output + '/fixtures.json', JSON.stringify(fixtures));
 const chunks = [];

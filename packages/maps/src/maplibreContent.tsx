@@ -1,6 +1,17 @@
 import { Children, Fragment, isValidElement, createElement } from 'react';
 import type { ReactNode } from 'react';
 import { Polyline, Polygon, Circle, compileMapContent } from './mapContent';
+import { Heatmap, normalizeHeatmap } from './heatmap';
+import type { HeatmapProps } from './heatmap';
+import {
+  WMSTile,
+  LocalTile,
+  normalizeWMSTile,
+  normalizeLocalTile,
+} from './rnTiles';
+import type { WMSTileProps, LocalTileProps } from './rnTiles';
+import { Overlay, normalizeOverlay } from './imageOverlay';
+import type { OverlayProps, ImageResolver } from './imageOverlay';
 import { nativeShapes } from './nativeShapes';
 import { serializeMapScene } from './sceneBudget';
 import { compileLayers, GeoJSONSource as CheckedSource } from './layers';
@@ -58,7 +69,10 @@ const numericStyles: Record<string, number> = {
   lineOpacity: 1,
   fillOpacity: 1,
 };
-export function compileScene(children: ReactNode) {
+export function compileScene(
+  children: ReactNode,
+  resolveImage?: ImageResolver,
+) {
   const sources: (
       | {
           id: string;
@@ -71,10 +85,19 @@ export function compileScene(children: ReactNode) {
       | {
           id: string;
           type: 'raster';
+          tileKind?: 'wms' | 'local';
           urlTemplate: string;
           tileSize: number;
           minZoom: number;
           maxZoom: number;
+          cluster?: never;
+        }
+      | {
+          id: string;
+          type: 'raster';
+          tileKind: 'image';
+          uri: string;
+          coordinates: readonly (readonly [number, number])[];
           cluster?: never;
         }
     )[] = [],
@@ -104,11 +127,106 @@ export function compileScene(children: ReactNode) {
         );
         return;
       }
-      if (node.type === UrlTile) {
+      if (node.type === Overlay) {
+        if (source) throw new Error('Overlay must be a MapView child');
+        const p = node.props as OverlayProps,
+          value = normalizeOverlay(p, resolveImage);
+        const id = `em-overlay:${tileIndex++}`;
+        if (
+          sources.filter((s) => 'tileKind' in s && s.tileKind === 'image')
+            .length >= 8
+        )
+          throw new Error('Overlay image limit exceeded');
+        sources.push({
+          id,
+          type: 'raster',
+          tileKind: 'image',
+          uri: value.uri,
+          coordinates: value.coordinates,
+        });
+        contentOrder.set(id, { zIndex: 0, index: contentIndex++ });
+        contentLayers.push({
+          id: `raster:${id}`,
+          source: id,
+          type: 'raster',
+          interactive: false,
+          visible: true,
+          style: { rasterOpacity: value.opacity },
+        });
+        {
+          // Always retain the geographic footprint so fitElements is independent
+          // of press handlers. The transparent layer only consumes enabled taps.
+          const hitID = `${id}:hit`,
+            ring = [...value.coordinates, value.coordinates[0]!];
+          sources.push({
+            id: hitID,
+            coordinateSpace: 'unwrapped',
+            data: {
+              type: 'FeatureCollection',
+              features: [
+                {
+                  type: 'Feature',
+                  id: 'geometry',
+                  properties: null,
+                  geometry: { type: 'Polygon', coordinates: [ring] },
+                },
+              ],
+            },
+          });
+          contentOrder.set(hitID, contentOrder.get(id)!);
+          contentLayers.push({
+            id: hitID,
+            source: hitID,
+            type: 'fill',
+            interactive: true,
+            visible: true,
+            style: { fillColor: '#000000', fillOpacity: 0 },
+          });
+          if (value.tappable && p.onPress && value.opacity > 0)
+            presses.set(hitID, (_feature, event) =>
+              p.onPress!({
+                nativeEvent: { action: 'overlay-press', ...event },
+              }),
+            );
+        }
+        return;
+      }
+      if (node.type === Heatmap) {
+        if (source)
+          throw new Error('Heatmap cannot be nested in InternalSource');
+        const content = normalizeHeatmap(node.props as HeatmapProps);
+        const id = `em-heatmap:${sources.length}`;
+        sources.push({ id, data: content.data });
+        layers.push({
+          id,
+          source: id,
+          type: 'heatmap',
+          style: content.style,
+          interactive: false,
+          visible: true,
+        });
+        return;
+      }
+      if (
+        node.type === UrlTile ||
+        node.type === WMSTile ||
+        node.type === LocalTile
+      ) {
         if (source) throw new Error('UrlTile must be a MapView child');
         const p = node.props as UrlTileProps;
-        const id = identifier(p.id ?? `url-tile:${tileIndex++}`);
-        const value = normalizeUrlTile(p);
+        const kind =
+          node.type === WMSTile
+            ? 'wms-tile'
+            : node.type === LocalTile
+              ? 'local-tile'
+              : 'url-tile';
+        const id = identifier(p.id ?? `${kind}:${tileIndex++}`);
+        const value =
+          node.type === WMSTile
+            ? normalizeWMSTile(node.props as WMSTileProps)
+            : node.type === LocalTile
+              ? normalizeLocalTile(node.props as LocalTileProps)
+              : normalizeUrlTile(p);
         const { opacity, visible, zIndex, ...raster } = value;
         sources.push({ id, type: 'raster', ...raster });
         contentOrder.set(id, { zIndex, index: contentIndex++ });

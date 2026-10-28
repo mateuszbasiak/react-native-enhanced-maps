@@ -28,11 +28,15 @@ are implemented with explicit permission, composition and clustering limits.
 Provider selection remains unavailable. [Expo SDK 56 custom builds](expo.md) have core
 consumer build/simulator acceptance; Expo Go is outside the target. Public source/layer components
 and their old cluster-query APIs were retired. [Native XYZ raster tiles](url-tiles.md)
-are implemented through `UrlTile`. Symbol/icon, heatmap
-and expression/filter requirements still need reconciliation with the component
-API. Complete RNGH/input, accessibility, lifecycle and spatial-parity matrices
+are implemented through `UrlTile`. Initial Geojson, Heatmap, Overlay, WMSTile
+and LocalTile support follows the approved [rendering contract](rendering-contract.md),
+with [explicit compatibility limits](rn-maps-rendering.md). Icons/labels use Marker;
+sources, layers and expressions remain private. Complete RNGH/input, accessibility, lifecycle and spatial-parity matrices
 remain checklist work.
 
 Older prototype and source/layer documents are historical/internal descriptions,
 not alternate public API specifications. Exact RN Maps parity fixtures and a
 pinned comparison baseline remain open under COMPAT-01–02/05–06/08–09.
+
+Initial [RN Maps rendering components](rn-maps-rendering.md) have explicit
+compatibility limits; the [v1 contract](rendering-contract.md) remains the target.

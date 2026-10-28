@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import type { ElementRef } from 'react';
-import { Platform, PixelRatio, View } from 'react-native';
+import { Platform, PixelRatio, View, Image } from 'react-native';
 import {
   regionRequest,
   rejectUnsupportedProps,
@@ -181,24 +181,27 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       });
     const scene = useMemo(
       () =>
-        compileScene([
-          ...markerContent.content,
-          ...markerContent.groups.map((group) => (
-            <InternalSource
-              key={group.sourceId}
-              id={group.sourceId}
-              data={group.data}
-              revision={markerVersion.revision}
-              cluster
-            >
-              <InternalLayer
-                id={group.layerId}
-                type="circle"
-                style={{ circleRadius: 1, circleOpacity: 0 }}
-              />
-            </InternalSource>
-          )),
-        ]),
+        compileScene(
+          [
+            ...markerContent.content,
+            ...markerContent.groups.map((group) => (
+              <InternalSource
+                key={group.sourceId}
+                id={group.sourceId}
+                data={group.data}
+                revision={markerVersion.revision}
+                cluster
+              >
+                <InternalLayer
+                  id={group.layerId}
+                  type="circle"
+                  style={{ circleRadius: 1, circleOpacity: 0 }}
+                />
+              </InternalSource>
+            )),
+          ],
+          Image.resolveAssetSource,
+        ),
       [markerContent, markerVersion.revision],
     );
     const [markerLayout, setMarkerLayout] = useState<{

@@ -23,8 +23,9 @@ The report identifies `engine: 'maplibre'` and the native `platform`, and includ
 - `unsupported`: absent from the integrated native map API.
 
 Both current hosts report circle/line/fill and detailed gesture lifecycle events
-as `unvalidated`, and shaders as `unvalidated`, and symbol/heatmap as `unsupported`. Raster is `unvalidated`: the bounded native
-`UrlTile` contract is implemented, with broader network/cache/performance
+as `unvalidated`, along with shaders, raster and heatmap. Symbols remain
+`unsupported`; Marker icons do not expose a style-spec SymbolLayer. The native
+Heatmap component and bounded native `UrlTile` contract are implemented, with broader network/cache/performance
 coverage separate from implementation.
 This deliberately does not advertise every capability of the underlying MapLibre
 SDK. The experimental ShaderLayer transport is available in native builds, but

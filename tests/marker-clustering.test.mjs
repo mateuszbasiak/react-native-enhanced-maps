@@ -4,6 +4,8 @@ import React from 'react';
 import { readFileSync } from 'node:fs';
 
 async function load(module = 'markerClustering') {
+  if (module === 'markerClustering')
+    return import('../packages/maps/lib/markerClustering.js');
   const url = new URL(`../packages/maps/lib/${module}.js`, import.meta.url);
   const code = readFileSync(url, 'utf8')
     .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
@@ -380,7 +382,8 @@ test('cluster-prefixed public marker IDs survive scene compilation, layout and m
     .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
     .replace(
       /from '(\.\/[^']+)'/g,
-      (_, path) => `from '${new URL(path + '.js', url).href}'`,
+      (_, path) =>
+        `from '${new URL(path.endsWith('.js') ? path : path + '.js', url).href}'`,
     );
   const { compileScene, InternalSource, InternalLayer } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
@@ -482,7 +485,8 @@ test('markers above 10k compile, deliver layouts and resolve all members', async
     .replace("from 'react'", `from '${import.meta.resolve('react')}'`)
     .replace(
       /from '(\.\/[^']+)'/g,
-      (_, path) => `from '${new URL(path + '.js', url).href}'`,
+      (_, path) =>
+        `from '${new URL(path.endsWith('.js') ? path : path + '.js', url).href}'`,
     );
   const { compileScene, InternalSource, InternalLayer } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`

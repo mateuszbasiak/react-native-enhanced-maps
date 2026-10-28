@@ -1,4 +1,5 @@
 export const scenarios = [
+  'rendering',
   'callouts',
   'url-tiles',
   'fit',
