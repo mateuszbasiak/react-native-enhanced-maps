@@ -34,7 +34,7 @@ export function createReadinessReplay(
             try {
               report = readiness.acceptReport(styleRevision, json);
             } catch {
-              readiness.invalidate();
+              readiness.beginReload(styleRevision);
               callbacks.invalid();
               return;
             }

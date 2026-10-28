@@ -48,8 +48,6 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Map lifetime, camera and gestures
 
-- [ ] **Fast Refresh readiness recovery** — Editing a map-content module after readiness left both Debug hosts' ref commands rejecting `Map is not ready` until a fresh fixture generation remounted the map. Reproduce and fix recovery without accepting stale native generations; the UrlTile source-update and lifecycle checks pass outside this development reload path. [Observation](docs/url-tiles.md#acceptance--2026-10-27).
-
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Android now gates native rendering on independent host/window state, with terminal disposal and native transition regressions. Explicit same-URL style retry, revision-scoped recoverable load errors and background snapshot generation invalidation have automated recovery/native-helper regressions. Complete memory/resource counts and the remaining runtime lifecycle/failure matrix.
 - [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
 - [x] **MAP-11** — Native Debug/Release builds and Release simulator smoke pass on both hosts. Physical-device smoke is maintainer-owned deferred follow-up. [Packed consumer evidence](docs/native-consumers.md).

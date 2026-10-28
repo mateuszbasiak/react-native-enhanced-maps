@@ -79,7 +79,7 @@ export function createMapReadiness(platform: MapPlatform) {
     activate(styleRequest: number) {
       if (!active || request !== styleRequest) {
         capabilities = null;
-        failed = false;
+        if (request !== styleRequest) failed = false;
         generation++;
       }
       request = styleRequest;

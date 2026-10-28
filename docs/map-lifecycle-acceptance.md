@@ -27,7 +27,8 @@ On iPhone 17 Pro / iOS 26.1 and the API 36 ARM64 Android emulator:
 
 The first direct-edit run exposed a handshake reply discarded by the old
 readiness guard; the shader run then exposed teardown blocked by the same state.
-Both paths have regression coverage. The final checks include 320 passing
+Both paths have regression coverage. After integration with UrlTile and explicit
+style retry, the checks include 332 passing
 contract/native-helper tests, lint, formatting, TypeScript, Codegen, packed
 declarations, both native Debug builds and both production example bundles.
 Raw local receipts are under ignored `artifacts/verification/readiness-replay/`.

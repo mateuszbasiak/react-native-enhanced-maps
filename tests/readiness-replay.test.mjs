@@ -12,7 +12,7 @@ const report = JSON.stringify({
     line: 'unvalidated',
     fill: 'unvalidated',
     symbol: 'unsupported',
-    raster: 'unsupported',
+    raster: 'unvalidated',
     heatmap: 'unsupported',
   },
 });
@@ -111,4 +111,23 @@ test('a newer native ready event wins over an outstanding recovery', async () =>
   await tick();
   assert.equal(f.ready.isReady(0), true);
   assert.equal(f.events.includes('invalid'), false);
+});
+
+test('style failure or reload during recovery prevents another replay from reviving that request', async () => {
+  for (const fail of ['beginReload', 'acceptLoadFailure']) {
+    const f = fixture();
+    let cleanup = f.setup();
+    f.ready.acceptReport(0, report);
+    cleanup();
+    cleanup = f.setup();
+    assert.equal(f.ready[fail](0), true);
+    cleanup();
+    f.setup();
+    f.pending[0].resolve(report);
+    await tick();
+    assert.equal(f.pending.length, 1);
+    assert.equal(f.ready.isReady(0), false);
+    assert.equal(f.events.includes('recover'), false);
+    assert.equal(f.ready.acceptReport(0, report), null);
+  }
 });
