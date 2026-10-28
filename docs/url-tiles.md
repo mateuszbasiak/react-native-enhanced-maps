@@ -77,7 +77,7 @@ maintainer-owned follow-up.
 
 ## Acceptance — 2026-10-27
 
-Implementation commit `8d97d60` passed the following checks on iPhone 17 Pro /
+Implementation commit `8ac50ba` passed the following checks on iPhone 17 Pro /
 iOS 26.1 and Android 16 / API 36 ARM64, using the deterministic local fixture.
 Both native Debug builds succeeded. Each host passed eleven pixel-checked cases:
 default red imagery, half opacity over white, hidden imagery, blue template
@@ -101,10 +101,17 @@ readiness was recorded, and the fitting/zoom probes were rerun after selecting a
 fresh fixture generation. Recovering query readiness after source edits on an
 already-ready map remains a separate lifecycle issue in the project checklist.
 
-The clean generated-package check passes all 300 tests, strict type checks,
+The clean generated-package check passes all 313 tests, strict type checks,
 Codegen and packed declarations. The shared Android/Foundation scene preflight
 corpus has 77 fixtures, including valid raster resources and malformed bounds,
 styles, templates and source/layer combinations. Both production bundle checks
 exclude Debug maps globals and configured maps secrets. Final code review found
 no remaining actionable findings. Local ignored receipts retain native states,
 sampled colors, screenshot paths, tile request history and binary provenance.
+
+Integration with main commit `364b439` was checked on 2026-10-28 after the
+callout, cluster-lifetime and marker-budget changes merged. Both native builds,
+the full eleven-case matrix, geometry-only fitting checks and production bundle
+checks pass on that combined implementation. The Examples picker opens the
+fixture on both platforms. The separate initial source-zoom probes above were
+run before this rebase; raster source-zoom code was unchanged by integration.

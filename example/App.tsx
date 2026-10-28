@@ -40,6 +40,7 @@ type DebugGlobal = typeof globalThis & {
   > & { scenarios: typeof scenarios };
 };
 const controls: readonly [Scenario, string][] = [
+  ['url-tiles', 'Native XYZ tiles'],
   ['callouts', 'Marker callouts'],
   ['fit', 'Dateline fits'],
   ['settings', 'settings'],
