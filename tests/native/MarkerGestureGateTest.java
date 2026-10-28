@@ -26,5 +26,19 @@ public final class MarkerGestureGateTest {
     MarkerGestureGate other = new MarkerGestureGate();
     gate.begin(true);
     check(!other.isReserved());
+    // A second map owns its stream independently. Cancelling/detaching either
+    // map must not hand the other map's marker stream back to its SDK.
+    other.begin(true);
+    gate.end();
+    check(!gate.isReserved());
+    check(other.isReserved());
+    check(!other.claim());
+    other.end();
+    gate.begin(false);
+    check(gate.claim());
+    gate.end();
+    check(!gate.claim()); // Queued responder grant after navigation is inert.
+    other.begin(false);
+    check(!other.isReserved()); // New stream after cancellation can pan again.
   }
 }

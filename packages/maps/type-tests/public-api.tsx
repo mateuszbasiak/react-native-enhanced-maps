@@ -390,3 +390,25 @@ markerRef.current?.hideCallout();
 // @ts-expect-error callout tooltip is boolean
 const invalidCallout = <Callout tooltip="yes" />;
 void invalidCallout;
+
+const accessibleMarker = (
+  <Marker
+    coordinate={camera.center}
+    accessible
+    accessibilityLabel="Boat"
+    accessibilityHint="Opens boat details"
+    accessibilityRole="button"
+    accessibilityState={{ busy: false }}
+    accessibilityActions={[{ name: 'inspect', label: 'Inspect boat' }]}
+    onAccessibilityAction={(event) => {
+      const action: string = event.nativeEvent.actionName;
+      void action;
+    }}
+  />
+);
+void accessibleMarker;
+const invalidMarkerState = (
+  // @ts-expect-error accessibility state uses React Native boolean types
+  <Marker coordinate={camera.center} accessibilityState={{ busy: 'yes' }} />
+);
+void invalidMarkerState;

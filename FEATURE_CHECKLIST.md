@@ -54,7 +54,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [ ] **CAM-07, CAM-11** — Controlled camera/region and precedence are implemented with serialized partial updates and obsolete-request guards. Broaden interruption, feedback-loop and event-volume acceptance. [Migration contract](docs/rn-maps-migration.md).
 - [ ] **CAM-09–10** — Complete geographic, high-pitch, padding, resize, animation and lifecycle coverage for projection, visible bounds and fit methods. Explicit fit request validation rejects sparse coordinate arrays before native dispatch. Generated dateline circle/line/polygon fits now pass public-ref padding checks on both simulators, alongside bounded round-trip/dateline/fit evidence. [Geometry contract](docs/map-geometry.md).
 - [ ] **GEST-01–03, GEST-06** — Complete native pan/zoom/rotate/tilt provenance, throttling, simultaneous recognition and cancellation under detach/navigation/stress. Background cancellation and subscription cycling have simulator evidence. [Gestures](docs/gestures.md).
-- [ ] **GEST-05, A11Y-05** — Marker touch ownership and hit order under multi-touch, nested scroll, bottom sheets, navigation, multiple maps and GPU touch-through. [Marker gestures](docs/marker-gestures.md).
+- [ ] **GEST-05, A11Y-05** — Marker touch ownership and hit order under multi-touch, navigation, multiple maps and GPU touch-through. Nested-scroll and bottom-sheet gesture coordination are outside supported scope. Automated ownership/cancellation regressions cover independent streams and late events; integrated runtime checks remain. [Marker gestures](docs/marker-gestures.md).
 
 ## Markers, shapes and internal rendering
 
@@ -107,7 +107,7 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [x] **TEST-03, TEST-10** — Remote main and PR package CI jobs, 128 passing tests, Codegen, packed declarations, both production bundles and uploaded artifacts are verified for the [recorded commits/runs](docs/remote-ci-acceptance.md). Later revisions need fresh CI results. Native CI builds were intentionally removed in PR #13; native build/runtime acceptance remains separate.
 - [ ] **TEST-05–09, TEST-11** — Debug selection/readiness collection and provenance records are implemented. Complete consolidated semantic assertions, pass/fail results, controlled visual baselines, alignment and trace capture. [Session contract](docs/scenario-sessions.md). Unavailable devices must not count as passes.
 - [ ] **TEST-12** — Production example and optional-peer bundle verifiers reject Debug globals and configured local maps secrets without printing bundle contents. [Scope and evidence](docs/verification.md#release-bundle-secret-exclusion-2026-10-27). Complete broader Release consumer diagnostic/privacy acceptance; this is not arbitrary credential discovery or a native binary/log audit.
-- [ ] **A11Y-01–03, A11Y-06** — VoiceOver/TalkBack acceptance for markers, clusters and shapes, accessible navigation/selection, reduced motion and shader pause alternatives. iOS child-label/frame fixes have bounded simulator evidence only.
+- [ ] **A11Y-01–03, A11Y-06** — Marker labels/hints/roles/state/custom actions and one-target grouping policy are implemented with automated contracts. Complete VoiceOver/TalkBack acceptance for markers, clusters and shapes, accessible navigation/selection, reduced motion and shader pause alternatives. iOS child-label/frame fixes have bounded simulator evidence only.
 
 ## Compatibility and distribution
 

@@ -7,6 +7,11 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- Marker accessibility hints, roles, state and custom actions with explicit
+  grouping/opt-out for custom children. Selection-only markers now expose a single
+  accessibility target. Nested-scroll and bottom-sheet gesture coordination are
+  explicitly outside supported scope.
+
 - React marker callouts with default text or interactive custom content, show/hide
   refs, map-local selection/press events, native attachment and lifecycle cleanup
   on iOS and Android. See [the contract](docs/marker-callouts.md).

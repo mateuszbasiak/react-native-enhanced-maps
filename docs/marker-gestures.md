@@ -24,8 +24,8 @@ cancel an already running camera animation or inertia.
 
 The Android ownership gate has executable standalone tests. Both platforms compile
 against their native SDKs. Native gesture routing, multi-touch, transformed/overlapping
-children, child removal during a drag, RNGH, nested scroll views, bottom sheets and
-navigation interactions still require device verification. This is a bounded
+children, child removal during a drag, RNGH and navigation interactions still
+require runtime verification. This is a bounded
 implementation of GEST-05, not closure of that entire integration workstream.
 
 Running iOS/Android simulators passed child counter taps, long presses and slider
@@ -35,3 +35,36 @@ iOS annotation wrappers are accessibility containers rather than SDK callout
 leaves, allowing React children to retain their labels/actions. Their accessibility
 frames use screen coordinates. Native tree checks passed before/after camera pan
 and remount. Full assistive-technology navigation remains an open quality gate.
+
+## Supported integration scope
+
+The package owns touch routing between the map and its markers. Gesture coordination
+with nested scroll views and bottom-sheet containers is outside the supported
+scope. Applications may compose their own layouts, but the package does not promise
+responder handover or simultaneous gestures with those containers.
+
+## Marker accessibility
+
+`Marker` accepts React Native `accessible`, `accessibilityLabel`,
+`accessibilityHint`, `accessibilityRole`, `accessibilityState`,
+`accessibilityActions` and `onAccessibilityAction` props. Marker-level semantics
+are placed on one target: the marker Pressable when it handles presses, selection
+or a callout, otherwise the content wrapper. Selection-only markers do not expose
+an additional labelled wrapper.
+
+Custom child controls retain their own accessibility by default. Use an explicit
+marker label or `accessible={true}` to group a custom pin into one target; use
+`accessible={false}` to preserve child traversal instead. Interactive pins default
+to the button role. Default static pins expose a “Map marker” label; applications
+should supply meaningful labels. Hints, custom actions and state go to the same
+target. Custom actions call the supplied handler; applications own their behavior.
+React Native state descriptions such as `disabled` do not themselves disable
+marker interaction. Callout `expanded` always reflects actual visibility and
+cannot be overridden by caller state. Other state fields are preserved.
+
+Automated contracts cover target selection, opt-in grouping/opt-out, hint/action
+forwarding and callout expansion. Native ownership regressions cover independent
+map streams, cancellation and late grants; drag regressions cover one cleanup
+cancellation, stale events and a subsequent valid session. These checks do not
+establish multi-touch runtime behavior, visual texture alignment or VoiceOver/
+TalkBack acceptance. Those remain separately tracked follow-up.
