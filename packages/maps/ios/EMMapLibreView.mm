@@ -2,6 +2,7 @@
 #import "EMMarkerView.h"
 #import "MapUserLocation.h"
 #import "MapSnapshot.h"
+#import "SnapshotGeneration.h"
 #import "SourceRevisionGate.h"
 #import "GeoJSONValidation.h"
 #import "SceneValidation.h"
@@ -106,7 +107,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   NSMutableSet<NSString *> *_interactiveLayers;
   NSUInteger _sequence;
   EMMapSnapshot *_snapshotOperation;
-  NSUInteger _snapshotGeneration;
+  enhancedmaps::SnapshotGeneration _snapshotGeneration;
   EMMapUserLocation *_userLocation;
   BOOL _configured;
   BOOL _ready;
@@ -226,7 +227,8 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
     for(EMMarkerView *marker in _markers)[marker.annotation cancelMarkerDrag];
     [_userLocation configure:NO];
     _ready=NO; _loadingStyleRevision=next.styleRevision;
-    _map.styleURL=next.styleURL.empty()?nil:[NSURL URLWithString:@(next.styleURL.c_str())];
+    if(old.styleURL==next.styleURL)[_map reloadStyle:nil];
+    else _map.styleURL=next.styleURL.empty()?nil:[NSURL URLWithString:@(next.styleURL.c_str())];
   }
   else if(sceneChanged && _ready)[self applyScene];
   [_userLocation configure:next.locationEnabled && _ready];
@@ -267,7 +269,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
     _lastMarkerLayout=layout;
     std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMarkerClusters({std::string(json.UTF8String),_readyStyleRevision});
   } @catch(NSException *exception) {
-    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"marker-cluster",std::string(exception.reason.UTF8String ?: "Marker cluster layout failed")});
+    std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"marker-cluster",std::string(exception.reason.UTF8String ?: "Marker cluster layout failed"),p.styleRevision});
   }
 }
 - (void)emitGesture:(const enhancedmaps::GestureSample &)sample {
@@ -300,12 +302,12 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 - (void)cancelNativeGestures {
   for(const auto &sample:_gestureEvents.cancelAll(CACurrentMediaTime()*1000))[self emitGesture:sample];
 }
-- (void)cancelSnapshot { ++_snapshotGeneration;[_snapshotOperation cancel];_snapshotOperation=nil; }
-- (void)onApplicationResignActive:(NSNotification *)notification { [_snapshotOperation cancel]; [_userLocation pause];[self cancelNativeGestures]; }
+- (void)cancelSnapshot { _snapshotGeneration.invalidate();[_snapshotOperation cancel];_snapshotOperation=nil; }
+- (void)onApplicationResignActive:(NSNotification *)notification { [self cancelSnapshot]; [_userLocation pause];[self cancelNativeGestures]; }
 - (void)onApplicationBecameActive:(NSNotification *)notification { if(self.window)[_userLocation resume]; }
 - (void)emitError:(NSString *)message { [self emitError:message code:@"maplibre"]; }
-- (void)emitError:(NSString *)message code:(NSString *)code { if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error")}); }
-- (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { [self emitError:error.localizedDescription]; }
+- (void)emitError:(NSString *)message code:(NSString *)code { const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error"),p.styleRevision}); }
+- (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { if(map==_map)[self emitError:error.localizedDescription code:@"style-load"]; }
 - (void)emitRegionEvent:(MLNMapView *)map gesture:(BOOL)gesture complete:(BOOL)complete {
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
   if(!p.regionEventsEnabled || !_ready || !_eventEmitter || _fitPreflight)return;
@@ -357,7 +359,7 @@ static UIColor *EMColor(id value) {
   NSDictionary *names=@{@"red":UIColor.redColor,@"black":UIColor.blackColor,@"white":UIColor.whiteColor,@"blue":UIColor.blueColor,@"transparent":UIColor.clearColor}; return names[value]?:UIColor.blackColor;
 }
 - (void)emitSceneError:(NSString *)message {
-  if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"layer-scene",std::string(message.UTF8String ?: "Invalid scene")});
+  if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({"layer-scene",std::string(message.UTF8String ?: "Invalid scene"),std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props)->styleRevision});
 }
 - (BOOL)applyScene {
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
@@ -538,11 +540,11 @@ static UIColor *EMColor(id value) {
 #endif
       if(_snapshotOperation)@throw [NSException exceptionWithName:@"MapSnapshot" reason:@"A snapshot is already in progress" userInfo:nil];
       NSMutableArray<UIView *> *markerViews=[NSMutableArray new];for(EMMarkerView *marker in _markers)[markerViews addObject:marker.annotation];
-      const NSUInteger generation=++_snapshotGeneration;const double requestedRevision=revision;
+      const uint64_t generation=_snapshotGeneration.begin();const double requestedRevision=revision;
       __weak EMMapLibreView *weakSelf=self;
       _snapshotOperation=[EMMapSnapshot startWithMap:_map markers:markerViews request:request completion:^(NSDictionary *output,NSString *error){
         EMMapLibreView *owner=weakSelf;
-        if(!owner || !owner.window || !owner->_ready || generation!=owner->_snapshotGeneration || owner->_readyStyleRevision!=requestedRevision || !owner->_eventEmitter){if(output)[EMMapSnapshot discardResult:output];return;}
+        if(!owner || !owner.window || !owner->_ready || !owner->_snapshotGeneration.isCurrent(generation) || owner->_readyStyleRevision!=requestedRevision || !owner->_eventEmitter){if(output)[EMMapSnapshot discardResult:output];return;}
         owner->_snapshotOperation=nil;
         NSData *data=output?[NSJSONSerialization dataWithJSONObject:output options:0 error:nil]:nil;
         NSString *json=data?[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]:@"";

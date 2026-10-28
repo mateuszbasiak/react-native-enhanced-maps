@@ -46,10 +46,12 @@ export function classifyMapError(error: {
   readonly message: string;
 }): MapError {
   return {
-    ...error,
+    code: error.code,
+    message: error.message,
     fatal:
       !error.code.startsWith('location-') &&
       error.code !== 'map-load' &&
+      error.code !== 'style-load' &&
       error.code !== 'layer-scene' &&
       error.code !== 'invalid-map-padding',
   };

@@ -75,7 +75,7 @@ fit. Offscreen/unmounted maps and alternate `region` captures are unsupported.
 On iOS, simultaneous pitch and map/camera padding reject explicitly because
 that off-center perspective has not passed snapshot alignment acceptance; use a
 flat camera or clear padding. Native resource loading/encoding times out after
-four seconds. Style replacement, detach and disposal invalidate pending output;
+four seconds. Backgrounding, style replacement, detach and disposal invalidate pending output;
 catch promise rejections.
 
 A file result is a `file://` URI in private application cache. The package retains

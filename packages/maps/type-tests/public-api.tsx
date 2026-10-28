@@ -430,3 +430,5 @@ const invalidMarkerState = (
   <Marker coordinate={camera.center} accessibilityState={{ busy: 'yes' }} />
 );
 void invalidMarkerState;
+
+map.reloadStyle();

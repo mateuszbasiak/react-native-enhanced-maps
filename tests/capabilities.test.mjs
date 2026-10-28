@@ -115,3 +115,44 @@ test('readiness ignores queued reports from old style requests and detached maps
   assert.equal(state.acceptReport(2, json), null);
   assert.deepEqual(state.acceptReport(3, json), report());
 });
+
+test('failed initialization ignores late ready reports until a new style revision', async () => {
+  const { createMapReadiness } =
+    await import('../packages/maps/lib/capabilities.js');
+  const state = createMapReadiness('android');
+  const json = JSON.stringify(report());
+  state.activate(1);
+  assert.equal(state.acceptLoadFailure(0), false);
+  assert.equal(state.acceptLoadFailure(1), true);
+  assert.equal(state.acceptReport(1, json), null);
+  state.activate(1);
+  assert.equal(state.acceptReport(1, json), null);
+  state.activate(2);
+  assert.deepEqual(state.acceptReport(2, json), report());
+  assert.equal(state.acceptLoadFailure(2), false);
+  assert.equal(state.isReady(2), true);
+});
+
+test('explicit reload blocks old reports immediately and is isolated per map', async () => {
+  const { createMapReadiness } =
+    await import('../packages/maps/lib/capabilities.js');
+  const first = createMapReadiness('android'),
+    second = createMapReadiness('android');
+  const json = JSON.stringify(report());
+  first.activate(1);
+  second.activate(1);
+  first.acceptReport(1, json);
+  second.acceptReport(1, json);
+  assert.equal(first.beginReload(1), true);
+  assert.equal(first.isReady(1), false);
+  assert.equal(first.getCapabilities(), null);
+  assert.equal(first.acceptReport(1, json), null);
+  assert.equal(second.isReady(1), true);
+  first.activate(2);
+  assert.equal(first.beginReload(1), false);
+  assert.equal(first.acceptReport(1, json), null);
+  assert.deepEqual(first.acceptReport(2, json), report());
+  first.deactivate();
+  assert.equal(first.beginReload(2), false);
+  assert.equal(first.acceptLoadFailure(2), false);
+});

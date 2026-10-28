@@ -91,3 +91,13 @@ test('invalid viewport padding remains recoverable for map commands', async () =
     false,
   );
 });
+
+test('both native style loading error codes are recoverable', async () => {
+  const { classifyMapError } =
+    await import('../packages/maps/lib/contracts.js');
+  for (const code of ['style-load', 'map-load'])
+    assert.equal(
+      classifyMapError({ code, message: 'network unavailable' }).fatal,
+      false,
+    );
+});

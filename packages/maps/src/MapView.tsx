@@ -577,6 +577,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
           throw new Error('Map is not ready');
         return (await readGeometry('bounds')) as MapBounds;
       },
+      reloadStyle() {
+        if (!readiness.beginReload(styleRequest.revision))
+          throw new Error('Map is not mounted or the reference is obsolete');
+        setShaderReadyRevision(null);
+        callouts.deactivate('style');
+        queries.cancelAll('Map query invalidated by style reload');
+        setStyleRequest((current) => ({
+          url: styleURL,
+          revision: current.revision + 1,
+        }));
+      },
       getCapabilities() {
         return readiness.getCapabilities();
       },
@@ -776,7 +787,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 );
               } catch {
                 setShaderReadyRevision(null);
-                readiness.invalidate();
+                readiness.beginReload(styleRequest.revision);
                 queries.cancelAll('Map is unavailable');
                 props.onCapabilitiesChange?.(null);
                 props.onError?.({
@@ -807,12 +818,12 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                   props.onMapReady?.();
                 })
                 .catch((error) => {
+                  if (!readiness.isReady(nativeEvent.styleRevision)) return;
                   props.onError?.({
                     code: 'initial-camera',
                     message: String(error),
                     fatal: false,
                   });
-                  if (!readiness.isReady(nativeEvent.styleRevision)) return;
                   appliedControlled.current = controlledKey;
                   setShaderReadyRevision(nativeEvent.styleRevision);
                   callouts.activate();
@@ -820,11 +831,15 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
                 });
             }}
             onMapError={({ nativeEvent }) => {
+              if (nativeEvent.styleRevision !== styleRequest.revision) return;
               const error = classifyMapError(nativeEvent);
-              if (error.fatal) {
+              const loadingFailed =
+                error.code === 'style-load' &&
+                readiness.acceptLoadFailure(nativeEvent.styleRevision);
+              if (error.fatal || loadingFailed) {
                 callouts.deactivate('dispose');
                 setShaderReadyRevision(null);
-                readiness.invalidate();
+                readiness.beginReload(styleRequest.revision);
                 queries.cancelAll('Map is unavailable');
                 props.onCapabilitiesChange?.(null);
               }
