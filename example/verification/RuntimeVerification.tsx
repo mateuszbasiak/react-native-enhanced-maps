@@ -1,4 +1,5 @@
 import ExampleControls from '../ExampleControls';
+import { runControlledCameraChecks } from '../../scripts/controlled-camera-expression.mjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
@@ -78,6 +79,40 @@ const append = <T,>(items: T[], value: T, limit: number) => {
 /** Development-only, bounded runtime evidence; input actions still use the native UI. */
 export default function RuntimeVerification() {
   const map = useRef<MapViewRef>(null);
+  const [controlledAcceptance, setControlledAcceptance] = useState('idle');
+  const controlledAcceptanceRunning = useRef(false);
+  const runControlledAcceptance = async () => {
+    if (controlledAcceptanceRunning.current) return;
+    controlledAcceptanceRunning.current = true;
+    setControlledAcceptance('running');
+    try {
+      const result = await runControlledCameraChecks({
+        snapshot: () => evidence.current,
+        parity: {
+          map: () => map.current!,
+          setCamera: setControlledCamera,
+          setRegion: setControlledRegion,
+          setRegionFeedback: (mode) => {
+            regionFeedback.current = mode;
+          },
+          snapshot: () => ({ regionCounts: { ...regionCounts.current } }),
+        },
+      });
+      console.info(
+        '[controlled-camera]',
+        JSON.stringify({ status: 'passed', ...result }),
+      );
+      setControlledAcceptance('passed');
+    } catch (error) {
+      console.info(
+        '[controlled-camera]',
+        JSON.stringify({ status: 'failed', error: String(error) }),
+      );
+      setControlledAcceptance('failed');
+    } finally {
+      controlledAcceptanceRunning.current = false;
+    }
+  };
   const [locationFlags, setLocationFlags] = useState({
     showsUserLocation: false,
     followsUserLocation: false,
@@ -99,6 +134,91 @@ export default function RuntimeVerification() {
   const regionEvidence = useRef<
     { region: Region; isGesture: boolean; complete: boolean }[]
   >([]);
+  const regionCounts = useRef({ changes: 0, completions: 0, feedback: 0 });
+  const regionFeedback = useRef<'off' | 'change' | 'complete'>('off');
+  const controlledPan = useRef<'camera' | 'region' | undefined>(undefined);
+  const panTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const panGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      panGeneration.current++;
+      clearTimeout(panTimer.current);
+    },
+    [],
+  );
+  const armControlledPan = (mode: 'camera' | 'region') => {
+    panGeneration.current++;
+    clearTimeout(panTimer.current);
+    controlledPan.current = mode;
+    regionFeedback.current = 'off';
+    setControlledRegion({
+      latitude: 20,
+      longitude: 38,
+      latitudeDelta: 1,
+      longitudeDelta: 1,
+    });
+    setControlledCamera(
+      mode === 'camera'
+        ? {
+            center: { latitude: 20, longitude: 38 },
+            zoom: 9,
+            heading: 0,
+            pitch: 0,
+          }
+        : undefined,
+    );
+    setSummary(`Pan with unchanged ${mode} prop`);
+  };
+  const recordRegion = (
+    region: Region,
+    isGesture: boolean,
+    complete: boolean,
+  ) => {
+    regionCounts.current[complete ? 'completions' : 'changes']++;
+    append(regionEvidence.current, { region, isGesture, complete }, 128);
+    if (complete && isGesture && controlledPan.current) {
+      const mode = controlledPan.current;
+      controlledPan.current = undefined;
+      const counts = JSON.stringify(regionCounts.current);
+      const generation = panGeneration.current;
+      panTimer.current = setTimeout(() => {
+        void map.current
+          ?.getCamera()
+          .then((camera) => {
+            if (generation !== panGeneration.current) return;
+            const passed =
+              Math.abs(camera.center.longitude - 38) > 0.001 &&
+              counts === JSON.stringify(regionCounts.current);
+            const result = {
+              status: passed ? 'passed' : 'failed',
+              platform: Platform.OS,
+              mode,
+              camera,
+              regionCounts: { ...regionCounts.current },
+            };
+            console.info('[controlled-camera-pan]', JSON.stringify(result));
+            setSummary(`Controlled ${mode} pan: ${result.status}`);
+          })
+          .catch((error) => {
+            if (generation !== panGeneration.current) return;
+            console.info(
+              '[controlled-camera-pan]',
+              JSON.stringify({ status: 'failed', error: String(error) }),
+            );
+            setSummary(`Controlled ${mode} pan: failed`);
+          });
+      }, 1000);
+    }
+    if (regionFeedback.current === (complete ? 'complete' : 'change')) {
+      regionCounts.current.feedback++;
+      setControlledRegion({
+        longitudeDelta: region.longitudeDelta,
+        latitudeDelta: region.latitudeDelta,
+        longitude: region.longitude,
+        latitude: region.latitude,
+      });
+    }
+  };
   const parityPresses = useRef<unknown[]>([]);
   const evidence = useRef<Snapshot>({
     schemaVersion: 1,
@@ -226,11 +346,15 @@ export default function RuntimeVerification() {
         },
         setRegion: setControlledRegion,
         setCamera: setControlledCamera,
+        setRegionFeedback: (mode: 'off' | 'change' | 'complete') => {
+          regionFeedback.current = mode;
+        },
         showMarkers: setParityMarkers,
         setShapeLongitude: (longitude: number) =>
           setCandidate((value) => ({ ...value, longitude })),
         snapshot: () => ({
           regions: regionEvidence.current,
+          regionCounts: { ...regionCounts.current },
           presses: parityPresses.current,
         }),
       },
@@ -467,6 +591,25 @@ export default function RuntimeVerification() {
           };
         }}
       >
+        {__DEV__ && (
+          <>
+            <Button
+              title={`Controlled camera: ${controlledAcceptance}`}
+              disabled={controlledAcceptance === 'running'}
+              onPress={() => void runControlledAcceptance()}
+            />
+            <Button
+              title="Arm camera pan"
+              disabled={controlledAcceptance === 'running'}
+              onPress={() => armControlledPan('camera')}
+            />
+            <Button
+              title="Arm region pan"
+              disabled={controlledAcceptance === 'running'}
+              onPress={() => armControlledPan('region')}
+            />
+          </>
+        )}
         <MapView
           key={generation}
           ref={map}
@@ -492,18 +635,10 @@ export default function RuntimeVerification() {
           region={controlledRegion}
           camera={controlledCamera}
           onRegionChange={(region, details) =>
-            append(
-              regionEvidence.current,
-              { region, ...details, complete: false },
-              128,
-            )
+            recordRegion(region, details.isGesture, false)
           }
           onRegionChangeComplete={(region, details) =>
-            append(
-              regionEvidence.current,
-              { region, ...details, complete: true },
-              128,
-            )
+            recordRegion(region, details.isGesture, true)
           }
           onGesture={enabled ? onGesture : undefined}
           gestureEventIntervalMs={interval}

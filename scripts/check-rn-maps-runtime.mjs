@@ -1,10 +1,14 @@
 // Run against the Debug example on a dedicated Metro port.
 import WebSocket from 'ws';
+import { runControlledCameraChecks } from './controlled-camera-expression.mjs';
 import { runFeatureChecks } from './rn-maps-features-expression.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const port = Number(process.env.METRO_PORT ?? 8090);
 const featureMode = process.argv.includes('--features');
-const device = process.argv.slice(2).find((arg) => arg !== '--features');
+const controlledMode = process.argv.includes('--controlled');
+const device = process.argv
+  .slice(2)
+  .find((arg) => !['--features', '--controlled'].includes(arg));
 const targets = await (
   await fetch(`http://localhost:${port}/json/list`)
 ).json();
@@ -13,9 +17,21 @@ const selected = targets.filter(
 );
 if (!selected.length)
   throw new Error('No matching Debug example on the test Metro port');
-const expression = featureMode
-  ? `(${runFeatureChecks.toString()})()`
-  : `(async () => {
+const expression = controlledMode
+  ? `(async () => {
+      const previous = globalThis.__enhancedMapsVerification;
+      globalThis.__enhancedMapsScenarios.select('runtime');
+      for (let i = 0; i < 200; i++) {
+        const api = globalThis.__enhancedMapsVerification;
+        if (api && api !== previous && api.snapshot().readyCount > 0)
+          return (${runControlledCameraChecks.toString()})(api);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw Error('Controlled-camera scenario was not ready');
+    })()`
+  : featureMode
+    ? `(${runFeatureChecks.toString()})()`
+    : `(async () => {
   const check = (ok,message) => {if(!ok) throw Error(message);};
   const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
   const wait = async predicate => {for(let i=0;i<200;i++){if(await predicate())return;await sleep(100);}throw Error('Runtime acceptance timed out');};
@@ -145,7 +161,7 @@ for (const target of selected) {
     if (!result?.platform) throw new Error('Runtime acceptance did not finish');
     mkdirSync('artifacts/rn-maps-parity', { recursive: true });
     writeFileSync(
-      `artifacts/rn-maps-parity/${featureMode ? 'features-' : ''}${result.platform}.json`,
+      `artifacts/rn-maps-parity/${controlledMode ? 'controlled-' : featureMode ? 'features-' : ''}${result.platform}.json`,
       JSON.stringify(result, null, 2) + '\n',
     );
     console.log(JSON.stringify(result, null, 2));

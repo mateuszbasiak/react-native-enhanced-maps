@@ -160,3 +160,102 @@ test('provider-specific settings and unsupported marker features fail explicitly
     rejectUnsupportedProps({ initialRegion: {} }, 'MapView'),
   );
 });
+
+test('controlled viewport signatures compare values independent of property order', async () => {
+  const { controlledViewportSignature } = await load();
+  const region = {
+    latitude: 1,
+    longitude: 2,
+    latitudeDelta: 3,
+    longitudeDelta: 4,
+  };
+  assert.equal(
+    controlledViewportSignature(undefined, region),
+    controlledViewportSignature(undefined, {
+      longitudeDelta: 4,
+      latitudeDelta: 3,
+      longitude: 2,
+      latitude: 1,
+    }),
+  );
+  const camera = {
+    center: { latitude: 1, longitude: 2 },
+    zoom: 8,
+    heading: 30,
+    pitch: 20,
+  };
+  assert.equal(
+    controlledViewportSignature(camera, region),
+    controlledViewportSignature({
+      pitch: 20,
+      heading: 30,
+      zoom: 8,
+      center: { longitude: 2, latitude: 1 },
+    }),
+  );
+  assert.notEqual(
+    controlledViewportSignature(camera),
+    controlledViewportSignature({ ...camera, zoom: 9 }),
+  );
+  assert.notEqual(
+    controlledViewportSignature(camera),
+    controlledViewportSignature({ zoom: 8 }),
+  );
+  assert.notEqual(
+    controlledViewportSignature(undefined, region),
+    controlledViewportSignature(),
+  );
+});
+
+test('queued controlled bursts skip superseded requests and retain the last command', async () => {
+  const { createCameraCommandQueue } = await load();
+  const queue = createCameraCommandQueue();
+  let release;
+  const blocker = queue(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  await Promise.resolve();
+  let version = 0;
+  const applied = [];
+  const pending = Array.from({ length: 100 }, (_, index) => {
+    const ownVersion = ++version;
+    return queue(
+      async () => {
+        applied.push(index);
+      },
+      () => ownVersion === version,
+    );
+  });
+  release();
+  await Promise.all([blocker, ...pending]);
+  assert.deepEqual(applied, [99]);
+});
+
+test('invalid controlled fields remain distinct from omitted fields for validation', async () => {
+  const { controlledViewportSignature } = await load();
+  assert.notEqual(
+    controlledViewportSignature({ heading: 30 }),
+    controlledViewportSignature({ heading: 30, zoom: NaN }),
+  );
+  assert.notEqual(
+    controlledViewportSignature({ heading: 30 }),
+    controlledViewportSignature({ heading: 30, center: null }),
+  );
+});
+
+test('unsupported controlled camera properties still trigger validation', async () => {
+  const { controlledViewportSignature } = await load();
+  const camera = {
+    center: { latitude: 1, longitude: 2 },
+    zoom: 8,
+    heading: 0,
+    pitch: 0,
+  };
+  assert.notEqual(
+    controlledViewportSignature(camera),
+    controlledViewportSignature({ ...camera, altitude: 100 }),
+  );
+});

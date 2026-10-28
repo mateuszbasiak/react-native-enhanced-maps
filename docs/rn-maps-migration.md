@@ -51,7 +51,13 @@ MapView supports `initialRegion`, controlled `region` and `camera`,
 precedence over region; initialCamera takes precedence over initialRegion.
 Initial region fitting happens after native layout/readiness and before
 `onMapReady`. Initial props are mount-only. Changed controlled values apply
-without animation; value-equivalent rerenders and callback echoes do not refit.
+without animation; value-equivalent rerenders and callback echoes do not refit,
+including objects constructed with a different property order. Control is
+update-driven: gestures and ref methods can move the viewport while prop values
+stay unchanged. A changed prop takes control again; removing `camera` activates
+`region` if supplied. Removing both props leaves the native viewport in place.
+[Controlled-camera acceptance](controlled-camera.md) records interruption,
+feedback-loop and event-volume checks.
 A region describes a geographic envelope; aspect ratio, native zoom limits,
 padding, heading and pitch can expand the visible envelope. Longitude spans are
 explicit, including wide views and antimeridian crossing. Mercator polar limits
