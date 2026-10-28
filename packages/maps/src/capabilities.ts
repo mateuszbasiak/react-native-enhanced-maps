@@ -74,11 +74,13 @@ export function createMapReadiness(platform: MapPlatform) {
   let request = 0;
   let failed = false;
   let capabilities: MapCapabilities | null = null;
+  let generation = 0;
   return {
     activate(styleRequest: number) {
       if (!active || request !== styleRequest) {
         capabilities = null;
-        failed = false;
+        if (request !== styleRequest) failed = false;
+        generation++;
       }
       request = styleRequest;
       active = true;
@@ -86,26 +88,34 @@ export function createMapReadiness(platform: MapPlatform) {
     deactivate() {
       active = false;
       capabilities = null;
+      generation++;
     },
     beginReload(styleRequest: number) {
       if (!active || request !== styleRequest) return false;
       failed = true;
       capabilities = null;
+      generation++;
       return true;
     },
     acceptLoadFailure(styleRequest: number) {
       if (!active || request !== styleRequest || capabilities !== null)
         return false;
       failed = true;
+      generation++;
       return true;
     },
     invalidate() {
       capabilities = null;
+      generation++;
     },
     acceptReport(styleRequest: number, json: string): MapCapabilities | null {
       if (!active || failed || styleRequest !== request) return null;
       capabilities = parseCapabilities(json, platform);
+      generation++;
       return capabilities;
+    },
+    getGeneration() {
+      return generation;
     },
     isReady(styleRequest: number) {
       return active && request === styleRequest && capabilities !== null;

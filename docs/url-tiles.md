@@ -99,7 +99,8 @@ fixing native cluster-metadata enrollment; the final eleven-case matrix on both
 rebuilt hosts uses that same raster ID. A Fast Refresh interruption of map
 readiness was recorded, and the fitting/zoom probes were rerun after selecting a
 fresh fixture generation. Recovering query readiness after source edits on an
-already-ready map remains a separate lifecycle issue in the project checklist.
+already-ready map was subsequently fixed with a fresh native capability handshake;
+see [Fast Refresh lifecycle acceptance](map-lifecycle-acceptance.md#fast-refresh-readiness-recovery-2026-10-28).
 
 The clean generated-package check passes all 313 tests, strict type checks,
 Codegen and packed declarations. The shared Android/Foundation scene preflight

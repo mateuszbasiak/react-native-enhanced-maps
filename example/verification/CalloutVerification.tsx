@@ -6,6 +6,9 @@ import type {
   MarkerRef,
   Coordinate,
   MarkerSelectionEvent,
+  Camera,
+  MapBounds,
+  MapCapabilities,
 } from 'react-native-maplibre-maps';
 import ExampleControls from '../ExampleControls';
 const center = { latitude: 54.37, longitude: 18.662 };
@@ -14,6 +17,7 @@ type Evidence = {
   selectionCoordinates?: MarkerSelectionEvent['nativeEvent'][];
   dragEndpoint?: Coordinate;
   ready: boolean;
+  readyEvents: number;
   events: string[];
   actions: number;
   mapPresses: number;
@@ -38,6 +42,11 @@ type DebugGlobal = typeof globalThis & {
     reloadStyle(): void;
     remount(): void;
     fit(): Promise<void>;
+    probe(): Promise<{
+      camera: Camera;
+      bounds: MapBounds;
+      capabilities: MapCapabilities | null;
+    }>;
     verifyDragReopen(): void;
   };
 };
@@ -56,6 +65,7 @@ export default function CalloutVerification() {
     [tooltip, setTooltip] = useState(false);
   const evidence = useRef<Evidence>({
     ready: false,
+    readyEvents: 0,
     events: [],
     actions: 0,
     mapPresses: 0,
@@ -127,6 +137,12 @@ export default function CalloutVerification() {
         if (!map.current) throw new Error('Map missing');
         await map.current.fitElements({ durationMs: 0, padding: 50 });
       },
+      probe: async () => {
+        if (!map.current) throw new Error('Map missing');
+        const camera = await map.current.getCamera();
+        const bounds = await map.current.getVisibleBounds();
+        return { camera, bounds, capabilities: map.current.getCapabilities() };
+      },
       verifyDragReopen: () => {
         const end = evidence.current.dragEndpoint;
         if (!end) throw new Error('Drag marker A first');
@@ -189,6 +205,7 @@ export default function CalloutVerification() {
         initialCamera={camera}
         onMapReady={() => {
           evidence.current.ready = true;
+          evidence.current.readyEvents++;
           setSummary('Ready');
         }}
         onError={(event) => {

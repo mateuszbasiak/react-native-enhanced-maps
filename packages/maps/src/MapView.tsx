@@ -40,6 +40,7 @@ import { ShaderMapContext } from './shaderContext';
 import { compileScene, InternalSource, InternalLayer } from './maplibreContent';
 import { validateCamera, classifyMapError } from './contracts';
 import { createMapReadiness } from './capabilities';
+import { createReadinessReplay } from './readinessReplay';
 import { normalizeCameraOrigin } from './cameraOrigin';
 import { fitRequest } from './cameraFit';
 import {
@@ -135,6 +136,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
     const [readiness] = useState(() =>
       createMapReadiness(Platform.OS as 'ios' | 'android'),
     );
+    const [readinessReplay] = useState(() => createReadinessReplay(readiness));
+    const readinessCallbacks = useRef({
+      onError: props.onError,
+      onCapabilitiesChange,
+    });
+    useLayoutEffect(() => {
+      readinessCallbacks.current = {
+        onError: props.onError,
+        onCapabilitiesChange,
+      };
+    }, [props.onError, onCapabilitiesChange]);
     const previousRequest = useRef(styleRequest.revision);
     const [clusterHandles] = useState(createClusterHandles);
     const [callouts] = useState(createCalloutSelection);
@@ -157,13 +169,39 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       [queries, styleRequest.revision],
     );
     useLayoutEffect(() => {
-      readiness.activate(styleRequest.revision);
       if (previousRequest.current !== styleRequest.revision) {
         previousRequest.current = styleRequest.revision;
         onCapabilitiesChange?.(null);
       }
-    }, [styleRequest.revision, readiness, onCapabilitiesChange]);
-    useLayoutEffect(() => () => readiness.deactivate(), [readiness]);
+    }, [styleRequest.revision, onCapabilitiesChange]);
+    useLayoutEffect(
+      () =>
+        readinessReplay.activate(styleRequest.revision, {
+          probe: async (revision) => {
+            const report = await queries.request('capabilities', {}, revision);
+            if (typeof report !== 'string')
+              throw new Error('Invalid capability reply');
+            return report;
+          },
+          pause: () => setShaderReadyRevision(null),
+          recovered: () => {
+            setShaderReadyRevision(styleRequest.revision);
+            callouts.activate();
+          },
+          invalid: () => {
+            setShaderReadyRevision(null);
+            callouts.deactivate('dispose');
+            queries.cancelAll('Map is unavailable');
+            readinessCallbacks.current.onCapabilitiesChange?.(null);
+            readinessCallbacks.current.onError?.({
+              code: 'invalid-native-capabilities',
+              message: 'Invalid native map capabilities',
+              fatal: true,
+            });
+          },
+        }),
+      [readinessReplay, styleRequest.revision, queries, callouts],
+    );
     const [initial] = useState(() =>
       validateCamera(props.initialCamera ?? defaultCamera),
     );
@@ -619,7 +657,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         viewport: shaderViewport,
         revision: styleRequest.revision,
         request(input: Record<string, string | number>) {
-          if (!readiness.isReady(styleRequest.revision))
+          if (
+            input.action !== 'remove' &&
+            !readiness.isReady(styleRequest.revision)
+          )
             return Promise.reject(new Error('Map is not ready'));
           return queries.request('shaderLayer', input, styleRequest.revision);
         },
@@ -730,12 +771,13 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               setMarkerLayout({ styleRevision: e.styleRevision, layout });
             }}
             onMapQueryResult={({ nativeEvent: e }) => {
-              if (
-                e.styleRevision !== styleRequest.revision ||
-                !readiness.getCapabilities()
-              )
-                return;
-              queries.accept(e.requestId, e.resultJSON, e.error);
+              if (e.styleRevision !== styleRequest.revision) return;
+              queries.accept(
+                e.requestId,
+                e.resultJSON,
+                e.error,
+                readiness.isReady(styleRequest.revision),
+              );
             }}
             mapPressEventsEnabled={Boolean(props.onPress || props.onLongPress)}
             onMapPress={(nativePress) => {

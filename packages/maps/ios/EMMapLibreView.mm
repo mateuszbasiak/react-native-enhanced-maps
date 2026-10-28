@@ -558,6 +558,9 @@ static UIColor *EMColor(id value) {
       return;
     }
     NSDictionary *response=nil;
+    if([request[@"kind"] isEqual:@"capabilities"]) {
+      response=[NSJSONSerialization JSONObjectWithData:[@(enhancedmaps::nativeMapCapabilitiesJSON()) dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    } else
 #if MLN_RENDER_BACKEND_METAL
     if([request[@"kind"] isEqual:@"shaderLayer"]) {
       NSString *identifier=request[@"id"],*poolID=request[@"poolId"],*action=request[@"action"];

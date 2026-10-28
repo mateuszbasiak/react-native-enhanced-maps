@@ -31,6 +31,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [x] **ARCH-01–06, MAP-13** — Workspace, package-owned Fabric hosts, pinned baseline dependencies, declarations, Codegen, autolinking and packed-consumer checks.
 - [x] **ARCH-07** — Revision-scoped native capability reports; layers and shaders remain unvalidated. [Capabilities](docs/capabilities.md).
+- [x] Fast Refresh readiness recovery — Fresh native capability handshake restores queries, callouts and shaders after effect replay while preserving camera/style. Contract tests, both native Debug builds and direct source edit/revert checks on both simulators pass. [Contract and evidence](docs/capabilities.md). Broader lifecycle cases remain below.
 - [x] **CAM-01–02** — Validated mount-only initial camera and imperative `animateCamera`, with rejection before readiness.
 - [x] **SRC-03** — Internal source revisions reject stale replacements and preserve accepted scenes. [Contract](docs/source-revisions.md).
 - [x] **SHAPE-01** — Polygon, Polyline and geographic Circle with stroke styling and typed presses. [Shapes](docs/shapes.md).
@@ -47,8 +48,6 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 - [x] Bounded shader device recovery — Unexpected loss gets at most two serial replacements after cleanup; disposal cancels retries. Contracts and both Debug simulators verify injected recovery/exhaustion, produced/sampled output and zero final pools. [Policy and bounded results](docs/shader-layer.md).
 
 ## Map lifetime, camera and gestures
-
-- [ ] **Fast Refresh readiness recovery** — Editing a map-content module after readiness left both Debug hosts' ref commands rejecting `Map is not ready` until a fresh fixture generation remounted the map. Reproduce and fix recovery without accepting stale native generations; the UrlTile source-update and lifecycle checks pass outside this development reload path. [Observation](docs/url-tiles.md#acceptance--2026-10-27).
 
 - [ ] **MAP-07–09, MAP-12** — Verify mount/teardown, resize/rotation, background/resume, navigation, multiple maps, interrupted initialization and style/tile/network failure recovery. Both simulators passed [100 bounded remount/readiness/query cycles](docs/map-lifecycle-acceptance.md). Android now gates native rendering on independent host/window state, with terminal disposal and native transition regressions. Explicit same-URL style retry, revision-scoped recoverable load errors and background snapshot generation invalidation have automated recovery/native-helper regressions. Complete memory/resource counts and the remaining runtime lifecycle/failure matrix.
 - [x] **MAP-10** — Supported native map settings are implemented: pan/zoom/rotate/tilt toggles, compass visibility, zoom limits and persistent padding. Relevant contracts, builds and simulator checks pass. [Settings](docs/map-settings.md), [padding](docs/map-padding.md). Broader lifecycle/accessibility checks are separate validation follow-up.
