@@ -11,6 +11,7 @@ import type { ElementRef } from 'react';
 import { Platform, PixelRatio, View, Image } from 'react-native';
 import {
   regionRequest,
+  controlledViewportSignature,
   rejectUnsupportedProps,
   createCameraCommandQueue,
   parseRegionEvent,
@@ -319,8 +320,9 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         })
       : [];
     const [enqueueCamera] = useState(createCameraCommandQueue);
-    const controlledSignature = JSON.stringify(
-      props.camera ?? props.region ?? null,
+    const controlledSignature = controlledViewportSignature(
+      props.camera,
+      props.region,
     );
     const controlledRequest = useRef({
       signature: controlledSignature,
@@ -476,7 +478,8 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       if (
         !props.camera &&
         props.region &&
-        JSON.stringify(props.region) === lastEmittedRegion.current
+        controlledViewportSignature(undefined, props.region) ===
+          lastEmittedRegion.current
       ) {
         appliedControlled.current = controlledKey;
         return;
@@ -855,7 +858,10 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
               if (!readiness.isReady(styleRequest.revision)) return;
               const e = parseRegionEvent(nativeEvent, styleRequest.revision);
               if (e) {
-                lastEmittedRegion.current = JSON.stringify(e.region);
+                lastEmittedRegion.current = controlledViewportSignature(
+                  undefined,
+                  e.region,
+                );
                 (e.complete
                   ? props.onRegionChangeComplete
                   : props.onRegionChange)?.(e.region, e.details);

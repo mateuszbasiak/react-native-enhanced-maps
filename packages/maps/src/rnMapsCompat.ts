@@ -142,6 +142,46 @@ export function regionRequest(region: Region, duration = 300) {
   };
 }
 
+/** Compare viewport values without depending on caller object property order. */
+export function controlledViewportSignature(
+  camera?: Partial<Camera>,
+  region?: Region,
+): string {
+  return JSON.stringify(
+    camera
+      ? {
+          camera: {
+            center:
+              camera.center == null
+                ? camera.center
+                : {
+                    latitude: camera.center.latitude,
+                    longitude: camera.center.longitude,
+                  },
+            zoom: camera.zoom,
+            heading: camera.heading,
+            pitch: camera.pitch,
+            unsupported: Object.keys(camera)
+              .filter(
+                (key) => !['center', 'zoom', 'heading', 'pitch'].includes(key),
+              )
+              .sort()
+              .map((key) => [key, Reflect.get(camera, key)]),
+          },
+        }
+      : region
+        ? {
+            region: {
+              latitude: region.latitude,
+              longitude: region.longitude,
+              latitudeDelta: region.latitudeDelta,
+              longitudeDelta: region.longitudeDelta,
+            },
+          }
+        : null,
+  );
+}
+
 /** Keep read/merge/dispatch atomic with respect to other camera commands. */
 export function createCameraCommandQueue() {
   let tail = Promise.resolve();
