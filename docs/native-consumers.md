@@ -10,7 +10,10 @@ it is not an independently generated RN template or an Expo consumer.
 
 The fixture pins React/RN and development tools to the workspace lockfile. Its
 `verification.json` records source commit, tarball SHA-256 and resolver constraints.
-No optional GPU dependencies or Worklets Babel plugin are included.
+No optional GPU dependencies or Worklets Babel plugin are included by default.
+Use `npm run consumer:prepare -- --shaders` for the separate
+[GPU native consumer](gpu-native-consumers.md), which installs both peers and
+requires Android API 26+.
 
 ## Run
 

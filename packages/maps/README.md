@@ -90,7 +90,8 @@ APIs in older documents describe internal or historical infrastructure.
 Import experimental `ShaderLayer` separately from
 `react-native-maplibre-maps/shaders`. Its optional peers are
 `react-native-webgpu@0.17.x` and `react-native-worklets@0.12.2`; configure the
-Worklets Babel plugin as in the example and rebuild native projects. Core-only
+Worklets Babel plugin as in the example and rebuild native projects. The pinned
+WebGPU peer requires Android API 26+, while core maps support API 24+. Core-only
 consumers do not need these peers. See [ShaderLayer](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shader-layer.md).
 
 ## Installation status

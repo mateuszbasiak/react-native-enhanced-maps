@@ -14,14 +14,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const output = process.argv[2]
-  ? path.resolve(process.argv[2])
+const input = process.argv.slice(2);
+for (const option of input.filter((arg) => arg.startsWith('--')))
+  assert(option === '--shaders', `Unknown option: ${option}`);
+const shaders = input.includes('--shaders');
+const paths = input.filter((arg) => arg !== '--shaders');
+assert(paths.length <= 1, 'Expected at most one output directory');
+const output = paths[0]
+  ? path.resolve(paths[0])
   : mkdtempSync(path.join(os.tmpdir(), 'enhanced-maps-consumer-'));
 assert(
   !output.startsWith(root + path.sep),
   'Native consumer must live outside the workspace',
 );
-if (process.argv[2]) {
+if (paths[0]) {
   assert(
     !existsSync(output),
     'Refusing to overwrite an existing consumer directory',
@@ -36,7 +42,14 @@ const pack = JSON.parse(
   execFileSync(
     'npm',
     ['pack', '--json', '--ignore-scripts', '--pack-destination', output],
-    { cwd: path.join(root, 'packages/maps'), encoding: 'utf8' },
+    {
+      cwd: path.join(root, 'packages/maps'),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        npm_config_cache: path.join(output, '.npm-cache'),
+      },
+    },
   ),
 )[0];
 const example = path.join(root, 'example');
@@ -49,6 +62,8 @@ const excluded = new Set([
   'node_modules',
   'Podfile.lock',
   'local.properties',
+  'maps.local.properties',
+  'Maps.local.xcconfig',
   '.xcode.env.local',
 ]);
 for (const directory of ['android', 'ios'])
@@ -79,7 +94,7 @@ const devDependencies = Object.fromEntries(
     return [name, version];
   }),
 );
-// Constrain npm's optional peer search; none of these GPU peers is installed.
+// Constrain npm's optional peer search for the pinned Worklets baseline.
 const resolverOverrides = { 'react-native-reanimated': '4.6.0' };
 const manifest = {
   name: 'enhanced-maps-native-consumer',
@@ -89,6 +104,13 @@ const manifest = {
     react: original.dependencies.react,
     'react-native': original.dependencies['react-native'],
     'react-native-maplibre-maps': `file:./${pack.filename}`,
+    ...(shaders
+      ? {
+          'react-native-webgpu': original.dependencies['react-native-webgpu'],
+          'react-native-worklets':
+            original.dependencies['react-native-worklets'],
+        }
+      : {}),
   },
   devDependencies,
   overrides: resolverOverrides,
@@ -99,7 +121,7 @@ writeFileSync(
 );
 writeFileSync(
   path.join(output, 'babel.config.js'),
-  "module.exports = { presets: ['module:@react-native/babel-preset'] };\n",
+  `module.exports = { presets: ['module:@react-native/babel-preset']${shaders ? ", plugins: ['react-native-worklets/plugin']" : ''} };\n`,
 );
 writeFileSync(
   path.join(output, 'metro.config.js'),
@@ -119,12 +141,17 @@ export default function App() {
 }
 `,
 );
+if (shaders)
+  cpSync(
+    path.join(root, 'scripts/fixtures/native-gpu/App.tsx'),
+    path.join(output, 'App.tsx'),
+  );
 const replace = (file, transform) => {
   const target = path.join(output, file);
   writeFileSync(target, transform(readFileSync(target, 'utf8')));
 };
 replace('android/build.gradle', (s) =>
-  s.replace('minSdkVersion = 26', 'minSdkVersion = 24'),
+  shaders ? s : s.replace('minSdkVersion = 26', 'minSdkVersion = 24'),
 );
 replace('android/settings.gradle', (s) =>
   s.replaceAll('../../node_modules', '../node_modules'),
@@ -149,6 +176,20 @@ replace('ios/EnhancedMapsExample.xcodeproj/project.pbxproj', (s) =>
     '${PODS_ROOT}/../../node_modules',
   ),
 );
+if (shaders) {
+  replace('android/app/build.gradle', (s) =>
+    s.replace(
+      'applicationId "com.enhancedmapsexample"',
+      'applicationId "com.enhancedmaps.gpuconsumer"',
+    ),
+  );
+  replace('ios/EnhancedMapsExample.xcodeproj/project.pbxproj', (s) =>
+    s.replaceAll(
+      /PRODUCT_BUNDLE_IDENTIFIER = .*?;/g,
+      'PRODUCT_BUNDLE_IDENTIFIER = com.enhancedmaps.gpuconsumer;',
+    ),
+  );
+}
 writeFileSync(
   path.join(output, 'ios/.xcode.env.local'),
   `export NODE_BINARY=${JSON.stringify(process.execPath)}\n`,
@@ -164,7 +205,10 @@ writeFileSync(
       }).trim(),
       tarball: pack.filename,
       reactNative: manifest.dependencies['react-native'],
-      optionalPeers: [],
+      optionalPeers: shaders
+        ? ['react-native-webgpu', 'react-native-worklets']
+        : [],
+      appIdentifier: shaders ? 'com.enhancedmaps.gpuconsumer' : undefined,
       resolverOverrides,
       tarballSHA256: createHash('sha256')
         .update(readFileSync(path.join(output, pack.filename)))

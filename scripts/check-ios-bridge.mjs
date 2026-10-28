@@ -22,7 +22,7 @@ for (const variant of ['Debug', 'Release']) {
     );
   for (const method of [
     'install',
-    'create:resolver:rejecter:',
+    'create:height:resolver:rejecter:',
     'release:resolver:rejecter:',
   ])
     assert(
