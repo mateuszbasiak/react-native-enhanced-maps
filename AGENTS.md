@@ -17,3 +17,14 @@ user. Independent PRs target main directly.
 Follow [the feature-completion rule](.cursor/rules/feature-completion.mdc).
 Physical-device validation is maintainer-owned follow-up and must not block
 marking implemented, appropriately checked features complete.
+
+## Worktree dependencies and validation
+
+- Keep new worktrees source-only by default. Do not install dependencies or
+  generate native build outputs unless required for the task.
+- Use a dedicated validation checkout for native builds. Coordinate access before
+  switching its branch, and preserve any existing local changes.
+- Changes to dependency manifests, lockfiles, native modules, or build
+  configuration require an appropriate installation and validation of those
+  changes.
+- Report any checks deferred because dependencies are unavailable.
