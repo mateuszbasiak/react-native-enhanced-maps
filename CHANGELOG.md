@@ -7,6 +7,9 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- `MapViewRef.reloadStyle()` retries the current style without remounting, with
+  revision-scoped recoverable load errors and immediate pending-query invalidation.
+
 - Marker accessibility hints, roles, state and custom actions with explicit
   grouping/opt-out for custom children. Selection-only markers now expose a single
   accessibility target. Nested-scroll and bottom-sheet gesture coordination are
@@ -45,6 +48,9 @@ changes, not accepted production support or closed release gates.
   Debug/Release builds and simulator rendering/marker presses pass on both hosts.
 
 ### Fixed
+
+- Background snapshot cancellation invalidates generation ownership before native
+  cleanup, preventing interrupted completions from publishing stale output.
 
 - Removed the arbitrary 10,000 clustered-marker cap across collection, native
   sources, visible layouts and membership queries. Existing scene byte/geometry

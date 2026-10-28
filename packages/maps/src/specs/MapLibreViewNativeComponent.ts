@@ -74,7 +74,9 @@ export interface NativeProps extends ViewProps {
       styleRevision: Double;
     }>
   >;
-  onMapError?: DirectEventHandler<Readonly<{ code: string; message: string }>>;
+  onMapError?: DirectEventHandler<
+    Readonly<{ code: string; message: string; styleRevision: Double }>
+  >;
   regionEventsEnabled?: WithDefault<boolean, false>;
   onRegionEvent?: DirectEventHandler<
     Readonly<{

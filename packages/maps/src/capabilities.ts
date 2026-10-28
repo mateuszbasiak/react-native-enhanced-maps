@@ -72,10 +72,14 @@ export function parseCapabilities(
 export function createMapReadiness(platform: MapPlatform) {
   let active = false;
   let request = 0;
+  let failed = false;
   let capabilities: MapCapabilities | null = null;
   return {
     activate(styleRequest: number) {
-      if (!active || request !== styleRequest) capabilities = null;
+      if (!active || request !== styleRequest) {
+        capabilities = null;
+        failed = false;
+      }
       request = styleRequest;
       active = true;
     },
@@ -83,11 +87,23 @@ export function createMapReadiness(platform: MapPlatform) {
       active = false;
       capabilities = null;
     },
+    beginReload(styleRequest: number) {
+      if (!active || request !== styleRequest) return false;
+      failed = true;
+      capabilities = null;
+      return true;
+    },
+    acceptLoadFailure(styleRequest: number) {
+      if (!active || request !== styleRequest || capabilities !== null)
+        return false;
+      failed = true;
+      return true;
+    },
     invalidate() {
       capabilities = null;
     },
     acceptReport(styleRequest: number, json: string): MapCapabilities | null {
-      if (!active || styleRequest !== request) return null;
+      if (!active || failed || styleRequest !== request) return null;
       capabilities = parseCapabilities(json, platform);
       return capabilities;
     },

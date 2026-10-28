@@ -158,6 +158,8 @@ export interface MapViewProps
   readonly onError?: (error: MapError) => void;
 }
 export interface MapViewRef {
+  /** Retry the current style without remounting. Completion is reported by onMapReady/onError. */
+  reloadStyle(): void;
   takeSnapshot(options?: SnapshotOptions): Promise<string>;
   resumeUserLocationFollow(): Promise<void>;
   /** Resolves when the native fit command is accepted, not when animation completes. */

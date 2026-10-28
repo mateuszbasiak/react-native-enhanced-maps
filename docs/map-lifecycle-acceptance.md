@@ -85,3 +85,47 @@ main-based native source and the run started through its native UI without a
 JS debugger attached. Collect progress with scoped logcat and inspect the final
 UI before reconnecting a debugger. Do not count an interrupted/crashed run as a
 pass. Dependency changes or upstream patches need separate verification.
+
+## Explicit style recovery and interrupted output — 2026-10-28
+
+`MapViewRef.reloadStyle()` retries the current style URL without remounting the
+native map. It immediately invalidates command readiness, selected callouts,
+shader readiness and pending queries, then advances the style revision. It returns
+`void`: use `onMapReady` for completion and `onError` for failures. Calls on an
+unmounted or obsolete ref throw. Reloading is explicit and does not create an
+unbounded retry loop. It preserves the native camera unless an existing controlled
+camera/region prop reapplies it. Source resources are reconstructed through the
+existing accepted-scene path. Snapshot work and native marker drags are cancelled
+by style replacement; cluster handles become obsolete.
+
+Both native hosts report `style-load` with the current style revision. Queued error
+events from older revisions are ignored by JS. A failure before readiness blocks
+late readiness reports for that revision until explicit reload or a different URL
+starts a new revision. A load error after readiness remains recoverable and does
+not by itself disable camera/geometry commands. Native SDK error callbacks do not
+identify their original request; revision scoping protects queued bridge delivery,
+not SDK-internal attribution of errors between overlapping requests.
+
+iOS uses MapLibre's `reloadStyle:` for same-URL requests; setting an unchanged URL
+alone is insufficient. Reload does not promise cache bypass or downloaded offline
+data. See [MapLibre's reload contract](https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre/mlnmapview/).
+
+Snapshot background cancellation now invalidates view-local generation ownership
+before invoking native cancellation on both hosts, as detach/style/disposal do.
+Late output cannot clear a newer operation or be delivered after interruption.
+Interrupted snapshot promises remain bounded by the query timeout (five seconds)
+when their native result is suppressed; explicit style reload/unmount cancels
+pending JS queries immediately.
+
+Automated coverage includes failed initialization, same-revision late reports,
+explicit retry, stale refs/revisions, independent maps, 100 failed-load/retry/query
+cycles with zero remaining scheduled query timers, and matching Java/C++ snapshot
+generation tests for 100 interruption cycles. Existing Android native lifecycle
+transition tests cover host/window pause/resume, navigation, interrupted startup,
+terminal disposal and independent maps.
+
+These are state-machine and native-helper checks, not native app runtime results.
+No simulator runs or native app builds were performed for this change. Resize/
+rotation rendering, real poor-network/offline recovery, native allocation counts,
+memory drift and background/resume visual acceptance remain open. The broader
+MAP/PERF checklist is not closed by this bounded recovery change.

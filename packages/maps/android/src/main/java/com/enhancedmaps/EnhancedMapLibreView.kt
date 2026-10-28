@@ -33,8 +33,8 @@ private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLi
 
 class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapView(initialized(reactContext), MapLibreMapOptions.createFromAttributes(reactContext)), LifecycleEventListener {
   private var snapshotOperation:MapSnapshot?=null
-  private var snapshotGeneration=0L
-  private fun cancelSnapshot(){snapshotGeneration++;snapshotOperation?.cancel();snapshotOperation=null}
+  private val snapshotGeneration=SnapshotGeneration()
+  private fun cancelSnapshot(){snapshotGeneration.invalidate();snapshotOperation?.cancel();snapshotOperation=null}
   private val shaderLayerOwners=mutableMapOf<String,String>()
   var mapPaddingTop=0.0;var mapPaddingRight=0.0;var mapPaddingBottom=0.0;var mapPaddingLeft=0.0
   private var appliedMapPadding:IntArray?=null
@@ -443,7 +443,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     orderDirty = false; orderStyle = style
   }
   private fun scheduleFrame() { if(!framePending && !disposed && lifecycle.isRunning && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
-  private fun pauseMapWork() { snapshotOperation?.cancel();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
+  private fun pauseMapWork() { cancelSnapshot();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); lifecycle.setAttached(true) }
   override fun onDetachedFromWindow() { cancelSnapshot();pauseMapWork();lifecycle.setAttached(false);super.onDetachedFromWindow() }
   override fun requestLayout() {
@@ -518,10 +518,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       if(request.getString("kind")=="snapshot") {
         require(shaderLayerOwners.isEmpty()) {"Snapshots with ShaderLayer are not supported"}
         require(snapshotOperation==null) {"A snapshot is already in progress"}
-        val generation=++snapshotGeneration
+        val generation=snapshotGeneration.begin()
         snapshotOperation=MapSnapshot.start(nativeMap,this,request) { output,error ->
-          if(generation==snapshotGeneration)snapshotOperation=null
-          if(disposed || !isAttachedToWindow || generation!=snapshotGeneration || readyStyleRevision!=revision || styleRevision!=revision) {if(output!=null)MapSnapshot.discardResult(this,output)}
+          if(snapshotGeneration.isCurrent(generation))snapshotOperation=null
+          if(disposed || !lifecycle.isRunning || !isAttachedToWindow || !snapshotGeneration.isCurrent(generation) || readyStyleRevision!=revision || styleRevision!=revision) {if(output!=null)MapSnapshot.discardResult(this,output)}
           else emit("topMapQueryResult",Arguments.createMap().apply {putDouble("requestId",requestId);putDouble("styleRevision",revision);putString("resultJSON",output?.toString() ?: "");putString("error",error ?: "")})
         }
         return
@@ -696,7 +696,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   override fun onHostPause() { pauseMapWork();if(disposed)lifecycle.close() else lifecycle.setHostResumed(false) }
   override fun onHostDestroy() { dispose() }
   fun dispose() { if(disposed)return; cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
-  private fun error(code:String,message:String) { emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message) }) }
+  private fun error(code:String,message:String) { if(disposed)return;emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message); putDouble("styleRevision",styleRevision) }) }
   private fun emit(name:String,data:WritableMap) { if(disposed || id==View.NO_ID)return; UIManagerHelper.getEventDispatcherForReactTag(reactContext,id)?.dispatchEvent(MapEvent(UIManagerHelper.getSurfaceId(this),id,name,data)) }
 }
 private class MapEvent(surfaceId:Int,tag:Int,private val name:String,private val data:WritableMap):Event<MapEvent>(surfaceId,tag) { override fun getEventName()=name; override fun canCoalesce()=name!="topGesture" && name!="topMapPress" && name!="topFeaturePress" && name!="topMapQueryResult"; override fun getEventData()=data }

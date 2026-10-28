@@ -195,3 +195,11 @@ SDK 56 custom native builds use the package config plugin; see
 [Expo setup](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/expo.md).
 Expo Go is outside the target. Familiar component names do not imply react-native-maps drop-in
 compatibility. Legacy React Native architecture is outside the target.
+
+## Style retry
+
+Call `mapRef.current?.reloadStyle()` to retry the same style URL without remounting.
+The method returns `void`; observe `onMapReady` and recoverable `style-load` errors
+through `onError`. It invalidates readiness and pending queries immediately. Calls
+on an unmounted or obsolete ref throw. This is an explicit reload, not a cache
+bypass or an automatic retry loop. See [lifecycle recovery](../../../docs/map-lifecycle-acceptance.md).
