@@ -1,5 +1,6 @@
 export const scenarios = [
   'callouts',
+  'url-tiles',
   'fit',
   'markers',
   'shapes',
@@ -39,6 +40,7 @@ type Options = {
 };
 const instrumented: readonly Scenario[] = [
   'callouts',
+  'url-tiles',
   'native-scene',
   'fit',
   'shader-lifecycle',

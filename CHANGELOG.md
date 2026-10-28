@@ -16,6 +16,10 @@ changes, not accepted production support or closed release gates.
   refs, map-local selection/press events, native attachment and lifecycle cleanup
   on iOS and Android. See [the contract](docs/marker-callouts.md).
 
+- Native `UrlTile` imagery on iOS and Android with XYZ templates, tile size, source
+  zoom bounds, opacity/visibility and shared shape/tile zIndex ordering. See
+  [the contract](docs/url-tiles.md).
+
 - Foreground native or app-owned user location, gesture-interruptible camera
   following, mounted-map PNG/JPEG snapshots and native draggable markers. See
   [contracts and limits](docs/location-snapshots-dragging.md); permission prompts

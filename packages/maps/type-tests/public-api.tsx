@@ -1,4 +1,22 @@
-import MapView, { Marker, Polyline, Polygon, Circle } from '../src/index.js';
+import MapView, {
+  Marker,
+  Polyline,
+  Polygon,
+  Circle,
+  UrlTile,
+} from '../src/index.js';
+<UrlTile
+  urlTemplate="https://example.com/{z}/{x}/{y}.png"
+  tileSize={512}
+  minimumZ={2}
+  maximumZ={18}
+  opacity={0.5}
+  zIndex={1}
+/>;
+// @ts-expect-error tile templates are required
+<UrlTile />;
+// @ts-expect-error visibility must be boolean
+<UrlTile urlTemplate="https://example.com/{z}/{x}/{y}.png" visible="yes" />;
 import type {
   Camera,
   MapViewRef,

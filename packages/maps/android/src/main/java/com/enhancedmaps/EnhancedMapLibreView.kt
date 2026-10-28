@@ -26,6 +26,8 @@ import org.maplibre.android.maps.widgets.CompassView
 import org.maplibre.android.style.layers.*
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.sources.RasterSource
+import org.maplibre.android.style.sources.TileSet
 
 private fun initialized(context: ThemedReactContext): ThemedReactContext { MapLibre.getInstance(context); return context }
 
@@ -335,7 +337,8 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       var remainingPositions=50000
       var remainingShapePositions=10000
       val parsedSources=(0 until sources.length()).map {
-        NativeClustering.parse(sources.getJSONObject(it),clusterIndexRevision+1,remainingPositions,remainingShapePositions).also { source ->
+        val raw=sources.getJSONObject(it)
+        if(raw.optString("type")=="raster") null else NativeClustering.parse(raw,clusterIndexRevision+1,remainingPositions,remainingShapePositions).also { source ->
           remainingPositions-=source.positions
           if(source.generatedShape)remainingShapePositions-=source.positions
         }
@@ -344,12 +347,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val revisions = (0 until sources.length()).map { sources.getJSONObject(it).let { source ->
         val rawRevision = if (source.has("revision")) source.get("revision") else null
         require(rawRevision == null || rawRevision is Number) { "Source revision must be a number" }
-        SourceRevisionGate.Source(source.getString("id"), (rawRevision as? Number)?.toDouble(), parsedSources[it].identity)
+        SourceRevisionGate.Source(source.getString("id"), (rawRevision as? Number)?.toDouble(), parsedSources[it]?.identity ?: source.toString())
       } }
       sourceRevisions.validate(revisions)
       // Extract before mutating the style; commit only after the scene succeeds.
       val nextMarkerLayoutSources=(0 until sources.length()).map { sources.getJSONObject(it) }
-        .filter { it.getString("id").let { id -> id=="em-marker-clusters" || id.startsWith("em-marker-clusters:") } }
+        .filter { it.optString("type")!="raster" && it.has("cluster") && it.getString("id").let { id -> id=="em-marker-clusters" || id.startsWith("em-marker-clusters:") } }
         .map { MarkerClusterLayout.Source(it.getString("id"),it.getLong("revision")) }
       val parsedLayers = (0 until layers.length()).map { layers.getJSONObject(it).also { layer -> require(!layer.has("clusterFilter") || layer.getString("clusterFilter") in listOf("clusters","points")) { "Invalid cluster filter" } } }
       val metricSources=(0 until sources.length()).map { sources.getJSONObject(it) }.filter { it.optBoolean("lineMetrics",false) }.map { it.getString("id") }.toSet()
@@ -361,10 +364,18 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       // Inline scene data and Marker props belong to the same Fabric commit.
       // Async GeoJSON tiles can otherwise display different coordinate revisions.
       // This work happens on data changes, never on camera frames.
-      val sdkSources=parsedSources.map { source -> GeoJsonSource(source.id,source.data,source.options) }
+      val sdkSources=parsedSources.mapIndexed { index, source ->
+        if(source!=null) GeoJsonSource(source.id,source.data,source.options) else {
+          val raw=sources.getJSONObject(index)
+          val tiles=TileSet("2.2.0",raw.getString("urlTemplate"))
+          tiles.setMinZoom(raw.getInt("minZoom").toFloat());tiles.setMaxZoom(raw.getInt("maxZoom").toFloat())
+          RasterSource(raw.getString("id"),tiles,raw.getInt("tileSize"))
+        }
+      }
       val sdkLayers=parsedLayers.map { definition ->
         val id = definition.getString("id"); val source = definition.getString("source"); val properties = definition.optJSONObject("style") ?: JSONObject()
         val layer: Layer = when (definition.getString("type")) {
+          "raster" -> RasterLayer(id,source).apply { if(properties.has("rasterOpacity")) setProperties(rasterOpacity(properties.getDouble("rasterOpacity").toFloat())) }
           "circle" -> CircleLayer(id,source).apply { if(properties.has("circleColor")) setProperties(circleColor(properties.getString("circleColor"))); if(properties.has("circleRadius")) setProperties(circleRadius(properties.getDouble("circleRadius").toFloat())); if(properties.has("circleOpacity")) setProperties(circleOpacity(properties.getDouble("circleOpacity").toFloat())) }
           "line" -> LineLayer(id,source).apply { gradients[id]?.let { setProperties(lineGradient(it)) }; if(properties.has("lineColor")) setProperties(lineColor(properties.getString("lineColor"))); if(properties.has("lineWidth")) setProperties(lineWidth(properties.getDouble("lineWidth").toFloat())); if(properties.has("lineOpacity")) setProperties(lineOpacity(properties.getDouble("lineOpacity").toFloat())); if(properties.has("lineCap")) setProperties(lineCap(properties.getString("lineCap"))); if(properties.has("lineJoin")) setProperties(lineJoin(properties.getString("lineJoin"))); if(properties.has("lineMiterLimit")) setProperties(lineMiterLimit(properties.getDouble("lineMiterLimit").toFloat())); if(properties.has("lineDasharray")) { val d=properties.getJSONArray("lineDasharray"); setProperties(lineDasharray(Array(d.length()) { d.getDouble(it).toFloat() })) } }
           "fill" -> FillLayer(id,source).apply { if(properties.has("fillColor")) setProperties(fillColor(properties.getString("fillColor"))); if(properties.has("fillOpacity")) setProperties(fillOpacity(properties.getDouble("fillOpacity").toFloat())) }
@@ -391,7 +402,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         sceneLayers = sceneLayers + id; layerSources[id] = source
       }
       sourceRevisions.commit(revisions)
-      clusteredSources=parsedSources.filter { it.options["cluster"]==true }.map { it.id }.toSet()
+      clusteredSources=parsedSources.filterNotNull().filter { it.options["cluster"]==true }.map { it.id }.toSet()
       markerLayoutSources = nextMarkerLayoutSources
       appliedScene = json; acceptedScene = json; orderDirty = true
       return true

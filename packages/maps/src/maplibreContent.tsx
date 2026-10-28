@@ -9,6 +9,8 @@ import type { GeoJSONData } from './layers';
 import type { MapFeaturePressEvent } from './types';
 import { normalizeClusterOptions, validateClusterData } from './clustering';
 import type { ClusterOptions } from './clustering';
+import { UrlTile, normalizeUrlTile } from './UrlTile';
+import type { UrlTileProps } from './UrlTile';
 export interface SourceProps {
   readonly id: string;
   readonly data: GeoJSONData;
@@ -57,17 +59,32 @@ const numericStyles: Record<string, number> = {
   fillOpacity: 1,
 };
 export function compileScene(children: ReactNode) {
-  const sources: {
-      id: string;
-      data: GeoJSONData;
-      revision?: number;
-      lineMetrics?: boolean;
-      coordinateSpace?: 'unwrapped';
-      cluster?: Readonly<Required<ClusterOptions>>;
-    }[] = [],
+  const sources: (
+      | {
+          id: string;
+          data: GeoJSONData;
+          revision?: number;
+          lineMetrics?: boolean;
+          coordinateSpace?: 'unwrapped';
+          cluster?: Readonly<Required<ClusterOptions>>;
+        }
+      | {
+          id: string;
+          type: 'raster';
+          urlTemplate: string;
+          tileSize: number;
+          minZoom: number;
+          maxZoom: number;
+          cluster?: never;
+        }
+    )[] = [],
     layers: Record<string, unknown>[] = [],
     live: ReactNode[] = [],
     shapes: ReactNode[] = [];
+  const contentLayers: Record<string, unknown>[] = [];
+  const contentOrder = new Map<string, { zIndex: number; index: number }>();
+  let tileIndex = 0,
+    contentIndex = 0;
   type Tap = Omit<ShapePressEvent['nativeEvent'], 'identifier'>;
   const presses = new Map<string, (featureId: string, event: Tap) => void>();
   const featurePresses = new Map<
@@ -85,6 +102,24 @@ export function compileScene(children: ReactNode) {
           source,
           depth + 1,
         );
+        return;
+      }
+      if (node.type === UrlTile) {
+        if (source) throw new Error('UrlTile must be a MapView child');
+        const p = node.props as UrlTileProps;
+        const id = identifier(p.id ?? `url-tile:${tileIndex++}`);
+        const value = normalizeUrlTile(p);
+        const { opacity, visible, zIndex, ...raster } = value;
+        sources.push({ id, type: 'raster', ...raster });
+        contentOrder.set(id, { zIndex, index: contentIndex++ });
+        contentLayers.push({
+          id: `raster:${id}`,
+          source: id,
+          type: 'raster',
+          visible,
+          interactive: false,
+          style: { rasterOpacity: opacity },
+        });
         return;
       }
       if (node.type === InternalSource) {
@@ -166,6 +201,11 @@ export function compileScene(children: ReactNode) {
         node.type === Polygon ||
         node.type === Circle
       ) {
+        const p = node.props as { id?: string; zIndex?: number };
+        contentOrder.set(p.id ?? `shape:${shapes.length}`, {
+          zIndex: p.zIndex ?? 0,
+          index: contentIndex++,
+        });
         shapes.push(node);
         return;
       }
@@ -197,8 +237,14 @@ export function compileScene(children: ReactNode) {
         ...(s.coordinateSpace ? { coordinateSpace: s.coordinateSpace } : {}),
         ...(s.lineMetrics ? { lineMetrics: true } : {}),
       });
-    layers.push(...scene.layers);
+    contentLayers.push(...scene.layers);
   }
+  contentLayers.sort((a, b) => {
+    const left = contentOrder.get(a.source as string)!;
+    const right = contentOrder.get(b.source as string)!;
+    return left.zIndex - right.zIndex || left.index - right.index;
+  });
+  layers.push(...contentLayers);
   const sourceIds = new Set<string>(),
     layerIds = new Set<string>();
   for (const s of sources) {
