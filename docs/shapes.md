@@ -58,10 +58,11 @@ query, preserving lower-layer and map fall-through. See
 input/ordering system.
 
 This is a compatibility subset, not drop-in react-native-maps parity. Per-vertex
-strokeColors and lineDashPhase remain unsupported and rejected rather than
-silently ignored. Native geographic edge behavior and press semantics have
-separate validation coverage; physical-device checks are maintainer-owned
-follow-up. Build/contract checks do not establish visual parity or production
+`strokeColors` is supported on Polyline, as described below. `lineDashPhase` is
+explicitly outside v1 scope (2026-10-28) and is rejected rather than silently
+ignored; `lineDashPattern` remains supported. Native geographic edge behavior and
+press semantics have separate validation coverage; physical-device checks are
+maintainer-owned follow-up. Build/contract checks do not establish visual parity or production
 performance.
 
 The example's “Show native layers” screen includes all three shapes and displays
@@ -159,8 +160,8 @@ still apply; generated geodesic vertices count toward the point budget.
 
 A gradient combined with `lineDashPattern` rejects before native transport because
 MapLibre disables line gradients for dashed lines. Separate uniform dashed lines
-remain supported. Dash phase remains a separate compatibility decision under
-SHAPE-03. No arbitrary expression or source API is added.
+remain supported. Dash phase (`lineDashPhase`) is explicitly unsupported in v1.
+No arbitrary expression or source API is added.
 
 The Debug example's “Open gradients” screen provides palette changes, solid/gradient
 toggles, geodesic geometry, a separate dashed reference, presses and map remounting.
