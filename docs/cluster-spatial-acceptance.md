@@ -1,7 +1,10 @@
 # Component cluster spatial and antimeridian acceptance
 
-Checked on 2026-10-28 against main `a11b9fd` with the Debug verification additions
-in this change. No public clustering API or native clustering algorithm changed.
+Checked on 2026-10-28, initially against main `a11b9fd`, then repeated on binaries
+rebuilt from `ed5b2cf` after integrating main `a7da13b` (including rendering,
+controlled-camera and readiness recovery changes). No public clustering API or
+native clustering algorithm changed. The integrated repository check passes all
+360 tests, both native Debug builds and both production JavaScript bundles.
 
 The dedicated targets were an iPad Pro 13-inch (M5), iOS 26.4, and Small_Phone,
 Android 17/API 37 ARM64 with 16 KB pages. Both ran the package-owned Debug hosts
