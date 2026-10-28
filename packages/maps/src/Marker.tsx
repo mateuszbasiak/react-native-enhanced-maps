@@ -13,6 +13,8 @@ import type { ReactNode } from 'react';
 import { View, Image, Pressable, Text } from 'react-native';
 import NativeMarker from './specs/MarkerViewNativeComponent';
 import { createMarkerDragGate } from './markerDrag';
+import { markerAccessibility } from './markerAccessibility';
+import type { MarkerAccessibilityProps } from './markerAccessibility';
 import { rejectUnsupportedProps } from './rnMapsCompat';
 import { MapContext } from './maplibreContext';
 import type { Coordinate } from './types';
@@ -24,8 +26,7 @@ export interface MarkerRef {
   hideCallout(): void;
 }
 export type Marker = MarkerRef;
-export interface MarkerProps {
-  readonly accessibilityLabel?: string;
+export interface MarkerProps extends MarkerAccessibilityProps {
   readonly title?: string;
   readonly description?: string;
   readonly calloutAnchor?: Readonly<{ x: number; y: number }>;
@@ -211,13 +212,18 @@ export const Marker = forwardRef<MarkerRef, MarkerProps>(
       props.calloutAnchor,
       props.calloutOffset,
     );
+    const accessibility = markerAccessibility(props, {
+      hasCustomContent: extracted.contentCount > 0,
+      hasCallout,
+      selected,
+      id,
+    });
     const content =
       (extracted.contentCount ? extracted.content : undefined) ??
       (image ? (
         <Image source={image} />
       ) : (
         <View
-          accessibilityLabel="Map marker"
           style={{
             width: 24,
             height: 32,
@@ -269,8 +275,7 @@ export const Marker = forwardRef<MarkerRef, MarkerProps>(
           <View
             collapsable={false}
             pointerEvents="box-none"
-            accessible={!onPress && !hasCallout && !!props.accessibilityLabel}
-            accessibilityLabel={props.accessibilityLabel}
+            {...accessibility.wrapper}
             style={{ alignSelf: 'flex-start' }}
             onLayout={({ nativeEvent: { layout } }) =>
               setPinSize((old) =>
@@ -282,16 +287,7 @@ export const Marker = forwardRef<MarkerRef, MarkerProps>(
           >
             {onPress || hasCallout || props.onSelect ? (
               <Pressable
-                accessibilityRole="button"
-                accessibilityState={
-                  hasCallout ? { expanded: selected } : undefined
-                }
-                accessible={
-                  !!props.accessibilityLabel || extracted.contentCount === 0
-                }
-                accessibilityLabel={
-                  props.accessibilityLabel ?? props.title ?? identifier ?? id
-                }
+                {...accessibility.content}
                 onPress={(event) => {
                   if (hasCallout || props.onSelect) map.show(id, owner);
                   onPress?.({

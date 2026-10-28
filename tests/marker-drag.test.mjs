@@ -87,3 +87,19 @@ test('coordinate echoes do not override active native motion and cancellation re
   gate.accept({ ...event('cancel'), ...restored }, 3, false);
   assert.deepEqual(gate.syncCoordinate(restored), restored);
 });
+
+test('removal cancels a drag once and queued events cannot affect a later session', async () => {
+  const { createMarkerDragGate } = await load();
+  const gate = createMarkerDragGate();
+  const restored = { latitude: 55, longitude: 19 };
+  gate.accept(event('start'), 2, true);
+  gate.accept({ ...event('update'), latitude: 56 }, 2, true);
+  assert.deepEqual(gate.cancel(restored).coordinate, restored);
+  assert.equal(gate.cancel(restored), null);
+  for (const phase of ['update', 'end', 'cancel', 'start'])
+    assert.equal(gate.accept(event(phase), 2, true), null);
+  assert.deepEqual(gate.syncCoordinate(restored), restored);
+  assert.equal(gate.accept(event('start', 2, 3), 3, true).phase, 'start');
+  assert.equal(gate.accept(event('cancel'), 3, true), null);
+  assert.equal(gate.accept(event('end', 2, 3), 3, true).phase, 'end');
+});

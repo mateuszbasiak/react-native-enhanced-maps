@@ -126,6 +126,17 @@ must use `cluster={false}` if a cluster group would otherwise enable clustering.
 The [dragging contract](../../../docs/location-snapshots-dragging.md#marker-dragging)
 defines coordinate echoes, press suppression and lifecycle cancellation.
 
+## Marker accessibility
+
+Markers accept `accessible`, `accessibilityLabel`, `accessibilityHint`,
+`accessibilityRole`, `accessibilityState`, `accessibilityActions` and
+`onAccessibilityAction`. Semantics attach to one marker target; custom children
+remain independently accessible unless a marker label or `accessible={true}`
+requests grouping. `accessible={false}` opts out of marker-level grouping.
+Callout expanded state follows actual visibility. See the
+[accessibility and interaction contract](../../../docs/marker-gestures.md).
+Nested-scroll and bottom-sheet gesture coordination are outside supported scope.
+
 ## Callouts and selection
 
 Nest one `Callout` directly inside `Marker` (Fragments are supported), or supply
