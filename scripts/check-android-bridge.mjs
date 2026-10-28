@@ -30,7 +30,7 @@ for (const variant of ['debug', 'release']) {
       )
       .map(([, name, body]) => [name, body]),
   );
-  const transport = ['install', 'create', 'acquire', 'publish', 'release'];
+  const transport = ['install', 'create', 'release'];
   const expected =
     variant === 'debug' ? [...transport, 'diagnostics', 'stats'] : transport;
   assert.deepEqual(

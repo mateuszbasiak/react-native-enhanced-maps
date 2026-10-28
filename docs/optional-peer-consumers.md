@@ -65,7 +65,7 @@ This matrix is the installation/declaration/JavaScript bundling slice of REL-05.
 It does not build a native consumer, install or start an app, exercise shader
 capabilities/error callbacks, measure GPU performance, or close Release privacy
 acceptance. Native GPU consumer Debug/Release builds and runtime verification
-remain separate work. Physical-device validation is maintainer-owned follow-up.
+are tracked in the [packed GPU consumer](gpu-native-consumers.md). Physical-device validation is maintainer-owned follow-up.
 
 ## Bounded results — 2026-10-25
 
