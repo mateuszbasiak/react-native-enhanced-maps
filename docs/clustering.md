@@ -61,8 +61,9 @@ names use a separate private grammar and do not restrict application marker IDs.
 
 The private index uses radius 50 in the SDK's 512-unit tile convention, maximum
 clustering zoom 14 and minimum count 2. These are implementation defaults, not
-public tuning props. Membership near fractional zoom, world wrapping and spatial
-boundaries needs the remaining acceptance fixtures.
+public tuning props. [Fractional-zoom/overlap](cluster-zoom-acceptance.md) and
+[world-wrap/spatial fixtures](cluster-spatial-acceptance.md) record bounded native
+acceptance for these defaults.
 
 ## Cluster children and lazy members
 
@@ -101,6 +102,7 @@ Compiler regressions cover these
 paths, 512/513-unit and surrogate-pair boundaries, and reject cluster handles
 without explicit generated-cluster metadata. Both native Debug builds pass.
 
-Output/index-memory bounds, background cancellation, overlap, zoom-boundary and
-antimeridian fixtures remain under CLUSTER-06/07. Physical-device benchmarks and
+Output/index-memory bounds, background cancellation and larger spatial-dataset
+performance remain under CLUSTER-06. Component membership, overlap, zoom-boundary
+and antimeridian acceptance is recorded under CLUSTER-07. Physical-device benchmarks and
 resulting tweaks are maintainer-owned follow-up. Removing the marker-count cap does not establish performance at larger counts.

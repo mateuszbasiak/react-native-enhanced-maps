@@ -1,4 +1,5 @@
 import ExampleControls from '../ExampleControls';
+import { runClusterSpatialChecks } from '../../scripts/cluster-spatial-expression.mjs';
 import React, {
   createContext,
   useContext,
@@ -7,10 +8,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Button, Pressable, Text, View } from 'react-native';
+import { Button, Platform, Pressable, Text, View } from 'react-native';
 import { MapView, Marker } from 'react-native-maplibre-maps';
 import type {
   CameraEvent,
+  Camera,
   ClusterComponentProps,
   ClusterMember,
   MapViewRef,
@@ -61,6 +63,8 @@ const initialCamera = {
   pitch: 0,
 };
 type Evidence = {
+  platform: string;
+  viewport: { width: number; height: number };
   memberIDs: string[];
   metadata: unknown[];
   errors: string[];
@@ -84,17 +88,31 @@ type DebugGlobal = typeof globalThis & {
       moved?: boolean;
       grouped?: boolean;
       identityCases?: boolean;
+      layout?: 'coincident' | 'spatial' | 'antimeridian';
     }): void;
     remount(): void;
     reloadStyle(): void;
     animate(zoom: number): void;
     capture(clusterGroup?: string): ClusterComponentProps | undefined;
     inspect(expectedCount?: number): Promise<readonly ClusterMember[]>;
+    runSpatialChecks(): Promise<unknown>;
+    moveCamera(camera: Camera): Promise<void>;
+    getCamera(): Promise<Camera>;
+    inspectAll(): Promise<
+      {
+        count: number;
+        coordinate: ClusterComponentProps['coordinate'];
+        clusterGroup?: string;
+        members: readonly ClusterMember[];
+      }[]
+    >;
   };
 };
 export default function ClusterVerification() {
   const map = useRef<MapViewRef>(null);
   const evidence = useRef<Evidence>({
+    platform: Platform.OS,
+    viewport: { width: 0, height: 0 },
     memberIDs: [],
     metadata: [],
     errors: [],
@@ -120,6 +138,9 @@ export default function ClusterVerification() {
   const [styleEpoch, setStyleEpoch] = useState(0);
   const [moved, setMoved] = useState(false);
   const [identityCases, setIdentityCases] = useState(false);
+  const [layout, setLayout] = useState<
+    'coincident' | 'spatial' | 'antimeridian'
+  >('coincident');
   const [summary, setSummary] = useState('Waiting for map');
   const markers = useMemo(
     () =>
@@ -129,13 +150,29 @@ export default function ClusterVerification() {
             ? ['cluster:14', 'cluster:boat', '船', '船'.repeat(512)][index]
             : `vessel-${index}`,
         key: `vessel-${index}`,
-        coordinate: { latitude: 54.37, longitude: 18.66 + (moved ? 0.02 : 0) },
+        coordinate:
+          layout === 'spatial'
+            ? {
+                latitude:
+                  (Math.floor(index / 3) % 2 ? 0.1 : -0.1) +
+                  (index % 3) * 0.00001,
+                longitude:
+                  (Math.floor(index / 6) % 2 ? 0.2 : -0.2) +
+                  (index % 3) * 0.00001,
+              }
+            : layout === 'antimeridian'
+              ? {
+                  latitude: (index % 3) * 0.00001,
+                  longitude:
+                    (index % 6 < 3 ? 179.8 : -179.8) + (index % 3) * 0.00001,
+                }
+              : { latitude: 54.37, longitude: 18.66 + (moved ? 0.02 : 0) },
         data: {
           name: `Vessel ${index}`,
           status: index % 2 ? 'moving' : 'moored',
         },
       })),
-    [count, moved, identityCases],
+    [count, moved, identityCases, layout],
   );
   useEffect(() => {
     if (!__DEV__) return;
@@ -158,6 +195,7 @@ export default function ClusterVerification() {
       );
     };
     const api = {
+      runSpatialChecks: (): Promise<unknown> => runClusterSpatialChecks(api),
       snapshot: () => ({
         ...evidence.current,
         clusters: [...handles.current].map(
@@ -176,6 +214,7 @@ export default function ClusterVerification() {
         moved?: boolean;
         grouped?: boolean;
         identityCases?: boolean;
+        layout?: 'coincident' | 'spatial' | 'antimeridian';
       }) => {
         if (options.count !== undefined) {
           if (
@@ -193,6 +232,13 @@ export default function ClusterVerification() {
         if (options.moved !== undefined) setMoved(options.moved);
         if (options.identityCases !== undefined)
           setIdentityCases(options.identityCases);
+        if (options.layout !== undefined) {
+          if (
+            !['coincident', 'spatial', 'antimeridian'].includes(options.layout)
+          )
+            throw new Error('Invalid fixture layout');
+          setLayout(options.layout);
+        }
       },
       remount: () => setGeneration((v) => v + 1),
       reloadStyle: () => setStyleEpoch((v) => v + 1),
@@ -209,6 +255,29 @@ export default function ClusterVerification() {
         evidence.current.memberIDs = members.map((member) => member.id);
         evidence.current.metadata = members.map((member) => member.data);
         return members;
+      },
+      moveCamera: async (camera: Camera) => {
+        if (!map.current) throw new Error('Map missing');
+        await map.current.setCamera(camera);
+      },
+      getCamera: async () => {
+        if (!map.current) throw new Error('Map missing');
+        return map.current.getCamera();
+      },
+      inspectAll: async () => {
+        const current = [...handles.current];
+        if (current.length > 32)
+          throw new Error('Fixture cluster inspection limit exceeded');
+        return Promise.all(
+          current.map(
+            async ({ count, coordinate, clusterGroup, getMembers }) => ({
+              count,
+              coordinate,
+              clusterGroup,
+              members: await getMembers(),
+            }),
+          ),
+        );
       },
     };
     target.__enhancedMapsClusters = api;
@@ -292,6 +361,12 @@ export default function ClusterVerification() {
           </ExampleControls>
           <MapView
             key={generation}
+            onLayout={({ nativeEvent: { layout } }) => {
+              evidence.current.viewport = {
+                width: layout.width,
+                height: layout.height,
+              };
+            }}
             ref={map}
             style={{ flex: 1 }}
             initialCamera={initialCamera}

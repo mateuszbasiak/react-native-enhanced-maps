@@ -11,6 +11,9 @@ changes, not accepted production support or closed release gates.
 
 ### Added
 
+- Repeatable component-cluster spatial/antimeridian acceptance with exact member
+  audits, world-copy deduplication, group isolation and source/style/remount checks.
+
 - `MapViewRef.reloadStyle()` retries the current style without remounting, with
   revision-scoped recoverable load errors and immediate pending-query invalidation.
 
