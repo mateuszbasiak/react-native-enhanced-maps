@@ -1,5 +1,41 @@
 # Repeated map lifecycle verification
 
+## Fast Refresh readiness recovery (2026-10-28)
+
+Both package-owned Debug native hosts passed direct `MapView.tsx` source
+edit/revert checks with the retained map. The edit temporarily changed punctuation
+in the unmounted-map error string, then restored it; it did not change the valid
+runtime path. Editing `Callout.tsx` alone did not exercise MapView effect replay
+and was excluded from this acceptance result.
+
+On iPhone 17 Pro / iOS 26.1 and the API 36 ARM64 Android emulator:
+
+- Public camera and visible-bounds queries worked after edit and revert, and their
+  values matched the baseline at zoom 16, heading 35 and pitch 40. Capabilities
+  returned for the correct platform. Object field ordering in serialized iOS
+  capability JSON changed; field values were equal.
+- `onMapReady` remained at one. Cleanup deselected the open callout; refs reopened
+  it, and a native tap delivered one callout press with no map-press fall-through
+  or fixture errors.
+- Two shader maps recovered after edit and revert: each map-ready count stayed at
+  one, shader-ready counts advanced, both worklet frame counts advanced, native
+  produced/sampled counts were positive and continued advancing, two pools remained
+  active and no current shader errors were present. Unmounting both maps returned
+  pools to zero. Android used explicit software-adapter diagnostics; its history
+  retained the expected pre-opt-in software rejection. This is not hardware GPU
+  acceptance or a performance measurement.
+
+The first direct-edit run exposed a handshake reply discarded by the old
+readiness guard; the shader run then exposed teardown blocked by the same state.
+Both paths have regression coverage. The final checks include 320 passing
+contract/native-helper tests, lint, formatting, TypeScript, Codegen, packed
+declarations, both native Debug builds and both production example bundles.
+Raw local receipts are under ignored `artifacts/verification/readiness-replay/`.
+Broader lifecycle/failure coverage below remains open; physical devices are
+maintainer-owned follow-up.
+
+## Repeated remount checks
+
 The Debug example's “Open lifecycle” screen runs at most 100 remount cycles.
 Each cycle waits up to 15 seconds for its own generation's map-ready event,
 requires the previous ref to reject with `Map is not ready`, and validates a

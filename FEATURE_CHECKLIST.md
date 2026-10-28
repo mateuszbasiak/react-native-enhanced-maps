@@ -30,6 +30,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 - [x] **ARCH-01–06, MAP-13** — Workspace, package-owned Fabric hosts, pinned baseline dependencies, declarations, Codegen, autolinking and packed-consumer checks.
 - [x] **ARCH-07** — Revision-scoped native capability reports; layers and shaders remain unvalidated. [Capabilities](docs/capabilities.md).
+- [x] Fast Refresh readiness recovery — Fresh native capability handshake restores queries, callouts and shaders after effect replay while preserving camera/style. Contract tests, both native Debug builds and direct source edit/revert checks on both simulators pass. [Contract and evidence](docs/capabilities.md). Broader lifecycle cases remain below.
 - [x] **CAM-01–02** — Validated mount-only initial camera and imperative `animateCamera`, with rejection before readiness.
 - [x] **SRC-03** — Internal source revisions reject stale replacements and preserve accepted scenes. [Contract](docs/source-revisions.md).
 - [x] **SHAPE-01** — Polygon, Polyline and geographic Circle with stroke styling and typed presses. [Shapes](docs/shapes.md).

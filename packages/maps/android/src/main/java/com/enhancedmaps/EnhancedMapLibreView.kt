@@ -527,6 +527,10 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         return
       }
       val response=when(request.getString("kind")) {
+        "capabilities" -> {
+          require(isAttachedToWindow) { "Map is not ready" }
+          JSONObject(NativeMapCapabilities.JSON)
+        }
         "shaderLayer" -> {
           val style=nativeMap.style ?: throw IllegalStateException("Style not ready")
           val id=request.getString("id");require(Regex("^[a-zA-Z0-9_.:-]{1,128}$").matches(id))

@@ -52,6 +52,10 @@ changes, not accepted production support or closed release gates.
 - Background snapshot cancellation invalidates generation ownership before native
   cleanup, preventing interrupted completions from publishing stale output.
 
+- Fast Refresh effect replay now obtains a fresh native readiness report without
+  replacing the map or resetting its camera. Queries, callouts and shader rendering
+  recover; owned shader teardown can finish while readiness is being restored.
+
 - Removed the arbitrary 10,000 clustered-marker cap across collection, native
   sources, visible layouts and membership queries. Existing scene byte/geometry
   budgets and query page sizes remain in force.

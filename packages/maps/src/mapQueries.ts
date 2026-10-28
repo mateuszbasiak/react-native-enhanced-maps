@@ -3,6 +3,7 @@ import type { Camera, Coordinate, MapBounds, MapPoint } from './types';
 import type { ClusterQueryKind, NativeClusterPage } from './clusterQueries';
 
 export type MapQueryKind =
+  | 'capabilities'
   | 'snapshot'
   | 'camera'
   | 'point'
@@ -50,6 +51,11 @@ export function parseMapQueryResult(
   clusterParser?: ClusterParser,
 ): Result {
   try {
+    if (kind === 'capabilities') {
+      if (typeof json !== 'string' || !json.length || json.length > 4096)
+        throw new Error();
+      return json; // Schema/platform validation belongs to the readiness owner.
+    }
     if (kind === 'snapshot') return parseSnapshotResult(json);
     if (
       kind === 'clusterChildren' ||
@@ -128,6 +134,7 @@ export function createMapQueryClient(
     number,
     {
       kind: MapQueryKind;
+      acceptsBeforeReady: boolean;
       resolve: (value: Result) => void;
       reject: (reason: Error) => void;
       timer: ReturnType<typeof setTimeout>;
@@ -157,7 +164,15 @@ export function createMapQueryClient(
         const timer = schedule(() =>
           take(id)?.reject(new Error('Map query timed out')),
         );
-        pending.set(id, { kind, resolve, reject, timer });
+        pending.set(id, {
+          kind,
+          acceptsBeforeReady:
+            kind === 'capabilities' ||
+            (kind === 'shaderLayer' && input.action === 'remove'),
+          resolve,
+          reject,
+          timer,
+        });
         try {
           dispatch(id, { ...input, kind, styleRevision });
         } catch (error) {
@@ -169,7 +184,9 @@ export function createMapQueryClient(
         }
       });
     },
-    accept(id: number, json: string, error: string) {
+    accept(id: number, json: string, error: string, ready = true) {
+      // Handshakes establish readiness; owned shader teardown must also finish.
+      if (!ready && !pending.get(id)?.acceptsBeforeReady) return;
       const item = take(id);
       if (!item) return;
       if (error) {

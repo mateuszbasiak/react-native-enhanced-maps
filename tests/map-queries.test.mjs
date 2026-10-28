@@ -84,3 +84,58 @@ test('geometry query arguments and results reject malformed data', async () => {
   ])
     assert.throws(() => parseMapQueryResult(kind, json), /Invalid native/);
 });
+
+test('private capability replies keep their own bound and remain raw for readiness schema validation', async () => {
+  const { parseMapQueryResult } =
+    await import('../packages/maps/lib/mapQueries.js');
+  const raw = '{' + ' '.repeat(4094) + '}';
+  assert.equal(parseMapQueryResult('capabilities', raw), raw);
+  assert.throws(
+    () => parseMapQueryResult('capabilities', raw + ' '),
+    /Invalid native/,
+  );
+  assert.throws(
+    () => parseMapQueryResult('capabilities', ''),
+    /Invalid native/,
+  );
+  assert.throws(() => parseMapQueryResult('point', raw), /Invalid native/);
+});
+
+test('only a pending capability handshake can receive a reply before readiness', async () => {
+  const { createMapQueryClient } =
+    await import('../packages/maps/lib/mapQueries.js');
+  const sent = [];
+  const client = createMapQueryClient((id) => sent.push(id));
+  const capability = client.request('capabilities', {}, 0);
+  const camera = client.request('camera', {}, 0);
+  const cancelled = assert.rejects(camera, /obsolete/);
+  client.accept(sent[0], '{"engine":"maplibre"}', '', false);
+  assert.equal(await capability, '{"engine":"maplibre"}');
+  client.accept(sent[1], '{}', '', false);
+  client.cancelAll('obsolete');
+  await cancelled;
+  client.accept(sent[0], '{}', '', false);
+});
+
+test('owned shader removal can finish during readiness recovery; attachment cannot', async () => {
+  const { createMapQueryClient } =
+    await import('../packages/maps/lib/mapQueries.js');
+  const sent = [];
+  const client = createMapQueryClient((id) => sent.push(id));
+  const remove = client.request(
+    'shaderLayer',
+    { action: 'remove', id: 'a', poolId: 'old' },
+    0,
+  );
+  const attach = client.request(
+    'shaderLayer',
+    { action: 'attach', id: 'a', poolId: 'new' },
+    0,
+  );
+  const cancelled = assert.rejects(attach, /obsolete/);
+  client.accept(sent[0], '{"accepted":true}', '', false);
+  client.accept(sent[1], '{"accepted":true}', '', false);
+  assert.equal(await remove, undefined);
+  client.cancelAll('obsolete');
+  await cancelled;
+});

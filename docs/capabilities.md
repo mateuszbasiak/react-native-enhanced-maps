@@ -38,6 +38,20 @@ at `null`; it never guesses support from the platform. A per-map request revisio
 binds each ready event to its style change, including A→B→A URL reuse. Queued
 reports from earlier requests or detached maps are ignored.
 
+React effect replay (including Fast Refresh) clears JavaScript readiness and
+requests a fresh native report for the retained style. The private handshake is
+accepted only for the current activation and style; a fatal error or newer native
+ready event supersedes it. A failed probe leaves commands unavailable until a
+normal ready event. Recovery preserves the camera/style and does not emit another
+`onMapReady` or replay initial camera setup. Callout selection is cleared during
+cleanup; callouts can be opened again after recovery. Shader rendering pauses,
+finishes owned layer teardown and restarts after the fresh report is accepted.
+Ordinary queries and shader attachment remain readiness-gated during this work.
+
+Both Debug simulators passed direct `MapView` source edit/revert checks on
+2026-10-28. See [lifecycle acceptance](map-lifecycle-acceptance.md) for results and
+limits.
+
 The parser, both native report constants and readiness state have executable
 regressions. Both running simulators delivered reports and invalidated/restored
 them during style replacement on 2026-10-20. Broader recovery and feature quality
