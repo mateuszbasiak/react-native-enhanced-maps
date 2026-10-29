@@ -1,3 +1,5 @@
+import { MAX_MAP_QUERY_BYTES } from './cameraFit.ts';
+import { utf8ByteLength } from './sceneBudget.ts';
 import { parseSnapshotResult } from './snapshots.ts';
 import type { Camera, Coordinate, MapBounds, MapPoint } from './types';
 import type { ClusterQueryKind, NativeClusterPage } from './clusterQueries';
@@ -155,6 +157,13 @@ export function createMapQueryClient(
       input: Record<string, number | string>,
       styleRevision: number,
     ): Promise<Result> {
+      if (
+        utf8ByteLength(JSON.stringify({ ...input, kind, styleRevision })) >
+        MAX_MAP_QUERY_BYTES
+      )
+        return Promise.reject(
+          new RangeError('Map query exceeds 64 KiB UTF-8 byte limit'),
+        );
       if (pending.size >= 32)
         return Promise.reject(new Error('Too many pending map queries'));
       if (sequence >= Number.MAX_SAFE_INTEGER)

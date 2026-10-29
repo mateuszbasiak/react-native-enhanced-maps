@@ -517,7 +517,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     try {
       require(requestId.isFinite() && requestId>=1 && requestId%1.0==0.0)
       val request=JSONObject(requestJSON)
-      require(request.optString("kind")=="fit" || requestJSON.toByteArray(Charsets.UTF_8).size<=65536) { "Invalid map query" }
+      require(requestJSON.toByteArray(Charsets.UTF_8).size<=65536) { "Invalid map query" }
       revision=request.getDouble("styleRevision")
       val nativeMap=map
       require(nativeMap!=null && readyStyleRevision==revision && styleRevision==revision) { "Map is not ready" }

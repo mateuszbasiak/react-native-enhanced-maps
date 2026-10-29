@@ -31,6 +31,7 @@ internal object NativeCameraFit {
     }
     val explicit=request.getString("coordinatesJSON")
     if(explicit.isNotEmpty()) {
+      require(explicit.toByteArray(Charsets.UTF_8).size<=65536) { "Fit coordinates exceed 64 KiB query byte limit" }
       val input=JSONArray(explicit); require(input.length()>=1)
       for(i in 0 until input.length()) input.getJSONArray(i).let { require(it.length()==2); add(it.getDouble(0),it.getDouble(1)) }
     } else {

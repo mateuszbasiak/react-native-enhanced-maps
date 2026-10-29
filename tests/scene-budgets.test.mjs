@@ -162,7 +162,7 @@ test('individual GeoJSON sources and map content have no serialized-size cap', a
 test('large heatmap scenes retain per-feature property complexity checks', async () => {
   const { compileScene } = await load();
   const { Heatmap } = await import('../packages/maps/lib/heatmap.js');
-  const points = Array.from({ length: 50001 }, () => ({
+  const points = Array.from({ length: 30000 }, () => ({
     latitude: 0,
     longitude: 0,
   }));
@@ -170,6 +170,15 @@ test('large heatmap scenes retain per-feature property complexity checks', async
   assert.equal(
     JSON.parse(scene.json).sources[0].data.features.length,
     points.length,
+  );
+  assert.throws(
+    () =>
+      compileScene(
+        React.createElement(Heatmap, {
+          points: Array(50001).fill({ latitude: 0, longitude: 0 }),
+        }),
+      ),
+    /generated GeoJSON byte limit/,
   );
 });
 

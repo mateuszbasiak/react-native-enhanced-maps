@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import normalizeColor from '@react-native/normalize-colors';
 import type { GeoJSONData } from './layers';
+import { utf8ByteLength } from './sceneBudget.ts';
+export const MAX_HEATMAP_BYTES = 4 * 1024 * 1024;
 export interface WeightedLatLng {
   readonly latitude: number;
   readonly longitude: number;
@@ -44,23 +46,35 @@ export function normalizeHeatmap(props: HeatmapProps) {
   const radius = number(props.radius ?? 20, 10, 50),
     opacity = number(props.opacity ?? 0.7, 0, 1);
   if (!Array.isArray(props.points))
-    throw new Error('Heatmap points must be an array');
+    throw new TypeError('Heatmap points must be an array');
+  let bytes = utf8ByteLength(
+    JSON.stringify({ type: 'FeatureCollection', features: [] }),
+  );
+  const features: GeoJSONData['features'][number][] = [];
   const data: GeoJSONData = {
     type: 'FeatureCollection',
-    features: Array.from(props.points, (point, i) => {
-      if (!point || typeof point !== 'object')
-        throw new Error('Invalid Heatmap point');
-      const lat = number(point.latitude, -85, 85),
-        lon = number(point.longitude, -180, 180),
-        weight = number(point.weight ?? 1, 0, 1000000);
-      return {
-        type: 'Feature',
-        id: String(i),
-        properties: { weight },
-        geometry: { type: 'Point', coordinates: [lon, lat] },
-      };
-    }),
+    features,
   };
+  for (let i = 0; i < props.points.length; i++) {
+    const point = props.points[i];
+    if (!point || typeof point !== 'object')
+      throw new Error('Invalid Heatmap point');
+    const lat = number(point.latitude, -85, 85),
+      lon = number(point.longitude, -180, 180),
+      weight = number(point.weight ?? 1, 0, 1000000);
+    const feature = {
+      type: 'Feature' as const,
+      id: String(i),
+      properties: { weight },
+      geometry: { type: 'Point' as const, coordinates: [lon, lat] as const },
+    };
+    bytes += utf8ByteLength(JSON.stringify(feature)) + (i === 0 ? 0 : 1);
+    if (bytes > MAX_HEATMAP_BYTES)
+      throw new RangeError(
+        'Heatmap exceeds 4 MiB generated GeoJSON byte limit',
+      );
+    features.push(feature);
+  }
   const gradient = props.gradient ?? defaults;
   if (
     !gradient ||

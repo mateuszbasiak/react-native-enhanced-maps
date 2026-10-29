@@ -45,15 +45,48 @@ test('Heatmap samples the upstream gradient configuration and validates all entr
     assert.throws(() => heatmap.normalizeHeatmap(bad));
 });
 
-test('Heatmap accepts more than 50000 points and validates the final point', () => {
-  const points = Array.from({ length: 50001 }, () => ({
-    latitude: 1,
-    longitude: 2,
-  }));
-  assert.equal(
-    heatmap.normalizeHeatmap({ points }).data.features.length,
-    50001,
+test('Heatmap bounds generated GeoJSON bytes before retaining oversized point output', () => {
+  const input = Array(50001).fill({ latitude: 0, longitude: 0 });
+  Object.defineProperty(input, 50000, {
+    get() {
+      throw new Error('read beyond budget');
+    },
+  });
+  assert.throws(
+    () => heatmap.normalizeHeatmap({ points: input }),
+    /byte.*limit|budget/i,
   );
-  points[50000] = { latitude: NaN, longitude: 2 };
-  assert.throws(() => heatmap.normalizeHeatmap({ points }), /Invalid Heatmap/);
+  const h = heatmap.normalizeHeatmap({
+    points: Array(1000).fill({ latitude: 0, longitude: 0 }),
+  });
+  assert.equal(h.data.features.length, 1000);
+});
+
+test('Heatmap accounts for exact serialized collection bytes including feature IDs and commas', async () => {
+  const { MAX_HEATMAP_BYTES } = heatmap;
+  const point = { latitude: 0, longitude: 0 };
+  let bytes = Buffer.byteLength(
+    JSON.stringify({ type: 'FeatureCollection', features: [] }),
+  );
+  let count = 0;
+  while (true) {
+    const next =
+      Buffer.byteLength(
+        JSON.stringify({
+          type: 'Feature',
+          id: String(count),
+          properties: { weight: 1 },
+          geometry: { type: 'Point', coordinates: [0, 0] },
+        }),
+      ) + (count ? 1 : 0);
+    if (bytes + next > MAX_HEATMAP_BYTES) break;
+    bytes += next;
+    count++;
+  }
+  const h = heatmap.normalizeHeatmap({ points: Array(count).fill(point) });
+  assert.equal(Buffer.byteLength(JSON.stringify(h.data)), bytes);
+  assert.throws(
+    () => heatmap.normalizeHeatmap({ points: Array(count + 1).fill(point) }),
+    /GeoJSON byte limit/,
+  );
 });

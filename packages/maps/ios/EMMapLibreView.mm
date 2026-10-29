@@ -532,7 +532,7 @@ static UIColor *EMColor(id value) {
       @throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
     NSDictionary *request=[NSJSONSerialization JSONObjectWithData:[requestJSON dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     if(![request isKindOfClass:NSDictionary.class])@throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
-    if(![request[@"kind"] isEqual:@"fit"] && [requestJSON lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>65536)
+    if([requestJSON lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>65536)
       @throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
     auto number=[&](NSString *key)->double {
       id value=request[key];

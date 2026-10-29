@@ -64,6 +64,8 @@ A ready `MapViewRef` supplies:
   scene geometry as well as markers.
 - `fitToCoordinates(coordinates, {edgePadding, animated}?)` and
   `fitToElements({edgePadding, animated}?)`: RN Maps-style fit aliases.
+  Explicit fit coordinates have no fixed 1,000-position cap; their JSON is bounded
+  incrementally, and the full UTF-8 query request must fit 64 KiB.
   `fitToElements` fits markers, including clustered inputs, rather than shapes
   or the user-location dot. See the [fit contract](../../../docs/rn-maps-migration.md).
 - `getMapBoundaries()`: the visible envelope as `{northEast, southWest}`.
@@ -112,7 +114,7 @@ same exact string and enables clustering unless `cluster={false}` explicitly
 overrides it. `cluster={true}` without a group uses the default group. Omitting
 both props keeps a marker independent. Names must be nonblank and at most 512
 characters. Custom cluster components receive `clusterGroup`, undefined for the
-default group. Each group uses one source/layer within the shared scene byte budget. Different groups can overlap visually; distance and
+default group. Each group uses one source/layer without a fixed group-count cap. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
 cluster operations. There are no fixed participating-marker/group counts or scene/layout byte caps;
 input validation and paginated query bounds still apply. Native marker dragging is supported. See
@@ -213,7 +215,9 @@ Their props and events are exported as `GeojsonProps`, `GeojsonPressEvent`,
   `markerComponent`; nonzero dash phase remains unsupported.
 - `Heatmap`: weighted LatLng `points`, radius (10–50; default 20), opacity
   (default 0.7), and gradient `{colors, startPoints, colorMapSize?}`. The native
-  kernel differs from Google Maps. There is no heatmap press callback.
+  kernel differs from Google Maps. Generated GeoJSON is bounded incrementally by
+  a separate 4 MiB generated GeoJSON budget, rather than a fixed point-count cap.
+  Property validation still applies. There is no heatmap press callback.
 - `Overlay`: required asset or URI `image`, `bounds` as northeast/southwest
   `[latitude, longitude]` tuples, optional clockwise `bearing`, `opacity`,
   `tappable` and `onPress`. Events have `nativeEvent.action: 'overlay-press'`,

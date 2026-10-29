@@ -170,3 +170,17 @@ taps at projected/measured coordinates; a debugger reads bounded Debug fixture
 snapshots. Two driver-interrupted attempts exceeded the operator tap deadline
 and are excluded. Local results are in
 `artifacts/verification/native-scene-preflight/`.
+
+## Heatmap and explicit fit request budgets — 2026-10-29
+
+Heatmap output has a separate 4 MiB UTF-8 generated FeatureCollection budget,
+checked incrementally before retaining each feature. This is an operation-specific
+expansion guard; the general scene serializer remains uncapped.
+
+Explicit fit coordinates are counted incrementally against 64 KiB. The complete
+UTF-8 request envelope must also fit 64 KiB, checked by the query broker before
+dispatch and by both native hosts before processing. Native fit helpers also check
+coordinate JSON bytes before parsing. There is no fixed coordinate-count cap.
+
+The 64 Geojson shape, 64 marker-group and 128 polygon-hole restrictions are already
+absent. This change does not restore general scene or dataset caps.

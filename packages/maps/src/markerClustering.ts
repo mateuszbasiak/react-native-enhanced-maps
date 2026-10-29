@@ -182,7 +182,10 @@ export function parseMarkerLayout(
       if (
         sourceId !== markerSourceID &&
         (typeof sourceId !== 'string' ||
-          !/^em-marker-clusters:[1-9][0-9]*$/.test(sourceId))
+          !/^em-marker-clusters:[1-9][0-9]*$/.test(sourceId) ||
+          !Number.isSafeInteger(
+            Number(sourceId.slice(markerSourceID.length + 1)),
+          ))
       )
         return;
       const suffix = sourceId.slice(markerSourceID.length);
