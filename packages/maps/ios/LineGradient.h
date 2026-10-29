@@ -7,7 +7,7 @@ static NSExpression *EMLineGradientExpression(NSDictionary *entry,NSSet<NSString
   if(![style isKindOfClass:NSDictionary.class] || !style[@"lineGradient"])return nil;
   id stops=style[@"lineGradient"];
   auto fail=[] { @throw [NSException exceptionWithName:@"LineGradient" reason:@"Invalid native line gradient" userInfo:nil]; };
-  if(![entry[@"type"] isEqual:@"line"] || ![metricSources containsObject:entry[@"source"]] || style[@"lineDasharray"] || style[@"linePattern"] || ![stops isKindOfClass:NSArray.class] || [stops count]<2 || [stops count]>10000)fail();
+  if(![entry[@"type"] isEqual:@"line"] || ![metricSources containsObject:entry[@"source"]] || style[@"lineDasharray"] || style[@"linePattern"] || ![stops isKindOfClass:NSArray.class] || [stops count]<2)fail();
   NSMutableDictionary *colors=[NSMutableDictionary dictionary];
   NSRegularExpression *colorPattern=[NSRegularExpression regularExpressionWithPattern:@"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$" options:0 error:nil];
   double previous=-1;

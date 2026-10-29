@@ -114,7 +114,8 @@ both props keeps a marker independent. Names must be nonblank and at most 512
 characters. Custom cluster components receive `clusterGroup`, undefined for the
 default group. Each group uses one source/layer within the shared scene byte budget. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
-cluster operations. There is no fixed participating-marker count cap; scene byte and geometry budgets still apply. Native marker dragging is supported. See
+cluster operations. There are no fixed participating-marker/group counts or scene/layout byte caps;
+input validation and paginated query bounds still apply. Native marker dragging is supported. See
 [location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
 
 Set `draggable` to enable native long-press dragging. `onDragStart`, `onDrag`,
@@ -169,7 +170,7 @@ including polygon holes. Use immutable geometry/color arrays and explicit IDs in
 changing lists.
 
 There is no fixed shape-count, position-count or scene source/layer-count cap.
-Generated circle/geodesic vertices share the 4 MiB UTF-8 scene budget. Coordinates are within ±85° latitude / ±180° longitude. Circle
+Generated circle/geodesic vertices have no fixed scene-byte or vertex-count cap. Coordinates are within ±85° latitude / ±180° longitude. Circle
 radius is 0–1000000m; zero radius is invisible. Supported React Native color strings
 normalize before transport; dynamic/native color objects are unsupported.
 

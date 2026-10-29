@@ -45,6 +45,6 @@ static NSString *EMMarkerClusterLayoutJSON(NSDictionary *layout) {
   NSMutableArray *ordered=[NSMutableArray new];
   for(NSString *key in [entries.allKeys sortedArrayUsingSelector:@selector(compare:)])[ordered addObject:entries[key]];
   NSData *json=[NSJSONSerialization dataWithJSONObject:@{@"sourceRevision":layout[@"sourceRevision"],@"indexRevision":layout[@"indexRevision"],@"features":ordered} options:NSJSONWritingSortedKeys error:nil];
-  if(!json || json.length>4*1024*1024)@throw [NSException exceptionWithName:@"MarkerClusterLayout" reason:@"Marker cluster layout exceeds 4 MiB" userInfo:nil];
+  if(!json)@throw [NSException exceptionWithName:@"MarkerClusterLayout" reason:@"Invalid marker cluster layout" userInfo:nil];
   return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 }

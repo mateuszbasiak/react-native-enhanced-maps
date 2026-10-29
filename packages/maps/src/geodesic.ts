@@ -1,5 +1,4 @@
 import type { Coordinate } from './types';
-import { MAX_SCENE_BYTES, shapeGeometryByteLength } from './sceneBudget.ts';
 
 type Path = readonly Coordinate[];
 type Polygon = { readonly coordinates: Path; readonly holes: readonly Path[] };
@@ -30,16 +29,7 @@ export function geodesicPathInfo(input: Path): GeodesicPath {
   const cached = paths.get(input);
   if (cached) return cached;
   const output: Coordinate[] = [];
-  let geometryBytes = 1;
-  const append = (point: Coordinate) => {
-    // Numbers/punctuation are ASCII. Bound expansion by the retained transport
-    // byte budget before allocating millions of intermediate coordinate objects.
-    geometryBytes +=
-      JSON.stringify([point.longitude, point.latitude]).length + 1;
-    if (geometryBytes > MAX_SCENE_BYTES)
-      throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
-    output.push(point);
-  };
+  const append = (point: Coordinate) => output.push(point);
   append(input[0]!);
   const vertexIndices = [0];
   for (let i = 1; i < input.length; i++) {
@@ -146,7 +136,6 @@ export function geodesicPolygon(input: Path, holes: readonly Path[]): Polygon {
   const cached = variants.get(holes);
   if (cached) return cached;
   const coordinates = closedPath(input);
-  let geometryBytes = shapeGeometryByteLength(coordinates);
   const exterior = coordinates.map((p) => ({
     x: p.longitude,
     y: mercatorY(p.latitude),
@@ -159,9 +148,6 @@ export function geodesicPolygon(input: Path, holes: readonly Path[]): Polygon {
   }
   const aligned = holes.map((hole) => {
     const path = closedPath(hole);
-    geometryBytes += shapeGeometryByteLength(path);
-    if (geometryBytes > MAX_SCENE_BYTES)
-      throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
     const first = path[0]!;
     const minWorld = Math.ceil((west - first.longitude) / 360);
     const maxWorld = Math.floor((east - first.longitude) / 360);

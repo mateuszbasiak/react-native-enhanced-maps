@@ -99,14 +99,10 @@ export function expandGeojson(
   if (
     !data ||
     data.type !== 'FeatureCollection' ||
-    !Array.isArray(data.features) ||
-    data.features.length > 10000
+    !Array.isArray(data.features)
   )
-    throw new Error('Invalid Geojson FeatureCollection or feature limit');
-  let geometryEntries = 0,
-    shapeCount = 0;
-  let positions = 0,
-    values = 0,
+    throw new Error('Invalid Geojson FeatureCollection');
+  let values = 0,
     characters = 0;
   const json = (value: unknown, depth = 0): void => {
     if (++values > 100000 || depth > 16)
@@ -145,8 +141,6 @@ export function expandGeojson(
     throw new Error('Invalid Geojson property');
   };
   const coordinate = (value: unknown): Coordinate => {
-    if (++positions > 10000)
-      throw new Error('Geojson position budget exceeded');
     if (
       !Array.isArray(value) ||
       value.length < 2 ||
@@ -162,11 +156,6 @@ export function expandGeojson(
   };
   const array = (value: unknown): unknown[] => {
     if (!Array.isArray(value)) throw new Error('Invalid Geojson geometry');
-    if (value.length > 10000)
-      throw new Error('Geojson geometry array limit exceeded');
-    geometryEntries += value.length + 1;
-    if (geometryEntries > 50000)
-      throw new Error('Geojson geometry complexity limit exceeded');
     for (let i = 0; i < value.length; i++)
       if (!(i in value)) throw new Error('Sparse Geojson geometry');
     return value;
@@ -220,6 +209,8 @@ export function expandGeojson(
           Array.isArray(feature.properties)))
     )
       throw new Error('Invalid Geojson feature');
+    values = 0;
+    characters = 0;
     json(feature.properties);
     const geometry = feature.geometry;
     const emit = (
@@ -227,10 +218,6 @@ export function expandGeojson(
       coordinates: Coordinate | readonly Coordinate[],
       holes?: readonly (readonly Coordinate[])[],
     ) => {
-      if (type !== 'point' && ++shapeCount > 64)
-        throw new Error('Geojson shape limit exceeded');
-      if (result.length >= 10000)
-        throw new Error('Geojson output limit exceeded');
       const key = `geojson:${scope}:${index}:${result.length}`;
       const event: GeojsonPressEvent = {
         type,

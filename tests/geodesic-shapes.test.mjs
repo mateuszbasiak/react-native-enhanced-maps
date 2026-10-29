@@ -281,7 +281,7 @@ test('hole world alignment uses the exterior rather than its first vertex', asyn
   }
 });
 
-test('geodesic expansion stops as soon as geometry alone exceeds the scene byte budget', async () => {
+test('geodesic expansion accepts geometry larger than the former scene byte budget', async () => {
   const { geodesicPathInfo } = await import('../packages/maps/lib/geodesic.js');
   let visits = 0;
   const path = Array.from({ length: 1000 }, (_, i) => ({
@@ -291,11 +291,12 @@ test('geodesic expansion stops as soon as geometry alone exceeds the scene byte 
       return i % 2 ? 179 : 0;
     },
   }));
-  assert.throws(() => geodesicPathInfo(path), /4 MiB.*byte|byte.*4 MiB/);
-  assert(visits < 1000, 'reject before traversing the full expansion input');
+  const result = geodesicPathInfo(path);
+  assert(result.coordinates.length > 100000);
+  assert(visits >= 1000, 'process the complete route');
 });
 
-test('aggregate geometry bytes stop processing later shapes before expensive expansion', async () => {
+test('aggregate geometry bytes do not prevent processing later shapes', async () => {
   const { compileMapContent, Polyline } = await load();
   const path = Array.from({ length: 50 }, (_, i) => ({
     latitude: 0,
@@ -324,6 +325,6 @@ test('aggregate geometry bytes stop processing later shapes before expensive exp
       ],
     }),
   );
-  assert.throws(() => compileMapContent(children), /4 MiB.*byte|byte.*4 MiB/);
-  assert.equal(reachedLast, false);
+  assert.equal(compileMapContent(children).items.length, 11);
+  assert.equal(reachedLast, true);
 });

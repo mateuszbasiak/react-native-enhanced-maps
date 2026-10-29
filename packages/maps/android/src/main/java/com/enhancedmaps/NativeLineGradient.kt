@@ -4,14 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.maplibre.android.style.expressions.Expression
 
-/** A fixed bounded gradient expression, never an arbitrary scene-supplied expression. */
+/** A validated gradient expression, never an arbitrary scene-supplied expression. */
 internal object NativeLineGradient {
   private val colorPattern=Regex("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
   fun parse(style:JSONObject?):Expression? {
     if(style==null || !style.has("lineGradient"))return null
     require(!style.has("lineDasharray") && !style.has("linePattern")) { "Gradient strokes cannot use dash or image patterns" }
     val stops=style.getJSONArray("lineGradient")
-    require(stops.length() in 2..10000) { "Invalid gradient stop count" }
+    require(stops.length()>=2) { "Invalid gradient stop count" }
     val expression=JSONArray().put("interpolate").put(JSONArray().put("linear")).put(JSONArray().put("line-progress"))
     var previous=-1.0
     for(i in 0 until stops.length()) {

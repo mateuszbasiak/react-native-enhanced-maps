@@ -26,8 +26,8 @@ SDK multi-tap/quick-zoom recognizers and a 500 ms long-hold exclusion; Android
 uses its SDK's confirmed map click.
 Queued events from an older style request are ignored. Identifiers, finite tap
 geometry and JSON property objects are validated before either callback runs;
-malformed native events are discarded. Property payloads are bounded to 4 MiB
-UTF-8 and nesting depth 16, matching the source scene limits.
+malformed native events are discarded. Property payloads retain a nesting depth limit of 16 and have no
+serialized-byte cap.
 
 This is a point query and returns one hit. Radius queries, overlap lists,
 programmatic queries and accessible feature navigation

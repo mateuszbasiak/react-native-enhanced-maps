@@ -42,13 +42,12 @@ multiply color alpha, including zero. React markers update directly;
 `tracksViewChanges` is accepted as a no-op snapshot hint. Nonzero
 `lineDashPhase` rejects explicitly, as do unsupported props.
 
-Inputs are immutable. Limit: 10,000 features/positions/expanded outputs, 16
-property nesting levels, 100,000 property values and 1 MiB property characters.
-Geometry expansion also bounds aggregate array entries to 50,000 and rejects
-undersized lines/rings before expanding subsequent geometry. Expanded shapes share batched native sources/layers and the
-4 MiB UTF-8 scene budget. There is no additional shape/scene position-count or
-source/layer-count cap. Feature reorder follows upstream's index-based
-identity; stable React keys scope separate Geojson children.
+Inputs are immutable. There are no fixed feature, position, shape, geometry-entry,
+expanded-output or serialized-scene-byte caps. Per-feature properties retain
+16 nesting levels, 100,000 values and 1,048,576 characters. Sparse coordinates
+and undersized lines/rings reject before expanding subsequent geometry. Expanded
+shapes share batched native sources/layers. Feature reorder follows upstream's
+index-based identity; stable React keys scope separate Geojson children.
 
 ## Heatmap
 
@@ -67,8 +66,8 @@ identity; stable React keys scope separate Geojson children.
 
 The native SDK draws weighted density with package-owned expressions. Radius is
 10–50 screen units (default 20); opacity is 0–1 (default 0.7). Omitted weight is
-one; zero contributes no density. Points are bounded to 50,000, latitude ±85,
-longitude ±180 and weights 0–1,000,000. Aggregate scene limits still apply.
+one; zero contributes no density. Point counts have no fixed cap. Latitude is
+within ±85, longitude ±180 and weights 0–1,000,000; scene validation still applies.
 
 Gradients accept 1–256 React Native color strings and strictly increasing offsets
 in [0,1]. `colorMapSize` is an integer from 2–1024 (default 256); the compiler
@@ -102,8 +101,7 @@ image sources follow camera projection, heading and pitch.
 Images accept required React Native assets or `{uri}` HTTP(S)/file sources.
 Android drawable/asset resources are resolved natively. URI request headers,
 methods/cache policies and data URIs reject explicitly. Up to eight images are
-allowed; URI length is at most 4096 characters and existing 4 MiB scene limits
-remain. There is not yet a package-enforced decoded-image byte/pixel budget.
+allowed; URI length is at most 4096 characters. There is not yet a package-enforced decoded-image byte/pixel budget.
 
 Opacity defaults to one and tappable to false. Presses use a transparent native
 polygon matching the image quad and report `nativeEvent.action: 'overlay-press'`,

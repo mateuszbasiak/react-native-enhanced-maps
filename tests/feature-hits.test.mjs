@@ -22,6 +22,13 @@ test('feature hit parser preserves SDK properties and rejects malformed native h
   const { parseNativeFeatureHit } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
   );
+  const largeProperties = JSON.stringify({ name: '水'.repeat(1500000) });
+  assert(Buffer.byteLength(largeProperties) > 4 * 1024 * 1024);
+  assert.equal(
+    parseNativeFeatureHit({ ...sample(), propertiesJSON: largeProperties })
+      .properties.name.length,
+    1500000,
+  );
   const hit = parseNativeFeatureHit(sample());
   assert.deepEqual(hit, {
     sourceId: 'boats',

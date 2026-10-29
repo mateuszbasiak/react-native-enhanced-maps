@@ -5,8 +5,6 @@ import java.util.Set;
 
 /** Strict source framing/geometry checks over the platform JSON tree, without copying it. */
 public final class GeoJSONValidation {
-  // Six JSON bytes per position at minimum; at most 180 degrees per world-copy step.
-  private static final double GENERATED_LONGITUDE_LIMIT=180.0*(4*1024*1024/6+1);
   public interface Reader {
     boolean isObject(Object value);
     boolean isArray(Object value);
@@ -34,7 +32,7 @@ public final class GeoJSONValidation {
     require(x instanceof Number,"GeoJSON longitude must be a number");
     require(y instanceof Number,"GeoJSON latitude must be a number");
     double longitude=((Number)x).doubleValue(), latitude=((Number)y).doubleValue();
-    require(Double.isFinite(longitude) && Double.isFinite(latitude) && Math.abs(longitude)<=(generatedShape?GENERATED_LONGITUDE_LIMIT:180) && Math.abs(latitude)<=90,"GeoJSON position is outside geographic bounds");
+    require(Double.isFinite(longitude) && Double.isFinite(latitude) && (generatedShape || Math.abs(longitude)<=180) && Math.abs(latitude)<=90,"GeoJSON position is outside geographic bounds");
     ++positions;
   }
   private void line(Object value, boolean ring) {

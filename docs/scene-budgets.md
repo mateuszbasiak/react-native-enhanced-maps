@@ -1,18 +1,20 @@
 # Scene input budgets
 
-The package rejects oversized scenes rather than truncating data. `compileScene`
-checks the whole scene, including GeoJSON sources and generated Polyline/Polygon/
-Circle sources, before returning native props. The serialized scene must fit in
-4 MiB of UTF-8 JSON, including feature properties and layer definitions. Android
-and iOS independently enforce this before native JSON parsing or replacement.
-Rejections are recoverable `layer-scene` errors.
+Scenes have no fixed serialized-byte, source/layer-count or position-count cap.
+This includes authored GeoJSON and generated Polyline/Polygon/Circle geometry.
+Geojson compatibility expansion, heatmap points, cluster groups and camera-fit
+coordinate collections likewise have no fixed dataset-count cap. Polygon holes
+and per-vertex line-gradient stops have no fixed count cap. Marker layouts
+and feature-hit properties have no serialized-byte cap.
 
-There are no fixed scene source/layer counts or declared/rendered position-count
-caps, and no separate 64-shape/10,000-position collection cap. Geometry validation,
-property complexity bounds and component-specific limits (for example image
-composition and Geojson compatibility expansion) still apply. Circle and geodesic
-vertices contribute their serialized bytes. Geodesic expansion checks this byte
-budget incrementally before retaining oversized intermediate output.
+Input validation remains in force. Both native hosts validate source framing,
+geometry and styles before replacing an accepted scene; validation rejections are
+recoverable `layer-scene` errors. Property complexity guards apply per feature:
+internal sources allow 65,536 property nodes, 1,048,576 string/key characters and
+nesting depth 16; the Geojson compatibility component allows 100,000 property
+values, 1,048,576 characters and depth 16. Component nesting, ID/URL/style limits,
+the eight-image-overlay limit, paginated cluster query bounds and snapshot/GPU
+allocation limits remain separate guards.
 
 Ordinary shape components share native sources and data-driven paint layers. At
 equal zIndex, fills draw below outlines; layout/dash/gradient incompatibilities
@@ -20,20 +22,17 @@ split ordered stroke runs. Different zIndex values and other intervening content
 preserve their ordering boundaries. See [the shape contract](shapes.md).
 
 Data is immutable: replace arrays/objects when geometry changes and increase an
-explicit authored source revision. These checks bound transport, not frame time
+explicit authored source revision. Validation does not bound frame time
 or total memory. Native hosts still rebuild scene resources, and Android inline
 tiling runs synchronously. Batching reduces resource counts; incremental updates,
 worker indexing and release-device performance budgets remain separate work.
 
-Generated geometry keeps finite latitude/longitude validation. Its conservative
-unwrapped-longitude envelope is now derived from the 4 MiB scene bound: a position
-needs at least six JSON bytes and a nearest-world-copy step spans at most 180°.
-The former envelope based on 10,000 positions no longer rejects longer routes.
-Ordinary authored GeoJSON still requires canonical ±180° longitude / ±90° latitude.
+Generated geometry requires finite latitude/longitude values. Unwrapped generated
+longitudes have no byte-derived envelope; authored GeoJSON retains canonical
+±180° longitude / ±90° latitude. Public shapes retain their ±85° latitude bound.
 
 The dated records below describe verification at the time they were written;
-the count-cap assertions in those historical runs have been superseded by the
-current contract above.
+their byte/count-cap assertions have been superseded by the current contract above.
 
 ## Malformed GeoJSON and geographic fixtures
 

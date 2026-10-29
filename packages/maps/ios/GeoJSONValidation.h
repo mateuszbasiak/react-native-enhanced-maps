@@ -2,9 +2,6 @@
 #import <Foundation/Foundation.h>
 #include <math.h>
 
-// A position needs at least six JSON bytes; each nearest-world-copy step is at most 180 degrees.
-static const double EMGeneratedLongitudeLimit=180.0*(4*1024*1024/6+1);
-
 static void EMGeoJSONRequire(BOOL condition,NSString *message) {
   if(!condition)@throw [NSException exceptionWithName:@"GeoJSON" reason:message userInfo:nil];
 }
@@ -21,7 +18,7 @@ static void EMGeoJSONPosition(id value,NSUInteger *positions,BOOL generatedShape
   EMGeoJSONRequire(EMGeoJSONNumber(axes[0]),@"GeoJSON longitude must be a number");
   EMGeoJSONRequire(EMGeoJSONNumber(axes[1]),@"GeoJSON latitude must be a number");
   double longitude=[axes[0] doubleValue],latitude=[axes[1] doubleValue];
-  EMGeoJSONRequire(isfinite(longitude) && isfinite(latitude) && fabs(longitude)<=(generatedShape?EMGeneratedLongitudeLimit:180) && fabs(latitude)<=90,@"GeoJSON position is outside geographic bounds");
+  EMGeoJSONRequire(isfinite(longitude) && isfinite(latitude) && (generatedShape || fabs(longitude)<=180) && fabs(latitude)<=90,@"GeoJSON position is outside geographic bounds");
   ++*positions;
 }
 static void EMGeoJSONLine(id value,BOOL ring,NSUInteger *positions,BOOL generatedShape) {

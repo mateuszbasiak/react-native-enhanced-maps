@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-test('fit requests validate and copy bounded coordinates and logical padding', async () => {
+test('fit requests validate and copy coordinates without count caps and retain logical padding', async () => {
   const { fitRequest } = await import('../packages/maps/lib/cameraFit.js');
   const input = [
     { latitude: 1, longitude: 179 },
@@ -12,7 +12,7 @@ test('fit requests validate and copy bounded coordinates and logical padding', a
   });
   input[0].latitude = 8;
   const largest = fitRequest(
-    Array(1000).fill({
+    Array(100001).fill({
       latitude: -89.12345678901234,
       longitude: -179.12345678901235,
     }),
@@ -20,7 +20,7 @@ test('fit requests validate and copy bounded coordinates and logical padding', a
   assert.ok(
     Buffer.byteLength(
       JSON.stringify({ ...largest, kind: 'fit', styleRevision: 1 }),
-    ) <= 65536,
+    ) > 65536,
   );
   assert.equal(JSON.parse(request.coordinatesJSON)[0][0], 1);
   assert.deepEqual(
@@ -37,7 +37,6 @@ test('fit requests validate and copy bounded coordinates and logical padding', a
   assert.equal(fitRequest(undefined).durationMs, 300);
   for (const coordinates of [
     [],
-    Array(1001).fill({ latitude: 0, longitude: 0 }),
     [{ latitude: NaN, longitude: 0 }],
     [{ latitude: 0, longitude: 181 }],
   ])

@@ -125,8 +125,6 @@ export function collectMarkers(children: ReactNode, markerType: ElementType) {
       ),
     };
   });
-  if (groups.length > 64)
-    throw new RangeError('Marker cluster group limit exceeded');
   return {
     markers,
     content,
@@ -156,7 +154,6 @@ export function parseMarkerLayout(
   revision: number,
 ): MarkerLayout | undefined {
   try {
-    if (json.length > 4 * 1024 * 1024) return;
     const value = JSON.parse(json) as MarkerLayout;
     if (
       !value ||
@@ -185,7 +182,7 @@ export function parseMarkerLayout(
       if (
         sourceId !== markerSourceID &&
         (typeof sourceId !== 'string' ||
-          !/^em-marker-clusters:([1-9]|[1-5][0-9]|6[0-4])$/.test(sourceId))
+          !/^em-marker-clusters:[1-9][0-9]*$/.test(sourceId))
       )
         return;
       const suffix = sourceId.slice(markerSourceID.length);

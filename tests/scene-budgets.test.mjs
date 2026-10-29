@@ -55,19 +55,17 @@ test('layer references do not impose an arbitrary rendered-position cap', async 
   assert.doesNotThrow(() => compileScene(scene(25000)));
   assert.doesNotThrow(() => compileScene(scene(25001)));
 });
-test('combined scene payload is bounded in UTF-8 bytes rather than UTF-16 code units', async () => {
+test('combined scene payload accepts more than 4 MiB of UTF-8 JSON', async () => {
   const { compileScene, InternalSource } = await load();
   const data = points(1, { description: '水'.repeat(750000) });
   assert.doesNotThrow(() =>
     compileScene(React.createElement(InternalSource, { id: 'one', data })),
   );
-  assert.throws(
-    () =>
-      compileScene([
-        React.createElement(InternalSource, { id: 'one', data }),
-        React.createElement(InternalSource, { id: 'two', data }),
-      ]),
-    /4 MiB|byte limit/i,
+  assert.doesNotThrow(() =>
+    compileScene([
+      React.createElement(InternalSource, { id: 'one', data }),
+      React.createElement(InternalSource, { id: 'two', data }),
+    ]),
   );
 });
 
@@ -88,7 +86,7 @@ test('scene UTF-8 accounting matches encoded bytes for every Unicode width', asy
     assert.equal(utf8ByteLength(value), Buffer.byteLength(value, 'utf8'));
 });
 
-test('all geometry kinds and generated shapes share the transport-size budget', async () => {
+test('all geometry kinds and generated shapes serialize without dataset caps', async () => {
   const { serializeMapScene } =
     await import('../packages/maps/lib/sceneBudget.js');
   const geometry = (type, coordinates) => ({
@@ -121,7 +119,7 @@ test('all geometry kinds and generated shapes share the transport-size budget', 
     data: geometry(type, coordinates),
   }));
   assert.doesNotThrow(() => serializeMapScene(sources, []));
-  // Many references remain valid when the serialized scene fits the byte budget.
+  // Layer references have no fixed dataset-count cap.
   assert.doesNotThrow(() =>
     serializeMapScene(
       [sources.at(-1)],
@@ -143,4 +141,52 @@ test('all geometry kinds and generated shapes share the transport-size budget', 
       }),
     ]),
   );
+});
+
+test('individual GeoJSON sources and map content have no serialized-size cap', async () => {
+  const { compileScene, InternalSource } = await load();
+  const data = points(700001);
+  const scene = compileScene(
+    React.createElement(InternalSource, { id: 'large', data }),
+  );
+  assert(Buffer.byteLength(scene.json) > 4 * 1024 * 1024);
+  const { serializeMapContent } =
+    await import('../packages/maps/lib/mapContent.js');
+  const content = {
+    version: 1,
+    items: Array.from({ length: 100000 }, () => ({ id: 'large-content' })),
+  };
+  assert(serializeMapContent(content).length > 2 * 1024 * 1024);
+});
+
+test('large heatmap scenes retain per-feature property complexity checks', async () => {
+  const { compileScene } = await load();
+  const { Heatmap } = await import('../packages/maps/lib/heatmap.js');
+  const points = Array.from({ length: 50001 }, () => ({
+    latitude: 0,
+    longitude: 0,
+  }));
+  const scene = compileScene(React.createElement(Heatmap, { points }));
+  assert.equal(
+    JSON.parse(scene.json).sources[0].data.features.length,
+    points.length,
+  );
+});
+
+test('large incompatible stroke runs avoid JavaScript argument-count limits', async () => {
+  const { compileScene } = await load();
+  const { Polyline } = await import('../packages/maps/lib/mapContent.js');
+  const coordinates = [
+    { latitude: 0, longitude: 0 },
+    { latitude: 1, longitude: 1 },
+  ];
+  const children = Array.from({ length: 130000 }, (_, i) =>
+    React.createElement(Polyline, {
+      id: 'line' + i,
+      coordinates,
+      lineCap: i % 2 ? 'butt' : 'round',
+    }),
+  );
+  const scene = compileScene(children);
+  assert.equal(JSON.parse(scene.json).layers.length, children.length);
 });

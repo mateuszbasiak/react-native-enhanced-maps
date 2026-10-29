@@ -48,8 +48,8 @@ group, all polygon/circle fills draw below all outlines; declaration order is
 preserved within fills and within strokes. In particular, an earlier outline can
 remain visible above a later fill. Explicit `id` is optional; omitted IDs use shape declaration order. Give
 changing lists explicit stable IDs. Geometry arrays are immutable. The collection
-has no fixed shape-count or position-count cap. The combined native scene remains
-bounded to 4 MiB of UTF-8 JSON, including generated circle/geodesic geometry.
+has no fixed shape-count, position-count or serialized-byte cap, including
+generated circle/geodesic geometry.
 
 `tappable` defaults to false. With `tappable` and `onPress`, a native hit dispatches
 `{nativeEvent: {identifier, coordinate: {latitude, longitude}, position: {x, y}}}`.
@@ -86,7 +86,7 @@ still require application-level performance checks. Raster/image resources,
 independent heatmap datasets and native marker views keep their own rendering
 semantics; marker clustering already shares sources/layers per group.
 
-Shapes share the [scene transport budget](scene-budgets.md). Source/layer/count
+Shapes share the [scene validation contract](scene-budgets.md). Source/layer/count
 caps have been removed, while geographic, style and malformed-input checks remain.
 Rebuild both native hosts together with the updated JavaScript package.
 
@@ -120,9 +120,8 @@ The shared compiler subdivides arcs into steps of at most 0.25 degrees of centra
 angle, then sends ordinary geometry to both native hosts. This is an angular
 approximation, not a fixed screen-pixel error guarantee. It does not recompile on
 camera gestures. Immutable geometry is cached, so style-only changes retain source
-geometry. Generated points, including holes and closing points, count toward the
-scene transport byte budget. Geodesic expansion rejects incrementally when its
-geometry alone exceeds that budget.
+geometry. Generated points, including holes and closing points, follow the
+scene validation rules. Geodesic expansion has no fixed byte or vertex-count cap.
 
 Input remains within ±85 degrees latitude and ±180 degrees longitude. Dateline
 arcs unwrap consecutive longitudes into the nearest world copy; polygon holes

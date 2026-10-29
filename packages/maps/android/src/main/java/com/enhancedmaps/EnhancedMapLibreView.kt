@@ -331,10 +331,6 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     val style = map?.style ?: return false
     if (!style.isFullyLoaded) return false
     if (appliedScene == json) return true
-    if (json.length > 4*1024*1024 || json.toByteArray(Charsets.UTF_8).size > 4*1024*1024) {
-      error("layer-scene", "Scene exceeds 4 MiB UTF-8 byte limit")
-      return false
-    }
     try {
       val scene = JSONObject(json)
       SceneValidation.validate(scene,NativeGeoJSONReader,
@@ -518,8 +514,9 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     var result=""
     var failure=""
     try {
-      require(requestId.isFinite() && requestId>=1 && requestId%1.0==0.0 && requestJSON.toByteArray(Charsets.UTF_8).size<=65536)
+      require(requestId.isFinite() && requestId>=1 && requestId%1.0==0.0)
       val request=JSONObject(requestJSON)
+      require(request.optString("kind")=="fit" || requestJSON.toByteArray(Charsets.UTF_8).size<=65536) { "Invalid map query" }
       revision=request.getDouble("styleRevision")
       val nativeMap=map
       require(nativeMap!=null && readyStyleRevision==revision && styleRevision==revision) { "Map is not ready" }

@@ -48,8 +48,7 @@ style; arbitrary insertion among a style's labels is not exposed by this API.
 Use an explicit stable `id` in changing lists; omitted IDs are positional.
 IDs follow the existing map-content resource syntax (1–128 ASCII letters,
 digits, `_`, `.`, `:` or `-`) and must not collide with another scene source or
-the loaded base style. Each UrlTile uses its own native source/layer and shares the 4 MiB UTF-8
-scene payload bound; there is no fixed scene source/layer-count cap.
+the loaded base style. Each UrlTile uses its own native source/layer and shares the scene input validation contract without a serialized-byte cap; there is no fixed scene source/layer-count cap.
 
 Changing source settings recreates native scene resources through the existing
 scene update path. Hiding is a render setting, not a cache purge. Removal, style

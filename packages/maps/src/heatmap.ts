@@ -43,8 +43,8 @@ export function normalizeHeatmap(props: HeatmapProps) {
     throw new Error('Unsupported Heatmap prop');
   const radius = number(props.radius ?? 20, 10, 50),
     opacity = number(props.opacity ?? 0.7, 0, 1);
-  if (!Array.isArray(props.points) || props.points.length > 50000)
-    throw new Error('Heatmap point limit exceeded');
+  if (!Array.isArray(props.points))
+    throw new Error('Heatmap points must be an array');
   const data: GeoJSONData = {
     type: 'FeatureCollection',
     features: Array.from(props.points, (point, i) => {
