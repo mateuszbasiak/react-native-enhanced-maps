@@ -10,6 +10,12 @@ changes, not accepted production support or closed release gates.
   At equal zIndex fills draw below outlines; incompatible layout/dash/gradient
   settings retain ordered stroke runs. Remove shape/source/layer/scene-position
   count caps while retaining the 4 MiB UTF-8 scene bound and native validation.
+- Coalesce Android clustering layout updates into one pending task per map;
+  cancel queued work on pause/detach/disposal and refresh after resume. Marker
+  counts and scene budgets are unchanged.
+- Align the Android shader JNI library for 16 KB LOAD and RELRO pages with the
+  pinned NDK 27 toolchain. Add a binary-level ELF verifier and record
+  [16 KB emulator acceptance and dependency limits](docs/android-page-size.md).
 
 - Add initial RN Maps Geojson, Heatmap, Overlay, WMSTile and LocalTile children,
   with bounded native preflight and a deterministic rendering verification scenario.

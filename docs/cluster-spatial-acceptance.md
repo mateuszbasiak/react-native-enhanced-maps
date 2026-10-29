@@ -78,3 +78,7 @@ page-size compatibility mode; this is not proof of native 16 KB binary support.
 A Hermes SIGSEGV during the initial CDP-evaluated run is preserved separately and
 was not counted as passing evidence. Native alignment and debugger diagnosis must
 remain distinct from these successful component-membership assertions.
+
+Subsequent [shader alignment acceptance](android-page-size.md) fixes the owned
+library and repeats a two-map shader check with compatibility disabled. It does
+not retroactively change this clustering run or close the dependency RELRO audit.

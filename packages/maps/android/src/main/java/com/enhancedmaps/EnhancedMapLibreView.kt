@@ -95,8 +95,9 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var disposed = false
   private var configured = false
   private val lifecycle = MapLifecycleGate(reactContext.reactApplicationContext.lifecycleState==LifecycleState.RESUMED,
-    { onStart() }, { onResume(); userLocation.resume(); scheduleFrame() },
+    { onStart() }, { onResume(); userLocation.resume(); scheduleFrame(); scheduleMarkerClusters() },
     { onPause() }, { onStop() })
+  private val clusterLayoutTask=CoalescedTask({ post(it) }, { removeCallbacks(it) }, { publishMarkerClusters() })
   private var framePending = false
   private var sdkLayoutPending = false
   private val clock = Choreographer.getInstance()
@@ -201,9 +202,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       configure()
     }
     addOnDidFinishRenderingFrameListener { fully, _, _ ->
-      if(fully) post { publishMarkerClusters() }
+      if(fully) scheduleMarkerClusters()
     }
     addOnDidFailLoadingMapListener { message -> error("style-load", message) }
+  }
+  private fun scheduleMarkerClusters() {
+    if(!disposed && lifecycle.isRunning && readyStyleRevision==styleRevision && markerLayoutSources.isNotEmpty()) clusterLayoutTask.request()
   }
   private fun publishMarkerClusters() {
     if(disposed || !lifecycle.isRunning || readyStyleRevision!=styleRevision) return
@@ -447,7 +451,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     orderDirty = false; orderStyle = style
   }
   private fun scheduleFrame() { if(!framePending && !disposed && lifecycle.isRunning && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
-  private fun pauseMapWork() { cancelSnapshot();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
+  private fun pauseMapWork() { clusterLayoutTask.cancel();cancelSnapshot();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); lifecycle.setAttached(true) }
   override fun onDetachedFromWindow() { cancelSnapshot();pauseMapWork();lifecycle.setAttached(false);super.onDetachedFromWindow() }
   override fun requestLayout() {
@@ -703,7 +707,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   override fun onHostResume() { lifecycle.setHostResumed(true) }
   override fun onHostPause() { pauseMapWork();if(disposed)lifecycle.close() else lifecycle.setHostResumed(false) }
   override fun onHostDestroy() { dispose() }
-  fun dispose() { if(disposed)return; cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
+  fun dispose() { if(disposed)return; clusterLayoutTask.close();cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
   private fun error(code:String,message:String) { if(disposed)return;emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message); putDouble("styleRevision",styleRevision) }) }
   private fun emit(name:String,data:WritableMap) { if(disposed || id==View.NO_ID)return; UIManagerHelper.getEventDispatcherForReactTag(reactContext,id)?.dispatchEvent(MapEvent(UIManagerHelper.getSurfaceId(this),id,name,data)) }
 }

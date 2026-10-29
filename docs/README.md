@@ -34,6 +34,8 @@ Native on iOS/Android and targets React Native's New Architecture.
 bundles and installed dependency payloads, separately from native app sizes.
 [Packed GPU native consumers](gpu-native-consumers.md) documents the shader
 fixture and native integration acceptance.
+[Android page alignment](android-page-size.md) records shader binary checks,
+16 KB emulator acceptance and the remaining dependency audit.
 [Optional GPU peer consumers](optional-peer-consumers.md) describes the isolated
 installation, declaration and bundling matrix and its native acceptance limits.
 [Remote CI acceptance](remote-ci-acceptance.md) records verified workflow runs,

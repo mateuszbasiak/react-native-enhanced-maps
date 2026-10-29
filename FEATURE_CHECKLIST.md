@@ -89,9 +89,8 @@ not the current public API.
 [regressions](tests/marker-clustering.test.mjs).
 
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
-- [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
+- [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior. Android layout work now coalesces to one pending job per map, cancels on pause/detach/disposal and refreshes on resume. [Scheduling acceptance](docs/cluster-scheduling.md) covers native helper regressions and bounded simulator checks; index memory, full output bounds and broader cancellation remain open.
 - [x] **CLUSTER-07** — Component 1k/10k membership/metadata audits, [maximum-zoom/overlap input](docs/cluster-zoom-acceptance.md) and [spatial/antimeridian fixtures](docs/cluster-spatial-acceptance.md) pass on both native hosts. The latter checks exact membership, coordinates/metadata, groups, world-copy deduplication and source/style/remount lifetimes. Output/index-memory/cancellation and spatial performance remain under CLUSTER-06.
-- [ ] Android native 16 KB alignment — The isolated API 37 emulator reported a LOAD alignment failure for the owned `libem_shader_layer.so`. Cluster acceptance ran in compatibility mode and does not close this native-binary issue. [Observation and limits](docs/cluster-spatial-acceptance.md#limits-and-separate-failures).
 
 ## Portable custom GPU shaders
 
@@ -119,6 +118,13 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 - [ ] **A11Y-01–03, A11Y-06** — Marker labels/hints/roles/state/custom actions and one-target grouping policy are implemented with automated contracts. Complete VoiceOver/TalkBack acceptance for markers, clusters and shapes, accessible navigation/selection, reduced motion and shader pause alternatives. iOS child-label/frame fixes have bounded simulator evidence only.
 
 ## Compatibility and distribution
+
+- [x] Android shader JNI 16 KB alignment — explicit linker flags and binary
+      regression checks pass; two shader maps render and release all pools on a
+      16 KB emulator with compatibility disabled. [Evidence and limits](docs/android-page-size.md).
+- [ ] Android dependency RELRO alignment — audit/rebuild or update the bundled
+      libraries that fail the strict RELRO-end check; successful emulator startup
+      does not close this binary audit. See the same evidence document.
 
 - [ ] **COMPAT-01–02, COMPAT-05–06, COMPAT-08–09** — Pin RN Maps and document supported/partial/unsupported APIs with equivalent fixtures and migration examples. Current familiar component names do not promise full parity; include camera/bounds/snapshot/helper gaps.
 - [x] **COMPAT-07** — Native/app-owned foreground user location, following, permission ownership, recoverable denial and lifecycle behavior are implemented. [Contract](docs/location-snapshots-dragging.md). Broader accessible tracking acceptance remains under A11Y-04.
