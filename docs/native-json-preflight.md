@@ -37,7 +37,7 @@ syntax, large flat arrays/strings, supported property nesting, and Android
 single-quote/comment/unquoted-literal bypasses. The initial quote-only scanner
 failed the bypass regressions; the corrected scanner passes both native runners.
 
-`npm run check` passes 387 tests, lint/format, declarations, Codegen and packed
+`npm run check` passes 388 tests after integration with current main, lint/format, declarations, Codegen and packed
 packages. ARM64 Debug builds pass on Android and iOS. Native runtime uses isolated
 `.depthguard` apps on Small_Phone / Android 17 API 37 and iPad Pro 13-inch (M5) /
 iOS 26.4, served by private Metro 8094.
