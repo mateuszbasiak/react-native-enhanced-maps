@@ -223,7 +223,7 @@ export function nativeGeoJSONFixtures() {
         type: 'MultiPoint',
         coordinates: Array.from({ length: count }, () => [1, 2]),
       }),
-      count === 50000 ? count : null,
+      count,
     );
   for (const count of [10000, 10001])
     add(
@@ -354,11 +354,22 @@ export function nativeGeoJSONFixtures() {
     },
     2,
   );
-  shape('generated excessive world copy', {
+  shape(
+    'generated long world-copy route',
+    {
+      type: 'LineString',
+      coordinates: [
+        [1800000, 0],
+        [1800001, 0],
+      ],
+    },
+    2,
+  );
+  shape('generated world copy exceeds byte-derived envelope', {
     type: 'LineString',
     coordinates: [
-      [1800000, 0],
-      [1800001, 0],
+      [180 * (Math.floor((4 * 1024 * 1024) / 6) + 1) + 1, 0],
+      [0, 0],
     ],
   });
   shape(
@@ -393,7 +404,7 @@ export function nativeGeoJSONFixtures() {
         type: 'LineString',
         coordinates: Array.from({ length: count }, () => [179, 0]),
       },
-      count === 10000 ? count : null,
+      count,
     );
   return cases;
 }

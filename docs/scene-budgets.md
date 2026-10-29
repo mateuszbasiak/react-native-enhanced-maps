@@ -2,29 +2,38 @@
 
 The package rejects oversized scenes rather than truncating data. `compileScene`
 checks the whole scene, including GeoJSON sources and generated Polyline/Polygon/
-Circle sources, before returning native props:
+Circle sources, before returning native props. The serialized scene must fit in
+4 MiB of UTF-8 JSON, including feature properties and layer definitions. Android
+and iOS independently enforce this before native JSON parsing or replacement.
+Rejections are recoverable `layer-scene` errors.
 
-- At most 64 sources and 128 layers.
-- At most 50,000 declared coordinate positions across all sources.
-- At most 100,000 positions weighted by layer references. Referencing a 25,000-point
-  source from four layers uses the whole rendered-position budget, including hidden
-  layers, which still consume scene resources.
-- At most 4 MiB of UTF-8 serialized scene JSON, including feature properties and
-  layer definitions. Multibyte Unicode counts as encoded bytes rather than UTF-16
-  code units. Android and iOS independently reject this size before native JSON
-  parsing or resource replacement, with recoverable `layer-scene` errors.
+There are no fixed scene source/layer counts or declared/rendered position-count
+caps, and no separate 64-shape/10,000-position collection cap. Geometry validation,
+property complexity bounds and component-specific limits (for example image
+composition and Geojson compatibility expansion) still apply. Circle and geodesic
+vertices contribute their serialized bytes. Geodesic expansion checks this byte
+budget incrementally before retaining oversized intermediate output.
 
-Existing per-source feature/property/geometry validation and the separate 64-shape/
-10,000-shape-position limits still apply. Geographic circles contribute their
-generated ring points, and a fill plus stroke counts its coordinates twice toward
-the rendered-position budget. Shape antimeridian handling is unchanged.
+Ordinary shape components share native sources and data-driven paint layers. At
+equal zIndex, fills draw below outlines; layout/dash/gradient incompatibilities
+split ordered stroke runs. Different zIndex values and other intervening content
+preserve their ordering boundaries. See [the shape contract](shapes.md).
 
-Data is immutable. Position counts are weakly cached by data identity; replace
-arrays/objects when geometry changes and increase an explicit source revision.
-These limits bound input work and transport, not frame time or total memory. Both
-native hosts still rebuild scene resources and Android inline tiling runs
-synchronously. Worker indexing, incremental patches and release-device budgets
-remain separate work.
+Data is immutable: replace arrays/objects when geometry changes and increase an
+explicit authored source revision. These checks bound transport, not frame time
+or total memory. Native hosts still rebuild scene resources, and Android inline
+tiling runs synchronously. Batching reduces resource counts; incremental updates,
+worker indexing and release-device performance budgets remain separate work.
+
+Generated geometry keeps finite latitude/longitude validation. Its conservative
+unwrapped-longitude envelope is now derived from the 4 MiB scene bound: a position
+needs at least six JSON bytes and a nearest-world-copy step spans at most 180°.
+The former envelope based on 10,000 positions no longer rejects longer routes.
+Ordinary authored GeoJSON still requires canonical ±180° longitude / ±90° latitude.
+
+The dated records below describe verification at the time they were written;
+the count-cap assertions in those historical runs have been superseded by the
+current contract above.
 
 ## Malformed GeoJSON and geographic fixtures
 

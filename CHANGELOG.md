@@ -5,6 +5,11 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Batch native Polyline/Polygon/Circle components into shared sources and
+  per-feature paint layers, including differing colors, widths and opacity.
+  At equal zIndex fills draw below outlines; incompatible layout/dash/gradient
+  settings retain ordered stroke runs. Remove shape/source/layer/scene-position
+  count caps while retaining the 4 MiB UTF-8 scene bound and native validation.
 - Coalesce Android clustering layout updates into one pending task per map;
   cancel queued work on pause/detach/disposal and refresh after resume. Marker
   counts and scene budgets are unchanged.

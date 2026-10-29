@@ -53,12 +53,17 @@ static void EMSceneStyle(id value,NSString *type){
 }
 static void EMValidateScene(id scene,NSSet<NSString *> *externalSources,NSSet<NSString *> *externalLayers){
   EMSceneRequire([scene isKindOfClass:NSDictionary.class],@"Invalid scene JSON");NSArray *sources=scene[@"sources"],*layers=scene[@"layers"];
-  NSUInteger ns=EMSceneArray(sources,@"Invalid scene sources"),nl=EMSceneArray(layers,@"Invalid scene layers");EMSceneRequire(ns<=64 && nl<=128,@"Map scene resource limit exceeded");
+  EMSceneArray(sources,@"Invalid scene sources");EMSceneArray(layers,@"Invalid scene layers");
   NSMutableDictionary *sourceMap=[NSMutableDictionary new];NSUInteger images=0;
   for(id s in sources){EMSceneRequire([s isKindOfClass:NSDictionary.class],@"Invalid scene source");NSString *identifier=EMSceneName(s[@"id"],128);EMSceneRequire(![externalSources containsObject:identifier],@"Scene source ID collides with existing style");EMSceneRequire(!sourceMap[identifier],@"Duplicate scene source ID");sourceMap[identifier]=s;EMSceneRequire(!s[@"type"] || [@[@"geojson",@"raster"] containsObject:s[@"type"]],@"Unsupported source type");if([s[@"type"] isEqual:@"raster"])EMSceneRaster(s);if([s[@"tileKind"] isEqual:@"image"])EMSceneRequire(++images<=8,@"Image source limit exceeded");}
   NSMutableSet *ids=[NSMutableSet new],*inserted=[externalLayers mutableCopy];
   for(id l in layers){EMSceneRequire([l isKindOfClass:NSDictionary.class],@"Invalid scene layer");NSString *identifier=EMSceneName(l[@"id"],135);EMSceneRequire(![externalLayers containsObject:identifier],@"Scene layer ID collides with existing style");EMSceneRequire(![ids containsObject:identifier],@"Duplicate scene layer ID");[ids addObject:identifier];
     NSString *type=l[@"type"];EMSceneRequire([@[@"circle",@"line",@"fill",@"raster",@"heatmap"] containsObject:type],@"Unsupported layer type");NSString *source=EMSceneName(l[@"source"],128);EMSceneRequire(sourceMap[source]!=nil,@"Layer references missing source");
+    if(l[@"shapeGroup"]) {
+      double group=EMSceneNumber(l[@"shapeGroup"],0,9007199254740991.0);
+      EMSceneRequire(floor(group)==group && [@[@"line",@"fill"] containsObject:type] && [sourceMap[source][@"coordinateSpace"] isEqual:@"unwrapped"] && !l[@"clusterFilter"],@"Invalid shape batch layer");
+      for(id feature in sourceMap[source][@"data"][@"features"])EMSceneRequire([feature[@"properties"] isKindOfClass:NSDictionary.class] && feature[@"properties"][@"__shape_order"],@"Invalid shape batch feature");
+    }
     BOOL rasterSource=[sourceMap[source][@"type"] isEqual:@"raster"];EMSceneRequire([type isEqual:@"raster"]==rasterSource,@"Layer/source type mismatch");
     if(rasterSource)EMSceneRequire(![l[@"interactive"] boolValue] && !l[@"clusterFilter"],@"Raster layers cannot be interactive or clustered");
     if(l[@"beforeId"]){NSString *before=EMSceneName(l[@"beforeId"],135);EMSceneRequire(![before isEqual:identifier] && [inserted containsObject:before],@"Invalid layer insertion reference");}

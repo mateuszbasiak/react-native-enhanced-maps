@@ -138,24 +138,22 @@ test('Overlay fitting footprint is independent of tappability, handlers and opac
   assert.deepEqual(footprints[0], footprints[2]);
 });
 
-test('Overlay footprints share the native generated-shape position budget', async () => {
+test('Overlay footprints can coexist with more than 10000 shape positions', async () => {
   const { Polyline } = await import('../packages/maps/lib/mapContent.js');
-  assert.throws(
-    () =>
-      compileScene([
-        React.createElement(Polyline, {
-          key: 'line',
-          coordinates: Array.from({ length: 10000 }, (_, i) => ({
-            latitude: 0,
-            longitude: i % 2,
-          })),
-        }),
-        React.createElement(Overlay, {
-          key: 'overlay',
-          image: { uri: 'https://example.com/image.png' },
-          bounds,
-        }),
-      ]),
-    /shape.*position|position.*shape/i,
+  assert.doesNotThrow(() =>
+    compileScene([
+      React.createElement(Polyline, {
+        key: 'line',
+        coordinates: Array.from({ length: 10000 }, (_, i) => ({
+          latitude: 0,
+          longitude: i % 2,
+        })),
+      }),
+      React.createElement(Overlay, {
+        key: 'overlay',
+        image: { uri: 'https://example.com/image.png' },
+        bounds,
+      }),
+    ]),
   );
 });

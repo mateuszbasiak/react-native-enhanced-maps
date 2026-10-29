@@ -203,35 +203,31 @@ test('geodesic validates flags, rejects non-unique and unsupported polar arcs, a
   );
 });
 
-test('generated geodesic positions count toward individual and aggregate shape limits', async () => {
+test('generated geodesic positions can exceed the former individual and aggregate caps', async () => {
   const { compileMapContent, Polyline } = await load();
   const long = Array.from({ length: 16 }, (_, i) => ({
     latitude: 0,
     longitude: i % 2 ? 179 : 0,
   }));
-  assert.throws(
-    () =>
-      compileMapContent(
-        React.createElement(Polyline, { coordinates: long, geodesic: true }),
-      ),
-    /resource|point.*limit/i,
+  assert.doesNotThrow(() =>
+    compileMapContent(
+      React.createElement(Polyline, { coordinates: long, geodesic: true }),
+    ),
   );
   const shorter = long.slice(0, 9);
-  assert.throws(
-    () =>
-      compileMapContent([
-        React.createElement(Polyline, {
-          id: 'a',
-          coordinates: shorter,
-          geodesic: true,
-        }),
-        React.createElement(Polyline, {
-          id: 'b',
-          coordinates: shorter,
-          geodesic: true,
-        }),
-      ]),
-    /resource|point.*limit/i,
+  assert.doesNotThrow(() =>
+    compileMapContent([
+      React.createElement(Polyline, {
+        id: 'a',
+        coordinates: shorter,
+        geodesic: true,
+      }),
+      React.createElement(Polyline, {
+        id: 'b',
+        coordinates: shorter,
+        geodesic: true,
+      }),
+    ]),
   );
 });
 
@@ -283,4 +279,51 @@ test('hole world alignment uses the exterior rather than its first vertex', asyn
       item.holes[0].every((p) => p.longitude >= 159 && p.longitude <= 161),
     );
   }
+});
+
+test('geodesic expansion stops as soon as geometry alone exceeds the scene byte budget', async () => {
+  const { geodesicPathInfo } = await import('../packages/maps/lib/geodesic.js');
+  let visits = 0;
+  const path = Array.from({ length: 1000 }, (_, i) => ({
+    latitude: 0,
+    get longitude() {
+      visits++;
+      return i % 2 ? 179 : 0;
+    },
+  }));
+  assert.throws(() => geodesicPathInfo(path), /4 MiB.*byte|byte.*4 MiB/);
+  assert(visits < 1000, 'reject before traversing the full expansion input');
+});
+
+test('aggregate geometry bytes stop processing later shapes before expensive expansion', async () => {
+  const { compileMapContent, Polyline } = await load();
+  const path = Array.from({ length: 50 }, (_, i) => ({
+    latitude: 0,
+    longitude: i % 2 ? 179 : 0,
+  }));
+  let reachedLast = false;
+  const children = Array.from({ length: 10 }, (_, i) =>
+    React.createElement(Polyline, {
+      id: 'line' + i,
+      coordinates: path,
+      geodesic: true,
+    }),
+  );
+  children.push(
+    React.createElement(Polyline, {
+      id: 'last',
+      coordinates: [
+        {
+          get latitude() {
+            reachedLast = true;
+            return 0;
+          },
+          longitude: 0,
+        },
+        { latitude: 1, longitude: 1 },
+      ],
+    }),
+  );
+  assert.throws(() => compileMapContent(children), /4 MiB.*byte|byte.*4 MiB/);
+  assert.equal(reachedLast, false);
 });

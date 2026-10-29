@@ -26,7 +26,7 @@ const cases = [
   'missing-source',
   'invalid-before',
   'invalid-boolean',
-  'layer-budget',
+  'invalid-batch-group',
   'duplicate-source',
   'numeric-strings',
   'out-of-range',
@@ -37,7 +37,7 @@ const cases = [
   'invalid-feature',
   'duplicate-id',
   'unsupported-geometry',
-  'aggregate-positions',
+  'invalid-batch-source',
   'repaired',
   'dateline-circle',
   'dateline-geodesic',
@@ -53,7 +53,7 @@ const rejectionReasons: Partial<Record<Case, string>> = {
   'missing-source': 'Layer references missing source',
   'invalid-before': 'Invalid layer insertion reference',
   'invalid-boolean': 'Invalid layer boolean',
-  'layer-budget': 'Map scene resource limit exceeded',
+  'invalid-batch-group': 'Invalid layer style number',
   'duplicate-source': 'Duplicate scene source ID',
   'numeric-strings': 'GeoJSON longitude must be a number',
   'out-of-range': 'GeoJSON position is outside geographic bounds',
@@ -64,7 +64,7 @@ const rejectionReasons: Partial<Record<Case, string>> = {
   'invalid-feature': 'Expected GeoJSON Feature',
   'duplicate-id': 'Duplicate GeoJSON feature ID',
   'unsupported-geometry': 'Unsupported GeoJSON geometry',
-  'aggregate-positions': 'Scene GeoJSON position limit exceeded',
+  'invalid-batch-source': 'Invalid shape batch layer',
 };
 function data(geometry: unknown, id = 'accepted') {
   return {
@@ -156,21 +156,6 @@ function scene(name?: Case) {
       data: value,
     },
   ];
-  if (name === 'aggregate-positions') {
-    sources[0]!.data = data({
-      type: 'MultiPoint',
-      coordinates: Array.from({ length: 25000 }, () => [22, 55]),
-    });
-    sources.push({
-      id: 'native-scene-overflow',
-      type: 'geojson',
-      revision: 1,
-      data: data({
-        type: 'MultiPoint',
-        coordinates: Array.from({ length: 25001 }, () => [22, 55]),
-      }),
-    });
-  }
   const layers: Record<string, unknown>[] = [
     {
       id: 'native-scene-circle',
@@ -196,9 +181,11 @@ function scene(name?: Case) {
   if (name === 'missing-source') layers[0]!.source = 'missing-source';
   if (name === 'invalid-before') layers[0]!.beforeId = 'missing-layer';
   if (name === 'invalid-boolean') layers[0]!.visible = 'false';
-  if (name === 'layer-budget')
-    for (let i = 1; i < 129; i++)
-      layers.push({ ...layers[0], id: `overflow-${i}` });
+  if (name === 'invalid-batch-group') layers[0]!.shapeGroup = -1;
+  if (name === 'invalid-batch-source') {
+    layers[0]!.type = 'line';
+    layers[0]!.shapeGroup = 0;
+  }
   if (name === 'duplicate-source') sources.push({ ...sources[0]! });
   return JSON.stringify({ sources, layers });
 }

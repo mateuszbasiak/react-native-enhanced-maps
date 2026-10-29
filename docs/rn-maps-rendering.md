@@ -45,9 +45,9 @@ multiply color alpha, including zero. React markers update directly;
 Inputs are immutable. Limit: 10,000 features/positions/expanded outputs, 16
 property nesting levels, 100,000 property values and 1 MiB property characters.
 Geometry expansion also bounds aggregate array entries to 50,000 and rejects
-undersized lines/rings before expanding subsequent geometry. Existing aggregate
-scene and shape limits still apply, including 64 shapes and
-10,000 generated shape points. Feature reorder follows upstream's index-based
+undersized lines/rings before expanding subsequent geometry. Expanded shapes share batched native sources/layers and the
+4 MiB UTF-8 scene budget. There is no additional shape/scene position-count or
+source/layer-count cap. Feature reorder follows upstream's index-based
 identity; stable React keys scope separate Geojson children.
 
 ## Heatmap

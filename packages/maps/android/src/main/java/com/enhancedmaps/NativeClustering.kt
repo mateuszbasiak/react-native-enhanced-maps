@@ -8,14 +8,12 @@ import org.maplibre.android.style.expressions.Expression
 internal object NativeClustering {
   const val INDEX_PROPERTY="__enhanced_maps_cluster_index"
   data class Source(val id:String,val data:FeatureCollection,val options:GeoJsonOptions,val identity:String,val positions:Int,val generatedShape:Boolean)
-  fun parse(source:JSONObject,indexRevision:Long,remainingPositions:Int=50000,remainingShapePositions:Int=10000):Source {
+  fun parse(source:JSONObject,indexRevision:Long):Source {
     val raw=source.getJSONObject("data")
     require(!source.has("coordinateSpace") || source.opt("coordinateSpace")=="unwrapped") { "Invalid source coordinate space" }
     val generatedShape=source.opt("coordinateSpace")=="unwrapped"
     require(!generatedShape || !source.has("cluster")) { "Generated shapes cannot use clustering" }
     val positions=GeoJSONValidation.validate(raw,NativeGeoJSONReader,generatedShape)
-    require(positions<=remainingPositions) { "Scene GeoJSON position limit exceeded" }
-    require(!generatedShape || positions<=remainingShapePositions) { "Scene shape position limit exceeded" }
     val options=GeoJsonOptions().withSynchronousUpdate(true)
     var identity=raw.toString()
     if(generatedShape)identity+="\ncoordinateSpace:unwrapped"

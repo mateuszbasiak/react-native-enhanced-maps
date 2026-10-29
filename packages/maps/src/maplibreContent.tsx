@@ -335,6 +335,9 @@ export function compileScene(
   visit(children);
   if (shapes.length) {
     const content = compileMapContent(shapes);
+    const authoredIds = new Set(sources.map((source) => source.id));
+    for (const item of content.items)
+      if (authoredIds.has(item.id)) throw new Error('Duplicate source id');
     shapes.forEach((node, index) => {
       const p = (
         node as import('react').ReactElement<
@@ -347,7 +350,42 @@ export function compileScene(
           p.onPress!({ nativeEvent: { ...event, identifier: id } }),
         );
     });
-    const scene = nativeShapes(content, { sources: [], layers: [] });
+    // An image/tile/heatmap between shapes is an ordering boundary. Feature paint
+    // differences are not: native batch layers read paint directly from each feature.
+    const ordered = [...contentOrder.entries()].sort(
+      (a, b) => a[1].zIndex - b[1].zIndex || a[1].index - b[1].index,
+    );
+    const ranks = new Map<string, number>();
+    let rank = -1,
+      lastIndex = -1;
+    for (const [id, order] of ordered) {
+      if (order.index !== lastIndex) rank++;
+      lastIndex = order.index;
+      ranks.set(id, rank);
+    }
+    const callbacks = new Map(presses);
+    const scene = nativeShapes(
+      {
+        ...content,
+        items: content.items.map((item) => ({
+          ...item,
+          tappable: callbacks.has(item.id),
+        })),
+      },
+      { sources: [], layers: [] },
+      (left, right) => ranks.get(right)! === ranks.get(left)! + 1,
+    );
+    for (const source of scene.sources) {
+      const batched = source.data.features.some(
+        (feature) => feature.properties?.__shape_order !== undefined,
+      );
+      if (!batched) continue;
+      for (const feature of source.data.features) presses.delete(feature.id);
+      if (source.data.features.some((feature) => callbacks.has(feature.id)))
+        presses.set(source.id, (feature, event) =>
+          callbacks.get(feature)?.(feature, event),
+        );
+    }
     for (const s of scene.sources)
       sources.push({
         id: s.id,
@@ -382,8 +420,6 @@ export function compileScene(
     )
       throw new Error('Cluster filters require a clustered source');
   }
-  if (sources.length > 64 || layers.length > 128)
-    throw new Error('Map scene resource limit exceeded');
   return {
     json: serializeMapScene(sources, layers),
     live,

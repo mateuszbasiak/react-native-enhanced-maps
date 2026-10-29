@@ -2,6 +2,9 @@
 #import <Foundation/Foundation.h>
 #include <math.h>
 
+// A position needs at least six JSON bytes; each nearest-world-copy step is at most 180 degrees.
+static const double EMGeneratedLongitudeLimit=180.0*(4*1024*1024/6+1);
+
 static void EMGeoJSONRequire(BOOL condition,NSString *message) {
   if(!condition)@throw [NSException exceptionWithName:@"GeoJSON" reason:message userInfo:nil];
 }
@@ -18,8 +21,7 @@ static void EMGeoJSONPosition(id value,NSUInteger *positions,BOOL generatedShape
   EMGeoJSONRequire(EMGeoJSONNumber(axes[0]),@"GeoJSON longitude must be a number");
   EMGeoJSONRequire(EMGeoJSONNumber(axes[1]),@"GeoJSON latitude must be a number");
   double longitude=[axes[0] doubleValue],latitude=[axes[1] doubleValue];
-  EMGeoJSONRequire(isfinite(longitude) && isfinite(latitude) && fabs(longitude)<=(generatedShape?1800000:180) && fabs(latitude)<=90,@"GeoJSON position is outside geographic bounds");
-  EMGeoJSONRequire(*positions<(generatedShape?10000:50000),@"GeoJSON position limit exceeded");
+  EMGeoJSONRequire(isfinite(longitude) && isfinite(latitude) && fabs(longitude)<=(generatedShape?EMGeneratedLongitudeLimit:180) && fabs(latitude)<=90,@"GeoJSON position is outside geographic bounds");
   ++*positions;
 }
 static void EMGeoJSONLine(id value,BOOL ring,NSUInteger *positions,BOOL generatedShape) {
@@ -59,8 +61,7 @@ static NSUInteger EMValidateGeoJSON(id value,BOOL generatedShape) {
   EMGeoJSONRequire([value isKindOfClass:NSDictionary.class] && [@"FeatureCollection" isEqual:((NSDictionary *)value)[@"type"]],@"Expected GeoJSON FeatureCollection");
   NSDictionary *data=value;
   id rawFeatures=data[@"features"];
-  NSUInteger count=EMGeoJSONArray(rawFeatures,@"Expected GeoJSON features array");
-  EMGeoJSONRequire(!generatedShape || count<=1,@"GeoJSON feature limit exceeded");
+  EMGeoJSONArray(rawFeatures,@"Expected GeoJSON features array");
   NSMutableSet<NSString *> *ids=[NSMutableSet new];
   NSUInteger positions=0;
   for(id raw in (NSArray *)rawFeatures) {
@@ -73,7 +74,16 @@ static NSUInteger EMValidateGeoJSON(id value,BOOL generatedShape) {
     [ids addObject:identifier];
     id properties=feature[@"properties"];
     EMGeoJSONRequire(properties && (properties==NSNull.null || [properties isKindOfClass:NSDictionary.class]),@"GeoJSON properties must be an object or null");
-    EMGeoJSONRequire(!generatedShape || ([@"geometry" isEqual:identifier] && properties==NSNull.null),@"Invalid generated shape feature");
+    if(generatedShape && properties!=NSNull.null) {
+      EMGeoJSONRequire([properties isKindOfClass:NSDictionary.class] && [properties count]==8,@"Invalid generated shape feature");
+      for(NSString *key in @[@"__shape_order",@"__shape_line_group",@"__shape_width",@"__shape_opacity"]) {
+        id raw=properties[key];EMGeoJSONRequire(EMGeoJSONNumber(raw),@"Invalid generated shape number");double n=[raw doubleValue];
+        EMGeoJSONRequire(isfinite(n) && n>=0 && ([key isEqual:@"__shape_opacity"]?n<=1:[key isEqual:@"__shape_width"]?n<=256:(floor(n)==n && n<=9007199254740991.0)),@"Invalid generated shape number");
+      }
+      for(NSString *key in @[@"__shape_visible",@"__shape_tappable"])EMGeoJSONRequire([properties[key] isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)properties[key])==CFBooleanGetTypeID(),@"Invalid generated shape boolean");
+      NSRegularExpression *color=[NSRegularExpression regularExpressionWithPattern:@"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?\\z" options:0 error:nil];
+      for(NSString *key in @[@"__shape_stroke",@"__shape_fill"]){id v=properties[key];EMGeoJSONRequire([v isKindOfClass:NSString.class] && [color numberOfMatchesInString:v options:0 range:NSMakeRange(0,[v length])]==1,@"Invalid generated shape color");}
+    } else EMGeoJSONRequire(!generatedShape || [@"geometry" isEqual:identifier],@"Invalid generated shape feature");
     EMGeoJSONGeometry(feature[@"geometry"],&positions,generatedShape);
   }
   return positions;

@@ -53,7 +53,7 @@ public final class SceneValidation {
   public static void validate(Object scene,Reader reader,Set<String> externalSources,Set<String> externalLayers){new SceneValidation(reader).check(scene,externalSources,externalLayers);}
   private void check(Object scene,Set<String> externalSources,Set<String> externalLayers){
     require(r.isObject(scene),"Invalid scene JSON");Object sources=r.get(scene,"sources"),layers=r.get(scene,"layers");
-    int ns=array(sources,"Invalid scene sources"),nl=array(layers,"Invalid scene layers");require(ns<=64 && nl<=128,"Map scene resource limit exceeded");
+    int ns=array(sources,"Invalid scene sources"),nl=array(layers,"Invalid scene layers");
     Map<String,Object> sourceMap=new HashMap<>();
     int images=0;
     for(int i=0;i<ns;i++){Object s=r.at(sources,i);require(r.isObject(s),"Invalid scene source");String id=name(r.get(s,"id"),128);require(!externalSources.contains(id),"Scene source ID collides with existing style");require(sourceMap.put(id,s)==null,"Duplicate scene source ID");require(!r.has(s,"type") || Set.of("geojson","raster").contains(r.get(s,"type")),"Unsupported source type");if("raster".equals(r.get(s,"type")))raster(s);if("image".equals(r.get(s,"tileKind")))require(++images<=8,"Image source limit exceeded");}
@@ -61,6 +61,12 @@ public final class SceneValidation {
     for(int i=0;i<nl;i++){Object l=r.at(layers,i);require(r.isObject(l),"Invalid scene layer");String id=name(r.get(l,"id"),135);require(!externalLayers.contains(id),"Scene layer ID collides with existing style");require(ids.add(id),"Duplicate scene layer ID");
       Object rawType=r.get(l,"type");require(rawType instanceof String && Set.of("circle","line","fill","raster","heatmap").contains(rawType),"Unsupported layer type");String type=(String)rawType;
       String source=name(r.get(l,"source"),128);require(sourceMap.containsKey(source),"Layer references missing source");
+      if(r.has(l,"shapeGroup")) {
+        double group=number(r.get(l,"shapeGroup"),0,9007199254740991.0);
+        require(Math.floor(group)==group && Set.of("line","fill").contains(type) && "unwrapped".equals(r.get(sourceMap.get(source),"coordinateSpace")) && !r.has(l,"clusterFilter"),"Invalid shape batch layer");
+        Object data=r.get(sourceMap.get(source),"data"),features=r.get(data,"features");int count=array(features,"Invalid shape batch features");
+        for(int j=0;j<count;j++){Object p=r.get(r.at(features,j),"properties");require(r.isObject(p) && r.has(p,"__shape_order"),"Invalid shape batch feature");}
+      }
       boolean rasterSource="raster".equals(r.get(sourceMap.get(source),"type"));require(type.equals("raster")==rasterSource,"Layer/source type mismatch");
       if(rasterSource)require(!Boolean.TRUE.equals(r.get(l,"interactive")) && !r.has(l,"clusterFilter"),"Raster layers cannot be interactive or clustered");
       if(r.has(l,"beforeId")){String before=name(r.get(l,"beforeId"),135);require(!before.equals(id) && inserted.contains(before),"Invalid layer insertion reference");}

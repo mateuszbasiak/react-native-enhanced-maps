@@ -42,14 +42,17 @@ function dataFor(item: RenderItem): GeoJSONData {
   return data;
 }
 /** Internal transport to SDK-native shapes; no public source/layer API. */
-export function nativeShapes(
+function individualShapes(
   scene: RenderScene,
   previous: LayerScene,
 ): LayerScene {
+  const oldSources = new Map(
+    previous.sources.map((source) => [source.id, source]),
+  );
   const sources = scene.items
     .map((item) => {
       const data = dataFor(item);
-      const old = previous.sources.find((source) => source.id === item.id);
+      const old = oldSources.get(item.id);
       const lineMetrics =
         item.type === 'polyline' && item.strokeGradient !== undefined;
       return {
@@ -122,4 +125,131 @@ export function nativeShapes(
       ? previous.sources
       : sources;
   return { sources: stableSources, layers };
+}
+
+/** Batch component features; layout-only differences retain ordered stroke runs. */
+export function nativeShapes(
+  scene: RenderScene,
+  previous: LayerScene,
+  canShareGroup: (left: string, right: string) => boolean = () => true,
+): LayerScene {
+  const groups: RenderItem[][] = [];
+  for (const item of scene.items) {
+    const group = groups.at(-1);
+    if (
+      group &&
+      group[0]!.zIndex === item.zIndex &&
+      canShareGroup(group.at(-1)!.id, item.id)
+    )
+      group.push(item);
+    else groups.push([item]);
+  }
+  const sources: LayerScene['sources'][number][] = [];
+  const layers: LayerScene['layers'][number][] = [];
+  const oldSources = new Map(
+    previous.sources.map((source) => [source.id, source]),
+  );
+  for (const group of groups) {
+    const individual = individualShapes({ version: 1, items: group }, previous);
+    if (group.length === 1) {
+      sources.push(...individual.sources);
+      layers.push(...individual.layers);
+      continue;
+    }
+    const id = group[0]!.id;
+    const strokes = individual.layers.filter((layer) => layer.type === 'line');
+    let signature = '',
+      run = -1;
+    const features: GeoJSONData['features'][number][] = [];
+    const groupLayers: LayerScene['layers'][number][] = [];
+    if (group.some((item) => item.type === 'polygon'))
+      groupLayers.push({
+        id: `fill:${id}`,
+        source: id,
+        type: 'fill',
+        visible: true,
+        shapeGroup: 0,
+        style: { fillColor: '#000000', fillOpacity: 1 },
+      });
+    for (const [order, item] of group.entries()) {
+      const stroke = strokes[order]!;
+      const {
+        lineColor: _color,
+        lineWidth: _width,
+        lineOpacity: _opacity,
+        ...layout
+      } = stroke.style;
+      const nextSignature = JSON.stringify(layout);
+      if (nextSignature !== signature) {
+        signature = nextSignature;
+        run++;
+        groupLayers.push({
+          ...stroke,
+          id: `stroke:${item.id}`,
+          source: id,
+          visible: true,
+          shapeGroup: run,
+        });
+      }
+      for (const feature of dataFor(item).features)
+        features.push({
+          ...feature,
+          id: item.id,
+          properties: {
+            __shape_order: order,
+            __shape_line_group: run,
+            __shape_visible: item.visible,
+            __shape_tappable: item.tappable,
+            __shape_stroke: item.strokeColor,
+            __shape_fill:
+              item.type === 'polygon' ? item.fillColor : '#00000000',
+            __shape_width: item.strokeWidth,
+            __shape_opacity: item.opacity,
+          },
+        });
+    }
+    const old = oldSources.get(id);
+    const lineMetrics = group.some(
+      (item) => item.type === 'polyline' && !!item.strokeGradient,
+    );
+    const unchanged =
+      old &&
+      !!old.lineMetrics === lineMetrics &&
+      old.data.features.length === features.length &&
+      features.every((feature, index) => {
+        const previous = old.data.features[index]!;
+        return (
+          previous.id === feature.id &&
+          previous.geometry === feature.geometry &&
+          JSON.stringify(previous.properties) ===
+            JSON.stringify(feature.properties)
+        );
+      });
+    sources.push({
+      id,
+      type: 'geojson',
+      coordinateSpace: 'unwrapped',
+      ...(lineMetrics ? { lineMetrics: true } : {}),
+      data: unchanged ? old.data : { type: 'FeatureCollection', features },
+      revision: old ? old.revision + (unchanged ? 0 : 1) : 0,
+    });
+    layers.push(...groupLayers);
+  }
+  sources.sort((a, b) => a.id.localeCompare(b.id));
+  return {
+    sources:
+      sources.length === previous.sources.length &&
+      sources.every((source, index) => {
+        const old = previous.sources[index]!;
+        return (
+          source.id === old.id &&
+          source.revision === old.revision &&
+          source.data === old.data &&
+          source.lineMetrics === old.lineMetrics
+        );
+      })
+        ? previous.sources
+        : sources,
+    layers,
+  };
 }
