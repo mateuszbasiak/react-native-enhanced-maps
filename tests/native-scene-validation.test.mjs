@@ -103,6 +103,29 @@ for (const [label, mutate] of [
   mutate(scene);
   fixtures.push({ label, scene, accepted: false });
 }
+const { UrlTile } = await import('../packages/maps/lib/UrlTile.js');
+const tmsScene = JSON.parse(
+  compileScene(
+    React.createElement(UrlTile, {
+      urlTemplate: 'https://example.com/{z}/{x}/{y}.png',
+      flipY: true,
+    }),
+  ).json,
+);
+fixtures.push({
+  label: 'TMS raster addressing',
+  scene: tmsScene,
+  accepted: true,
+});
+for (const scheme of ['xyz', 'other', true, 1, null]) {
+  const scene = structuredClone(tmsScene);
+  scene.sources[0].scheme = scheme;
+  fixtures.push({
+    label: 'invalid raster scheme ' + JSON.stringify(scheme),
+    scene,
+    accepted: false,
+  });
+}
 const { Heatmap } = await import('../packages/maps/lib/heatmap.js');
 const heatmapScene = JSON.parse(
   compileScene(

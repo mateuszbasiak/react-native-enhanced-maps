@@ -21,11 +21,12 @@ static void EMSceneImage(NSDictionary *source){
 }
 static void EMSceneRaster(NSDictionary *source){
   if([source[@"tileKind"] isEqual:@"image"]){EMSceneImage(source);return;}
-  NSArray *allowed=@[@"id",@"type",@"revision",@"urlTemplate",@"tileSize",@"minZoom",@"maxZoom",@"tileKind"];
+  NSArray *allowed=@[@"id",@"type",@"revision",@"urlTemplate",@"tileSize",@"minZoom",@"maxZoom",@"tileKind",@"scheme"];
   for(NSString *key in source)EMSceneRequire([allowed containsObject:key],@"Unsupported raster source field");
   id raw=source[@"urlTemplate"];EMSceneRequire([raw isKindOfClass:NSString.class],@"Invalid raster URL template");NSString *url=raw;
   NSString *kind=source[@"tileKind"]?:@"xyz";
   EMSceneRequire([@[@"xyz",@"wms",@"local"] containsObject:kind],@"Invalid raster tile kind");
+  EMSceneRequire(!source[@"scheme"] || ([kind isEqual:@"xyz"] && [source[@"scheme"] isEqual:@"tms"]),@"Invalid raster tile scheme");
   BOOL local=[kind isEqual:@"local"],wms=[kind isEqual:@"wms"];
   NSRegularExpression *pattern=[NSRegularExpression regularExpressionWithPattern:local?@"^(?:file:///|asset://)[^\\s?#]+\\z":@"^https?://[^/\\s{}?#]+/[^\\s#]*\\z" options:0 error:nil];
   NSRegularExpression *tokens=[NSRegularExpression regularExpressionWithPattern:@"\\{[xyz]\\}" options:0 error:nil];

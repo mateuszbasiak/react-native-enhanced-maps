@@ -136,10 +136,19 @@ test('a raster ID resembling marker infrastructure remains a valid non-clustered
 
 test('unsupported tile modes fail explicitly for JavaScript migration callers', () => {
   for (const props of [
-    { flipY: true },
     { shouldReplaceMapContent: true },
     { maximumNativeZ: 18 },
     { children: 'unsupported' },
   ])
     assert.throws(() => scene(tile(props)), /Unsupported UrlTile prop/);
+});
+
+test('UrlTile flipY uses native TMS addressing and rejects non-booleans', () => {
+  assert.equal(scene(tile({ flipY: true })).sources[0].scheme, 'tms');
+  assert.equal(scene(tile({ flipY: false })).sources[0].scheme, undefined);
+  for (const flipY of [null, 1, 'true'])
+    assert.throws(
+      () => normalizeUrlTile({ urlTemplate: template, flipY }),
+      /boolean/,
+    );
 });

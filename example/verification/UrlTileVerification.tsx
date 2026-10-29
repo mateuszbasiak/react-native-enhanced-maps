@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { Circle, MapView, UrlTile } from 'react-native-maplibre-maps';
-import type { CameraEvent, MapViewRef } from 'react-native-maplibre-maps';
+import type {
+  Camera,
+  CameraEvent,
+  MapViewRef,
+} from 'react-native-maplibre-maps';
 
 const origin = { latitude: 0, longitude: 0 };
 const base =
@@ -14,6 +18,7 @@ const initial = {
   shape: false,
   aboveShape: false,
   tileSize: 256,
+  flipY: false,
   minimumZ: 0,
   maximumZ: 22,
 };
@@ -23,6 +28,7 @@ type Api = {
   snapshot(): Evidence & { options: Options };
   configure(options: Partial<Options>): void;
   animate(zoom: number): void;
+  camera(camera: Camera): Promise<void>;
   reloadStyle(): void;
   remount(): void;
   fit(): Promise<void>;
@@ -45,6 +51,10 @@ export default function UrlTileVerification() {
     const api: Api = {
       snapshot: () => ({ ...evidence.current, options: latest.current }),
       configure: (next) => setOptions((old) => ({ ...old, ...next })),
+      camera: async (camera) => {
+        if (!map.current) throw new Error('Map missing');
+        await map.current.setCamera(camera);
+      },
       animate: (zoom) => {
         void map.current?.animateCamera(
           { center: origin, zoom, heading: 0, pitch: 0 },
@@ -88,6 +98,7 @@ export default function UrlTileVerification() {
             id="em-marker-clusters:tiles"
             urlTemplate={`${base}/${options.variant}/{z}/{x}/{y}.png`}
             tileSize={options.tileSize}
+            flipY={options.flipY}
             minimumZ={options.minimumZ}
             maximumZ={options.maximumZ}
             opacity={options.opacity}

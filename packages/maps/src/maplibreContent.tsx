@@ -86,6 +86,7 @@ export function compileScene(
           id: string;
           type: 'raster';
           tileKind?: 'wms' | 'local';
+          scheme?: 'tms';
           urlTemplate: string;
           tileSize: number;
           minZoom: number;
