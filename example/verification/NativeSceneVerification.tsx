@@ -18,6 +18,8 @@ import { compileScene } from '../../packages/maps/src/maplibreContent';
 const origin = { latitude: 54.37, longitude: 18.66 };
 const repaired = { latitude: 55.37, longitude: 20.66 };
 const cases = [
+  'parser-boundary',
+  'parser-overflow',
   'deep-json',
   'unsupported-layer',
   'invalid-style',
@@ -46,6 +48,7 @@ const cases = [
 ] as const;
 type Case = (typeof cases)[number];
 const rejectionReasons: Partial<Record<Case, string>> = {
+  'parser-overflow': 'Invalid or overly nested scene JSON',
   'deep-json': 'Invalid or overly nested scene JSON',
   'unsupported-layer': 'Unsupported layer type',
   'invalid-style': 'Invalid layer style number',
@@ -77,6 +80,23 @@ function data(geometry: unknown, id = 'accepted') {
   };
 }
 function scene(name?: Case): string {
+  if (name === 'parser-boundary' || name === 'parser-overflow') {
+    const containers = name === 'parser-boundary' ? 512 : 513;
+    // The scene envelope contributes seven containers before the fixture value.
+    return scene()
+      .replace(
+        '"fixture":true',
+        '"fixture":' +
+          '{"a":'.repeat(containers - 7) +
+          '0' +
+          '}'.repeat(containers - 7),
+      )
+      .replace(
+        '"revision":1',
+        '"revision":' + (name === 'parser-boundary' ? '2' : '3'),
+      );
+  }
+
   if (name === 'deep-json')
     return scene().replace(
       '"fixture":true',
@@ -159,7 +179,7 @@ function scene(name?: Case): string {
     {
       id: 'native-scene-fixture',
       type: 'geojson',
-      revision: name ? 2 : 1,
+      revision: name === 'repaired' ? 4 : name ? 2 : 1,
       data: value,
     },
   ];
@@ -450,6 +470,19 @@ export default function NativeSceneVerification() {
         title="Run native scene checks"
         onPress={() => {
           void run.current().catch(() => {});
+        }}
+      />
+      <Button
+        title="Run parser boundary checks"
+        onPress={() => {
+          void run
+            .current([
+              'parser-boundary',
+              'parser-overflow',
+              'deep-json',
+              'repaired',
+            ])
+            .catch(() => {});
         }}
       />
       <Text testID="native-scene-target" numberOfLines={1}>

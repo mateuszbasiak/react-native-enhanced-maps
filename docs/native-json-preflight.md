@@ -2,7 +2,11 @@
 
 Both native scene paths scan incoming JSON before platform parsing. The scan uses
 constant auxiliary space and stack, with work linear in input length. It permits
-at most 64 nested object/array containers across the complete scene envelope.
+at most 512 nested object/array containers across the complete scene envelope.
+This is the measured Foundation parser boundary on iOS 26.4 (build 23E244),
+not a chosen memory or performance budget. Foundation accepts 512 and rejects
+513 for object, array and mixed nesting. Android accepts 513 in the isolated
+SDK probe; the shared ceiling preserves the supported cross-platform input range.
 Brackets inside quoted strings do not count; escaped quotes and backslashes
 preserve string boundaries. Supported per-feature property nesting remains 16;
 a compiled fixture at that limit has 22 total container levels.
@@ -31,24 +35,40 @@ parser threshold. The scene handler catches `Exception`, which does not catch
 that stack error. A macOS Foundation probe rejected extreme input with an error;
 that probe was not an iOS runtime result.
 
-Shared raw-input Java/C++ fixtures exercise 64/65 boundaries, mixed containers,
-the reproduced 100,000-level input, quote/backslash escapes, Unicode, literal
-syntax, large flat arrays/strings, supported property nesting, and Android
-single-quote/comment/unquoted-literal bypasses. The initial quote-only scanner
-failed the bypass regressions; the corrected scanner passes both native runners.
+Shared raw-input Java/C++ fixtures exercise 512/513 boundaries, acceptance above
+64, mixed containers, the reproduced 100,000-level input, quote/backslash escapes,
+Unicode, literal syntax, large flat arrays/strings, supported property nesting,
+and Android single-quote/comment/unquoted-literal bypasses. The initial quote-only
+scanner failed the bypass regressions; the corrected scanner passes both runners.
 
-`npm run check` passes 388 tests after integration with current main, lint/format, declarations, Codegen and packed
-packages. ARM64 Debug builds pass on Android and iOS. Native runtime uses isolated
-`.depthguard` apps on Small_Phone / Android 17 API 37 and iPad Pro 13-inch (M5) /
-iOS 26.4, served by private Metro 8094.
+The reproducible Foundation probe is `tests/native/PlatformJSONDepthProbe.mm`.
+Compile it with the simulator SDK and run it inside a booted simulator:
 
-Both hosts reject a raw 100,000-level property update with the same error, preserve
-camera fitting to the accepted feature, and route a native tap to its original ID
-`accepted`. A corrected scene then fits and routes a second tap to `repaired`.
-Both bounded native runs finish with two passing checks and no unexpected errors.
-Ignored evidence is `artifacts/verification/scene-json-depth/runtime.json`.
+```sh
+xcrun --sdk iphonesimulator clang++ -arch arm64 -mios-simulator-version-min=16.0 -fobjc-arc -framework Foundation tests/native/PlatformJSONDepthProbe.mm -o /private/tmp/platform-json-depth-probe
+xcrun simctl spawn <simulator-udid> /private/tmp/platform-json-depth-probe
+```
 
-This closes the reproduced recursive-parser failure path. Native property-node
-and string complexity, asynchronous SDK failure recovery, parsing/rebuild cost,
-index memory and broader rendering acceptance remain separate requirements.
-Physical-device validation is maintainer-owned follow-up.
+The probe prints OS version, container kind, depth and the Foundation rejection
+reason. On iOS 26.4, depth 513 fails with NSError 3840, “Too many nested arrays or
+dictionaries”. This measurement establishes a parser compatibility constraint,
+not a safe memory budget or a universal result for every OS version.
+
+`npm run check` passes 392 tests, lint/format, declarations, Codegen and package
+checks. ARM64 Debug builds pass on Android and iOS with the revised boundary.
+On iPad Pro 13-inch (M5) / iOS 26.4, a debugger-free native run accepts a complete
+512-container scene, rejects 513 and 100,000 while preserving native fitting and
+feature picking, then accepts and picks a corrected scene: four checks pass.
+Evidence is in the ignored `artifacts/verification/scene-json-depth/measured/`.
+
+Android's isolated SDK conversion accepts complete scenes through 513 containers.
+Full revised Android UI verification remains pending: one API 37 run encountered
+a Hermes null-read crash during native touch dispatch; the API 36 emulator then
+reported application initialization timeouts. These observations do not establish
+a JSON nesting failure and are not counted as passing runtime checks. Earlier
+64-container-build Android rejection/recovery checks remain historical evidence.
+
+Native property-node and string complexity, asynchronous SDK failure recovery,
+parsing/rebuild cost, index memory and broader rendering acceptance remain
+separate requirements. Existing unrelated limits require their own measured or
+platform justification. Physical-device validation is maintainer-owned follow-up.

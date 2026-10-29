@@ -2,6 +2,8 @@ package com.enhancedmaps;
 
 /** Constant-stack lexical/depth guard before parsing. The framework owns structural grammar. */
 public final class SceneJSONDepth {
+  // Measured Foundation scene-parser ceiling on the pinned iOS baseline.
+  private static final int MAX_CONTAINERS = 512;
   private SceneJSONDepth() {}
   private static boolean separator(char c) {
     return c==' ' || c=='\t' || c=='\r' || c=='\n' || c=='{' || c=='}' || c=='[' || c==']' || c==',' || c==':';
@@ -40,7 +42,7 @@ public final class SceneJSONDepth {
         else if (c == '"') quoted = false;
       } else if (c == '"') quoted = true;
       else if (c == '{' || c == '[') {
-        if (++depth > 64) return false;
+        if (++depth > MAX_CONTAINERS) return false;
       } else if (c == '}' || c == ']') {
         if(depth==0)return false;
         depth--;

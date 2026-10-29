@@ -8,7 +8,8 @@ and per-vertex line-gradient stops have no fixed count cap. Marker layouts
 and feature-hit properties have no serialized-byte cap.
 
 A [native lexical/depth preflight](native-json-preflight.md) bounds scene nesting
-to 64 containers before platform JSON parsing. It preserves the removal of
+to 512 containers, the measured iOS Foundation parser boundary, before platform
+JSON parsing. It preserves the removal of
 dataset-count and byte caps.
 
 Input validation remains in force. Both native hosts validate source framing,

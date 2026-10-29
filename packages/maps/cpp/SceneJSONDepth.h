@@ -3,6 +3,8 @@
 
 namespace enhancedmaps {
 namespace scene_json_depth {
+// Measured Foundation scene-parser ceiling on the pinned iOS baseline.
+inline constexpr unsigned maxContainers = 512;
 inline bool separator(char c) {
   return c==' ' || c=='\t' || c=='\r' || c=='\n' || c=='{' || c=='}' || c=='[' || c==']' || c==',' || c==':';
 }
@@ -41,7 +43,7 @@ inline bool sceneJSONDepthAllowed(std::string_view json) {
       else if (c == '"') quoted = false;
     } else if (c == '"') quoted = true;
     else if (c == '{' || c == '[') {
-      if (++depth > 64) return false;
+      if (++depth > scene_json_depth::maxContainers) return false;
     } else if (c == '}' || c == ']') {
       if(depth==0)return false;
       --depth;
