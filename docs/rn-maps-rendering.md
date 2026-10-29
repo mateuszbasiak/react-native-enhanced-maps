@@ -66,7 +66,8 @@ index-based identity; stable React keys scope separate Geojson children.
 
 The native SDK draws weighted density with package-owned expressions. Radius is
 10–50 screen units (default 20); opacity is 0–1 (default 0.7). Omitted weight is
-one; zero contributes no density. Point counts have no fixed cap. Latitude is
+one; zero contributes no density. Point counts have no fixed cap; generated FeatureCollection output is checked
+incrementally against a 4 MiB UTF-8 budget before retaining each feature. Latitude is
 within ±85, longitude ±180 and weights 0–1,000,000; scene validation still applies.
 
 Gradients accept 1–256 React Native color strings and strictly increasing offsets

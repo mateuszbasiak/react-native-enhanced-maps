@@ -1,4 +1,5 @@
 import type { Coordinate, FitOptions } from './types';
+export const MAX_MAP_QUERY_BYTES = 64 * 1024;
 export function fitRequest(
   coordinates?: readonly Coordinate[],
   options: FitOptions = {},
@@ -10,7 +11,8 @@ export function fitRequest(
     throw new RangeError('Fit requires at least one coordinate');
   let coordinatesJSON = '';
   if (coordinates !== undefined) {
-    const positions: [number, number][] = [];
+    const positions: string[] = [];
+    let bytes = 2;
     // Visit every index: map() skips sparse entries that JSON turns into null.
     for (let index = 0; index < coordinates.length; index++) {
       const value = coordinates[index];
@@ -22,9 +24,13 @@ export function fitRequest(
         Math.abs(value.longitude) > 180
       )
         throw new RangeError('Invalid fit coordinate');
-      positions.push([value.latitude, value.longitude]);
+      const position = JSON.stringify([value.latitude, value.longitude]);
+      bytes += position.length + (index === 0 ? 0 : 1);
+      if (bytes > MAX_MAP_QUERY_BYTES)
+        throw new RangeError('Fit coordinates exceed 64 KiB query byte limit');
+      positions.push(position);
     }
-    coordinatesJSON = JSON.stringify(positions);
+    coordinatesJSON = '[' + positions.join(',') + ']';
   }
   const padding = options.padding ?? 0;
   const edges =

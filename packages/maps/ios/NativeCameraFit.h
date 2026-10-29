@@ -31,6 +31,7 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   NSString *requestedCoordinates=request[@"coordinatesJSON"];
   EMFitRequire([requestedCoordinates isKindOfClass:NSString.class],@"Invalid fit coordinates");
   if(requestedCoordinates.length) {
+    EMFitRequire([requestedCoordinates lengthOfBytesUsingEncoding:NSUTF8StringEncoding]<=65536,@"Fit coordinates exceed 64 KiB query byte limit");
     NSArray *input=[NSJSONSerialization JSONObjectWithData:[requestedCoordinates dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     EMFitRequire([input isKindOfClass:NSArray.class] && input.count>=1,@"Fit requires at least one coordinate");
     for(NSArray *coordinate in input) {

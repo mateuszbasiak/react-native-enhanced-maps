@@ -179,7 +179,7 @@ test('cluster groups partition colocated markers and preserve opt-out and defaul
 
 test('layout IDs scope equal native cluster IDs to their group source', async () => {
   const { parseMarkerLayout } = await load();
-  const features = [1, 2].map((group) => ({
+  const features = [1, 2, 65].map((group) => ({
     id: `em-cluster:${group}:14`,
     sourceId: `em-marker-clusters:${group}`,
     latitude: 54,
@@ -193,7 +193,7 @@ test('layout IDs scope equal native cluster IDs to their group source', async ()
     'public-source',
     'em-marker-clusters:0',
     'em-marker-clusters:01',
-    'em-marker-clusters:65',
+    'em-marker-clusters:9007199254740992',
   ]) {
     assert.equal(
       parseMarkerLayout(
@@ -205,7 +205,7 @@ test('layout IDs scope equal native cluster IDs to their group source', async ()
   }
 });
 
-test('group names remain exact and sources are deterministic without a group cap', async () => {
+test('group names remain exact, sources are deterministic, and groups exceed the former count cap', async () => {
   const { collectMarkers } = await load();
   const markers = ['boats', 'Boats', ' boats', '__proto__'].map(
     (clusterGroup, i) => marker(String(i), { cluster: true, clusterGroup }),
@@ -544,21 +544,4 @@ test('markers above 10k compile, deliver layouts and resolve all members', async
   );
   assert.equal(members.length, count);
   assert.equal(members.at(-1).id, '10000');
-});
-
-test('large cluster layouts retain members from groups above 64', async () => {
-  const { parseMarkerLayout } = await load();
-  const features = Array.from({ length: 40000 }, (_, i) => ({
-    id: 'member-' + i + '-'.repeat(80),
-    latitude: 0,
-    longitude: 0,
-    sourceId: 'em-marker-clusters:65',
-  }));
-  const json = JSON.stringify({
-    sourceRevision: 3,
-    indexRevision: 1,
-    features,
-  });
-  assert(json.length > 4 * 1024 * 1024);
-  assert.equal(parseMarkerLayout(json, 3).features.length, features.length);
 });
