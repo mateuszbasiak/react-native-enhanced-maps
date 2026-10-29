@@ -5,6 +5,10 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Align the Android shader JNI library for 16 KB LOAD and RELRO pages with the
+  pinned NDK 27 toolchain. Add a binary-level ELF verifier and record
+  [16 KB emulator acceptance and dependency limits](docs/android-page-size.md).
+
 - Add initial RN Maps Geojson, Heatmap, Overlay, WMSTile and LocalTile children,
   with bounded native preflight and a deterministic rendering verification scenario.
   Unsupported tile controls and broader asynchronous image recovery remain tracked.
