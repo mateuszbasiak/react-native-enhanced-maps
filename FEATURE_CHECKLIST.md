@@ -119,6 +119,13 @@ independence. Android software-adapter diagnostics do not prove hardware accepta
 
 ## Compatibility and distribution
 
+- [x] Android shader JNI 16 KB alignment — explicit linker flags and binary
+      regression checks pass; two shader maps render and release all pools on a
+      16 KB emulator with compatibility disabled. [Evidence and limits](docs/android-page-size.md).
+- [ ] Android dependency RELRO alignment — audit/rebuild or update the bundled
+      libraries that fail the strict RELRO-end check; successful emulator startup
+      does not close this binary audit. See the same evidence document.
+
 - [ ] **COMPAT-01–02, COMPAT-05–06, COMPAT-08–09** — Pin RN Maps and document supported/partial/unsupported APIs with equivalent fixtures and migration examples. Current familiar component names do not promise full parity; include camera/bounds/snapshot/helper gaps.
 - [x] **COMPAT-07** — Native/app-owned foreground user location, following, permission ownership, recoverable denial and lifecycle behavior are implemented. [Contract](docs/location-snapshots-dragging.md). Broader accessible tracking acceptance remains under A11Y-04.
 - [ ] **ARCH-11, REL-07** — Freeze supported OS/RN/SDK ranges from evidence; document upgrades, migration and known limits.
