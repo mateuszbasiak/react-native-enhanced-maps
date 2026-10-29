@@ -395,7 +395,7 @@ static UIColor *EMColor(id value) {
         revisions.push_back({std::string(identifier.UTF8String),revision?std::optional<double>([revision doubleValue]):std::nullopt,identity});
         if([entry[@"tileKind"] isEqual:@"image"]) { [parsedSources addObject:EMImageOverlaySource(entry)];continue; }
         EMSceneRequire(![entry[@"urlTemplate"] hasPrefix:@"asset:"],@"LocalTile useAssets is Android-only");
-        NSDictionary *options=@{MLNTileSourceOptionTileSize:entry[@"tileSize"],MLNTileSourceOptionMinimumZoomLevel:entry[@"minZoom"],MLNTileSourceOptionMaximumZoomLevel:entry[@"maxZoom"]};
+        NSDictionary *options=@{MLNTileSourceOptionTileSize:entry[@"tileSize"],MLNTileSourceOptionMinimumZoomLevel:entry[@"minZoom"],MLNTileSourceOptionMaximumZoomLevel:entry[@"maxZoom"],MLNTileSourceOptionTileCoordinateSystem:@([entry[@"scheme"] isEqual:@"tms"]?MLNTileCoordinateSystemTMS:MLNTileCoordinateSystemXYZ)};
         [parsedSources addObject:[[MLNRasterTileSource alloc] initWithIdentifier:identifier tileURLTemplates:@[entry[@"urlTemplate"]] options:options]];
         continue;
       }

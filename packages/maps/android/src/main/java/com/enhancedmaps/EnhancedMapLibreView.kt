@@ -368,6 +368,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           val raw=sources.getJSONObject(index)
           if(raw.optString("tileKind")=="image") NativeImageOverlay.source(reactContext,raw) else {
           val tiles=TileSet("2.2.0",raw.getString("urlTemplate"))
+          if(raw.optString("scheme")=="tms")tiles.scheme="tms"
           tiles.setMinZoom(raw.getInt("minZoom").toFloat());tiles.setMaxZoom(raw.getInt("maxZoom").toFloat())
           RasterSource(raw.getString("id"),tiles,raw.getInt("tileSize"))
           }

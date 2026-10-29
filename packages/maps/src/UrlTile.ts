@@ -4,6 +4,7 @@ export interface UrlTileProps {
   readonly id?: string;
   readonly urlTemplate: string;
   readonly tileSize?: number;
+  readonly flipY?: boolean;
   readonly minimumZ?: number;
   readonly maximumZ?: number;
   readonly opacity?: number;
@@ -20,6 +21,7 @@ const supportedProps = new Set([
   'id',
   'urlTemplate',
   'tileSize',
+  'flipY',
   'minimumZ',
   'maximumZ',
   'opacity',
@@ -33,6 +35,7 @@ export function normalizeUrlTile(props: UrlTileProps) {
   const {
     urlTemplate,
     tileSize = 256,
+    flipY = false,
     minimumZ = 0,
     maximumZ = 22,
     opacity = 1,
@@ -77,11 +80,14 @@ export function normalizeUrlTile(props: UrlTileProps) {
     throw new RangeError(
       'UrlTile opacity must be within [0,1] and zIndex finite',
     );
+  if (typeof flipY !== 'boolean')
+    throw new TypeError('UrlTile flipY must be boolean');
   if (typeof visible !== 'boolean')
     throw new TypeError('UrlTile visible must be boolean');
   return {
     urlTemplate,
     tileSize,
+    ...(flipY ? { scheme: 'tms' as const } : {}),
     minZoom: minimumZ,
     maxZoom: maximumZ,
     opacity,

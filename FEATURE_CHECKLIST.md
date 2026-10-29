@@ -61,7 +61,7 @@ where useful (combined IDs share one task); retired IDs must not be reused.
 
 ## Markers, shapes and internal rendering
 
-- [x] **Native XYZ raster tiles** — `UrlTile` supplies validated templates, source zoom bounds, tile size, opacity/visibility and shared tile/shape ordering on both platforms. [Contract and bounded acceptance](docs/url-tiles.md). TMS, local files and generic source/layer APIs are not implied.
+- [x] **Native XYZ raster tiles** — `UrlTile` supplies validated templates, source zoom bounds, tile size, opacity/visibility and shared tile/shape ordering on both platforms. [Contract and bounded acceptance](docs/url-tiles.md). `flipY` adds native TMS addressing with request-level checks on both hosts. Local files and generic source/layer APIs are not implied.
 
 - [x] **Marker selection/callouts** — Default/custom React bubbles, show/hide refs, map-local selection/press events, native attachment, interactive controls and cleanup are implemented and checked on both simulator hosts. [Contract and evidence](docs/marker-callouts.md). Full accessibility/gesture matrices remain separate validation work.
 

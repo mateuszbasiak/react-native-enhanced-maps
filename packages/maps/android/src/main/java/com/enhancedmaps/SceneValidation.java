@@ -22,10 +22,11 @@ public final class SceneValidation {
   }
   private void raster(Object source){
     if("image".equals(r.get(source,"tileKind"))){image(source);return;}
-    for(String key:r.keys(source))require(Set.of("id","type","revision","urlTemplate","tileSize","minZoom","maxZoom","tileKind").contains(key),"Unsupported raster source field");
+    for(String key:r.keys(source))require(Set.of("id","type","revision","urlTemplate","tileSize","minZoom","maxZoom","tileKind","scheme").contains(key),"Unsupported raster source field");
     Object raw=r.get(source,"urlTemplate");require(raw instanceof String,"Invalid raster URL template");String url=(String)raw;
     String kind=r.has(source,"tileKind")?String.valueOf(r.get(source,"tileKind")):"xyz";
     require(Set.of("xyz","wms","local").contains(kind),"Invalid raster tile kind");
+    require(!r.has(source,"scheme") || (kind.equals("xyz") && "tms".equals(r.get(source,"scheme"))),"Invalid raster tile scheme");
     boolean local=kind.equals("local"),wms=kind.equals("wms");
     String pattern=local?"(?:file:///|asset://)[^\\s?#]+":"https?://[^/\\s{}?#]+/[^\\s#]*";
     String remaining=wms?url.replace("{bbox-epsg-3857}",""):url.replaceAll("\\{[xyz]\\}","");

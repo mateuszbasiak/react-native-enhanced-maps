@@ -110,9 +110,10 @@ stroke/fill, geodesic, gradient and press contracts. Shared types include
 type. MapMarker/MapPolyline/MapPolygon/MapCircle component and props aliases are
 also exported.
 
-`UrlTile` renders native HTTP(S) XYZ raster imagery with opacity, visibility,
-source zoom bounds, tile size and zIndex. See [the exact tile contract](url-tiles.md);
-local files, TMS, custom request headers and full provider parity are not implied.
+`UrlTile` renders native HTTP(S) raster imagery with opacity, visibility, source
+zoom bounds, tile size and zIndex. `flipY` selects TMS row addressing; false or
+omitted uses XYZ. See [the exact tile contract](url-tiles.md). Local files, custom
+request headers and full provider parity are not implied.
 
 ## Remaining differences
 

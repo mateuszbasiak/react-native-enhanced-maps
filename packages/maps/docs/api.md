@@ -225,8 +225,9 @@ Their props and events are exported as `GeojsonProps`, `GeojsonPressEvent`,
   `zIndex`, optional `id`, and Android-only `useAssets` for relative asset paths.
 
 These are initial compatibility implementations. Tile cache/offline controls,
-maximumNativeZ, density/basemap replacement and flipY remain unsupported and
-reject explicitly. Image request headers/data URIs are unsupported. Overlay
+maximumNativeZ and density/basemap replacement remain unsupported and reject
+explicitly. `UrlTile.flipY` selects TMS addressing; WMSTile and LocalTile do not
+yet support that prop. Image request headers/data URIs are unsupported. Overlay
 asynchronous replacement/failure recovery and decoded-image resource limits
 remain acceptance work. No public MapLibre source/layer/expression API is added.
 

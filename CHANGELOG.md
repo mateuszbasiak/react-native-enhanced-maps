@@ -5,6 +5,9 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Add `UrlTile.flipY` for native TMS row addressing on both hosts, with XYZ
+  unchanged by default and shared native input validation.
+
 - Remove fixed scene/source/content byte caps and Geojson, heatmap, cluster-group
   and camera-fit dataset count caps, including polygon holes and per-vertex line
   gradient stops. Large cluster layouts and feature-hit

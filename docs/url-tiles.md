@@ -23,9 +23,12 @@ import { MapView, UrlTile } from 'react-native-maplibre-maps';
 
 Templates must include `{x}`, `{y}` and `{z}`, use HTTP or HTTPS, and contain no
 whitespace, fragments or other brace placeholders. Maximum length is 4096 UTF-16
-code units. The scheme is XYZ (origin at the upper left); TMS, local file tiles,
-TileJSON URLs, custom headers and offline downloads are outside this contract.
-Unsupported props, including `flipY`, `maximumNativeZ` and
+code units. `flipY` defaults to false (XYZ, origin at the upper left). Set it to
+true for TMS addressing, with origin at the lower left: the requested row is
+`2 ** z - 1 - y`. Only the row addressing changes; the geographic tile footprint
+is unchanged. Both hosts use their native SDK coordinate-system option.
+Local file tiles, TileJSON URLs, custom headers and offline downloads are outside
+this UrlTile contract. Unsupported props, including `maximumNativeZ` and
 `shouldReplaceMapContent`, reject explicitly for JavaScript callers too.
 Credentials and network permissions remain application-owned; native platform
 transport policy still applies. Tile-server attribution and licensing remain the
@@ -68,7 +71,7 @@ loopback and the Android emulator uses `10.0.2.2`; this is simulator tooling, no
 production server configuration. `/requests` reports a bounded request history.
 
 The Debug-only `__enhancedMapsUrlTiles` interface exposes `snapshot`, `configure`,
-`animate`, `reloadStyle`, `remount` and `fit`. Use it to check template/tile-size
+`animate`, `camera`, `reloadStyle`, `remount` and `fit`. Use it to check template/tile-size
 changes, opacity, visibility, mixed shape ordering and resource cleanup. Readiness
 means the map style is ready; it does not assert that every raster tile has loaded.
 Physical-device performance and additional network/cache coverage remain
@@ -115,3 +118,36 @@ the full eleven-case matrix, geometry-only fitting checks and production bundle
 checks pass on that combined implementation. The Examples picker opens the
 fixture on both platforms. The separate initial source-zoom probes above were
 run before this rebase; raster source-zoom code was unchanged by integration.
+
+## TMS acceptance — 2026-10-29
+
+The approved rendering contract requires `UrlTile.flipY`; it is implemented on
+both hosts with XYZ unchanged by default. Compiler regressions cover default,
+false/true updates and invalid booleans. Shared Java/Objective-C native preflight
+fixtures accept the private TMS scheme and reject malformed scheme values before
+scene replacement. The complete repository check passes 364 tests.
+
+ARM64 Debug builds pass on both hosts. iOS first stopped on a stale installed Pods
+manifest; running the repository's Pods installation command fixed that mismatch,
+and the native build then passed. Generated lockfile differences were restored.
+Runtime uses isolated `.tileaddress` apps, Small_Phone / Android 17 API 37 and
+iPad Pro 13-inch (M5) / iOS 26.4, private Metro 8094 and the local fixture on 8099.
+Android uses its existing 16 KB compatibility mode; this is no alignment claim.
+
+With the camera fixed at latitude 54, longitude 18, heading/pitch zero:
+
+- Android camera zoom 4 requests tile zoom 5 at tileSize 256. Six XYZ requests in
+  rows 9/10 match the same six TMS columns with rows 22/21 exactly.
+- iOS camera zoom 6 produces thirty requests at tile zoom 7; the complete TMS
+  request set equals `(z, x, 2 ** z - 1 - y)` for the XYZ set.
+
+Both maps visibly render the fixture's blue TMS imagery. Screenshot blue-pixel
+fractions are approximately 74% of the full Android screen and 91% of the iPad
+screen; these are visibility checks, not geographic pixel-alignment measurements.
+Style reload preserves flipY and produces a second readiness event without scene
+errors. Remount acceptance is recorded with the same bounded fixture.
+
+Ignored local receipts are under `artifacts/verification/tile-addressing/`.
+The public WMS and LocalTile subsets still reject flipY. Cache/offline controls,
+native/visibility zoom separation, density and basemap replacement remain required
+under the broader rendering contract; this addressing change does not close them.
