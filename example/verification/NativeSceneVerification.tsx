@@ -18,6 +18,7 @@ import { compileScene } from '../../packages/maps/src/maplibreContent';
 const origin = { latitude: 54.37, longitude: 18.66 };
 const repaired = { latitude: 55.37, longitude: 20.66 };
 const cases = [
+  'deep-json',
   'unsupported-layer',
   'invalid-style',
   'invalid-color',
@@ -45,6 +46,7 @@ const cases = [
 ] as const;
 type Case = (typeof cases)[number];
 const rejectionReasons: Partial<Record<Case, string>> = {
+  'deep-json': 'Invalid or overly nested scene JSON',
   'unsupported-layer': 'Unsupported layer type',
   'invalid-style': 'Invalid layer style number',
   'invalid-color': 'Invalid layer color',
@@ -74,7 +76,12 @@ function data(geometry: unknown, id = 'accepted') {
     ],
   };
 }
-function scene(name?: Case) {
+function scene(name?: Case): string {
+  if (name === 'deep-json')
+    return scene().replace(
+      '"fixture":true',
+      '"fixture":' + '{"a":'.repeat(100000) + '0' + '}'.repeat(100000),
+    );
   if (name === 'dateline-circle')
     return compileScene(
       React.createElement(Circle, {

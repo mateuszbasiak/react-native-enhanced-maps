@@ -7,6 +7,10 @@ coordinate collections likewise have no fixed dataset-count cap. Polygon holes
 and per-vertex line-gradient stops have no fixed count cap. Marker layouts
 and feature-hit properties have no serialized-byte cap.
 
+A [native lexical/depth preflight](native-json-preflight.md) bounds scene nesting
+to 64 containers before platform JSON parsing. It preserves the removal of
+dataset-count and byte caps.
+
 Input validation remains in force. Both native hosts validate source framing,
 geometry and styles before replacing an accepted scene; validation rejections are
 recoverable `layer-scene` errors. Property complexity guards apply per feature:

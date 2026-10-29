@@ -332,6 +332,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     if (!style.isFullyLoaded) return false
     if (appliedScene == json) return true
     try {
+      require(SceneJSONDepth.allowed(json)) { "Invalid or overly nested scene JSON" }
       val scene = JSONObject(json)
       SceneValidation.validate(scene,NativeGeoJSONReader,
         style.sources.map { it.id }.filter { it !in sceneSources }.toSet(),

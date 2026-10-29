@@ -6,6 +6,7 @@
 #import "SourceRevisionGate.h"
 #import "GeoJSONValidation.h"
 #import "SceneValidation.h"
+#include "../cpp/SceneJSONDepth.h"
 #import "NativeMapCapabilities.h"
 #import "CameraOrigin.h"
 #import "NativeCameraFit.h"
@@ -371,8 +372,11 @@ static UIColor *EMColor(id value) {
 }
 - (BOOL)applySceneJSON:(NSString *)json {
   if(!_ready || !_map.style)return NO;
+  NSData *sceneData=[json dataUsingEncoding:NSUTF8StringEncoding];
+  if(!sceneData) { [self emitSceneError:@"Invalid scene JSON"];return NO; }
+  if(!enhancedmaps::sceneJSONDepthAllowed(std::string_view(sceneData.bytes?(const char *)sceneData.bytes:"",sceneData.length))) { [self emitSceneError:@"Invalid or overly nested scene JSON"];return NO; }
   NSError *error=nil;
-  NSDictionary *scene=[NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:&error];
+  NSDictionary *scene=[NSJSONSerialization JSONObjectWithData:sceneData options:0 error:&error];
   if(error || ![scene isKindOfClass:NSDictionary.class] || ![scene[@"sources"] isKindOfClass:NSArray.class] || ![scene[@"layers"] isKindOfClass:NSArray.class]) { [self emitSceneError:@"Invalid scene JSON"];return NO; }
   MLNStyle *style=_map.style;
   std::vector<enhancedmaps::RevisionedSource> revisions;
