@@ -5,6 +5,10 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Coalesce Android clustering layout updates into one pending task per map;
+  cancel queued work on pause/detach/disposal and refresh after resume. Marker
+  counts and scene budgets are unchanged.
+
 - Add initial RN Maps Geojson, Heatmap, Overlay, WMSTile and LocalTile children,
   with bounded native preflight and a deterministic rendering verification scenario.
   Unsupported tile controls and broader asynchronous image recovery remain tracked.
