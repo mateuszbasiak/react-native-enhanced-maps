@@ -88,7 +88,7 @@ not the current public API.
 [regressions](tests/marker-clustering.test.mjs).
 
 - [x] **CLUSTER-01–05** — Component clustering is implemented and verified on both simulators: custom/default children, count/coordinate, lazy 3/1k/10k membership/metadata, expansion, opt-out markers, updates and stale handles after style reload/remount. [Results](docs/component-cluster-acceptance.md). Additional in-flight/overlap, resource and stress coverage remains under CLUSTER-06/07; physical-device checks are maintainer-owned follow-up.
-- [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior.
+- [ ] **CLUSTER-06** — Bound native/React visible output, index memory and background/cancellation behavior. Android layout work now coalesces to one pending job per map, cancels on pause/detach/disposal and refreshes on resume. [Scheduling acceptance](docs/cluster-scheduling.md) covers native helper regressions and bounded simulator checks; index memory, full output bounds and broader cancellation remain open.
 - [x] **CLUSTER-07** — Component 1k/10k membership/metadata audits, [maximum-zoom/overlap input](docs/cluster-zoom-acceptance.md) and [spatial/antimeridian fixtures](docs/cluster-spatial-acceptance.md) pass on both native hosts. The latter checks exact membership, coordinates/metadata, groups, world-copy deduplication and source/style/remount lifetimes. Output/index-memory/cancellation and spatial performance remain under CLUSTER-06.
 
 ## Portable custom GPU shaders

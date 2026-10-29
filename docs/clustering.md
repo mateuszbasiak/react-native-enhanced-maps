@@ -102,7 +102,13 @@ Compiler regressions cover these
 paths, 512/513-unit and surrogate-pair boundaries, and reject cluster handles
 without explicit generated-cluster metadata. Both native Debug builds pass.
 
-Output/index-memory bounds, background cancellation and larger spatial-dataset
+Android layout notifications keep at most one pending job per map and read the
+latest viewport when that job runs. Pause/detach cancels pending work, disposal
+closes the scheduler, and resume requests a fresh update. This bounds queued
+layout work, not the SDK index memory or the number of visible markers.
+[Scheduling acceptance](cluster-scheduling.md) records regression/runtime checks.
+
+Output/index-memory bounds, broader background cancellation and larger spatial-dataset
 performance remain under CLUSTER-06. Component membership, overlap, zoom-boundary
 and antimeridian acceptance is recorded under CLUSTER-07. Physical-device benchmarks and
 resulting tweaks are maintainer-owned follow-up. Removing the marker-count cap does not establish performance at larger counts.
