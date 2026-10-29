@@ -48,9 +48,10 @@ Omitting both keeps the marker independent. Only exactly matching group names
 cluster together; distance and zoom still determine membership. Names are nonblank
 strings of at most 512 characters. Different groups can overlap visually.
 
-Each active group uses one source and one layer. There is no fixed participating-
-marker, scene source/layer or aggregate position-count cap. The 4 MiB UTF-8 scene
-budget and input validation still apply; membership queries retain 100-member pages.
+Each active group uses one source and one layer. There is no fixed group,
+participating-marker, scene source/layer or aggregate position-count cap, and no
+scene/layout byte cap. Input validation still applies; membership queries retain
+100-member pages and a 256 KiB response bound.
 Clustered coordinates are within ±85° latitude and ±180° longitude. Input arrays,
 coordinates and metadata should be immutable. Replace references for updates.
 

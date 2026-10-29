@@ -205,7 +205,7 @@ test('layout IDs scope equal native cluster IDs to their group source', async ()
   }
 });
 
-test('group names remain exact, sources are deterministic, and group resources are bounded', async () => {
+test('group names remain exact and sources are deterministic without a group cap', async () => {
   const { collectMarkers } = await load();
   const markers = ['boats', 'Boats', ' boats', '__proto__'].map(
     (clusterGroup, i) => marker(String(i), { cluster: true, clusterGroup }),
@@ -218,10 +218,10 @@ test('group names remain exact, sources are deterministic, and group resources a
     marker(String(i), { cluster: true, clusterGroup: String(i) }),
   );
   assert.equal(collectMarkers(groups, Marker).groups.length, 64);
-  assert.throws(
-    () =>
-      collectMarkers([...groups, marker('default', { cluster: true })], Marker),
-    /group limit/,
+  assert.equal(
+    collectMarkers([...groups, marker('default', { cluster: true })], Marker)
+      .groups.length,
+    65,
   );
 });
 
@@ -544,4 +544,21 @@ test('markers above 10k compile, deliver layouts and resolve all members', async
   );
   assert.equal(members.length, count);
   assert.equal(members.at(-1).id, '10000');
+});
+
+test('large cluster layouts retain members from groups above 64', async () => {
+  const { parseMarkerLayout } = await load();
+  const features = Array.from({ length: 40000 }, (_, i) => ({
+    id: 'member-' + i + '-'.repeat(80),
+    latitude: 0,
+    longitude: 0,
+    sourceId: 'em-marker-clusters:65',
+  }));
+  const json = JSON.stringify({
+    sourceRevision: 3,
+    indexRevision: 1,
+    features,
+  });
+  assert(json.length > 4 * 1024 * 1024);
+  assert.equal(parseMarkerLayout(json, 3).features.length, features.length);
 });

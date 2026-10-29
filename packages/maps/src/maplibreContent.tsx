@@ -393,14 +393,14 @@ export function compileScene(
         ...(s.coordinateSpace ? { coordinateSpace: s.coordinateSpace } : {}),
         ...(s.lineMetrics ? { lineMetrics: true } : {}),
       });
-    contentLayers.push(...scene.layers);
+    for (const layer of scene.layers) contentLayers.push(layer);
   }
   contentLayers.sort((a, b) => {
     const left = contentOrder.get(a.source as string)!;
     const right = contentOrder.get(b.source as string)!;
     return left.zIndex - right.zIndex || left.index - right.index;
   });
-  layers.push(...contentLayers);
+  for (const layer of contentLayers) layers.push(layer);
   const sourceIds = new Set<string>(),
     layerIds = new Set<string>();
   for (const s of sources) {

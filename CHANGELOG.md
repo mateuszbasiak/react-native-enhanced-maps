@@ -5,11 +5,18 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Remove fixed scene/source/content byte caps and Geojson, heatmap, cluster-group
+  and camera-fit dataset count caps, including polygon holes and per-vertex line
+  gradient stops. Large cluster layouts and feature-hit
+  properties retain interaction delivery. Property complexity guards apply per
+  feature; geometry/style validation, image overlay limits, cluster query bounds
+  and snapshot/GPU allocation limits remain.
+
 - Batch native Polyline/Polygon/Circle components into shared sources and
   per-feature paint layers, including differing colors, widths and opacity.
   At equal zIndex fills draw below outlines; incompatible layout/dash/gradient
   settings retain ordered stroke runs. Remove shape/source/layer/scene-position
-  count caps while retaining the 4 MiB UTF-8 scene bound and native validation.
+  count caps while retaining native validation.
 - Coalesce Android clustering layout updates into one pending task per map;
   cancel queued work on pause/detach/disposal and refresh after resume. Marker
   counts and scene budgets are unchanged.

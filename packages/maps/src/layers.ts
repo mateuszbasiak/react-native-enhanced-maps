@@ -214,6 +214,8 @@ function validateData(data: GeoJSONData): number {
         typeof feature.properties !== 'object')
     )
       throw new Error('Feature properties must be an object or null');
+    propertyNodes = 0;
+    propertyCharacters = 0;
     json(feature.properties);
     const g = feature.geometry;
     switch (g?.type) {
@@ -257,8 +259,6 @@ function validateData(data: GeoJSONData): number {
       } as GeoJSONGeometry,
     })),
   };
-  if (JSON.stringify(normalized).length > 4 * 1024 * 1024)
-    throw new Error('GeoJSON source exceeds 4 MiB');
   normalizedData.set(data, normalized);
   validatedData.set(data, positions);
   normalizedData.set(normalized, normalized);
@@ -424,8 +424,5 @@ export function reuseLayerScene(
 }
 
 export function serializeSources(sources: LayerScene['sources']): string {
-  const encoded = JSON.stringify(sources);
-  if (encoded.length > 4 * 1024 * 1024)
-    throw new Error('Combined GeoJSON sources exceed 4 MiB');
-  return encoded;
+  return JSON.stringify(sources);
 }

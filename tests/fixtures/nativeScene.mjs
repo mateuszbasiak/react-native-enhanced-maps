@@ -282,3 +282,18 @@ for (const [label, change] of [
   scene.layers[0].source = scene.sources[0].id;
   fixtures.push({ label: 'raster marker-like ID', scene, accepted: true });
 }
+
+add(
+  'line gradient exceeds former stop count cap',
+  (s) => {
+    s.sources[0].lineMetrics = true;
+    s.layers[0].type = 'line';
+    s.layers[0].style = {
+      lineGradient: Array.from({ length: 10001 }, (_, i) => [
+        i / 10000,
+        '#112233',
+      ]),
+    };
+  },
+  true,
+);

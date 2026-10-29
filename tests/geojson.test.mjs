@@ -100,7 +100,7 @@ test('Geojson is expanded before marker collection, retaining siblings and uniqu
   assert.equal(compileMapContent(lines).items.length, 2);
   assert.notEqual(lines[0].props.id, lines[1].props.id);
 });
-test('Geojson rejects sparse/malformed/unsupported data and bounded expansion before transport', () => {
+test('Geojson rejects sparse/malformed/unsupported data and accepts large valid expansion', () => {
   const bad = [
     {},
     data(feature('Point', [NaN, 1])),
@@ -112,21 +112,19 @@ test('Geojson rejects sparse/malformed/unsupported data and bounded expansion be
   ];
   for (const geojson of bad)
     assert.throws(() => geo.expandGeojson({ geojson }, Marker, 'test'));
-  assert.throws(
-    () =>
-      geo.expandGeojson(
-        {
-          geojson: data(
-            feature(
-              'MultiPoint',
-              Array.from({ length: 10001 }, () => [0, 0]),
-            ),
+  assert.doesNotThrow(() =>
+    geo.expandGeojson(
+      {
+        geojson: data(
+          feature(
+            'MultiPoint',
+            Array.from({ length: 10001 }, () => [0, 0]),
           ),
-        },
-        Marker,
-        'test',
-      ),
-    /limit|budget/i,
+        ),
+      },
+      Marker,
+      'test',
+    ),
   );
   assert.throws(
     () =>
@@ -147,7 +145,7 @@ test('Geojson rejects non-object properties and sparse JSON property arrays', ()
   }
 });
 
-test('Geojson rejects oversized nested arrays before reading or copying entries', () => {
+test('Geojson rejects sparse geometry and bounds property arrays before reading entries', () => {
   const huge = [];
   huge.length = 100001;
   Object.defineProperty(huge, 0, {
@@ -155,14 +153,12 @@ test('Geojson rejects oversized nested arrays before reading or copying entries'
       throw new Error('read before bounding');
     },
   });
-  assert.throws(
-    () =>
-      geo.expandGeojson(
-        { geojson: data(feature('MultiPoint', huge)) },
-        Marker,
-        'test',
-      ),
-    /limit|budget/i,
+  assert.throws(() =>
+    geo.expandGeojson(
+      { geojson: data(feature('MultiPoint', Array(100001))) },
+      Marker,
+      'test',
+    ),
   );
   assert.throws(
     () =>
@@ -190,5 +186,47 @@ test('Geojson rejects invalid first polygon without expanding the remaining shar
         'test',
       ),
     /ring|coordinate count/i,
+  );
+});
+
+test('Geojson accepts feature and shape counts above the former caps', () => {
+  const features = Array.from({ length: 10001 }, () =>
+    feature('Point', [0, 0]),
+  );
+  assert.equal(
+    geo.expandGeojson({ geojson: data(...features) }, Marker, 'many').length,
+    10001,
+  );
+  const lines = Array.from({ length: 65 }, () =>
+    feature('LineString', [
+      [0, 0],
+      [1, 1],
+    ]),
+  );
+  assert.equal(
+    geo.expandGeojson({ geojson: data(...lines) }, Marker, 'lines').length,
+    65,
+  );
+  // A single valid line exceeds both the old position and geometry-entry caps.
+  const coordinates = Array.from({ length: 50001 }, () => [0, 0]);
+  const nodes = geo.expandGeojson(
+    { geojson: data(feature('LineString', coordinates)) },
+    Marker,
+    'long',
+  );
+  assert.equal(nodes[0].props.coordinates.length, 50001);
+});
+
+test('Geojson property guards apply per feature rather than capping the dataset', () => {
+  const features = Array.from({ length: 34000 }, () =>
+    feature('Point', [0, 0], { value: 1 }),
+  );
+  assert.equal(
+    geo.expandGeojson(
+      { geojson: { type: 'FeatureCollection', features } },
+      Marker,
+      'properties',
+    ).length,
+    features.length,
   );
 });

@@ -1,7 +1,6 @@
-import { utf8ByteLength } from './sceneBudget';
 import type { MapFeaturePressEvent } from './types';
 
-/** Validate the bounded SDK hit payload before dispatching public callbacks. */
+/** Validate the SDK hit payload before dispatching public callbacks. */
 export function parseNativeFeatureHit(
   value: unknown,
 ): MapFeaturePressEvent | null {
@@ -24,12 +23,7 @@ export function parseNativeFeatureHit(
     Math.abs(e.longitude as number) > 180
   )
     return null;
-  if (
-    typeof e.propertiesJSON !== 'string' ||
-    e.propertiesJSON.length > 4 * 1024 * 1024 ||
-    utf8ByteLength(e.propertiesJSON) > 4 * 1024 * 1024
-  )
-    return null;
+  if (typeof e.propertiesJSON !== 'string') return null;
   const validJSON = (v: unknown, depth: number): boolean => {
     if (depth > 16) return false;
     if (v === null || typeof v === 'string' || typeof v === 'boolean')

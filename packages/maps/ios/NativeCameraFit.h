@@ -10,7 +10,6 @@ static void EMFitRequire(BOOL valid,NSString *message) {
 static void EMFitAdd(NSMutableArray *points,double latitude,double longitude,BOOL acceptedGeometry=NO) {
   double normalized;
   EMFitRequire(std::isfinite(latitude) && std::abs(latitude)<=90 && EMFitLongitude(longitude,acceptedGeometry,normalized),@"Invalid fit coordinate");
-  EMFitRequire(points.count<100000,@"Too many fit positions");
   [points addObject:@[@(latitude),@(normalized)]];
 }
 static void EMFitGeometry(id value,NSMutableArray *points,int depth) {
@@ -33,7 +32,7 @@ static MLNCoordinateBounds EMFitBounds(MLNMapView *map,NSDictionary *request,NSS
   EMFitRequire([requestedCoordinates isKindOfClass:NSString.class],@"Invalid fit coordinates");
   if(requestedCoordinates.length) {
     NSArray *input=[NSJSONSerialization JSONObjectWithData:[requestedCoordinates dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-    EMFitRequire([input isKindOfClass:NSArray.class] && input.count>=1 && input.count<=1000,@"Fit requires 1 to 1000 coordinates");
+    EMFitRequire([input isKindOfClass:NSArray.class] && input.count>=1,@"Fit requires at least one coordinate");
     for(NSArray *coordinate in input) {
       EMFitRequire([coordinate isKindOfClass:NSArray.class] && coordinate.count==2 && [coordinate[0] isKindOfClass:NSNumber.class] && [coordinate[1] isKindOfClass:NSNumber.class],@"Invalid fit coordinate");
       EMFitAdd(points,[coordinate[0] doubleValue],[coordinate[1] doubleValue]);

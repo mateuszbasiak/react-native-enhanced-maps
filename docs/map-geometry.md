@@ -42,7 +42,10 @@ await map.fitElements({ padding: 24 });
 ```
 
 Fit promises acknowledge native command acceptance, not animation completion.
-Explicit inputs contain a dense array of 1–1000 valid coordinates. Missing array
+Explicit inputs contain a nonempty dense array of valid coordinates with no fixed
+count cap. Explicit fit requests have no serialized-byte cap; other map queries
+retain their 64 KiB request bound. Fitting accepted scene geometry also has no
+fixed position-count cap. Missing array
 entries (including an entirely sparse array) reject before native dispatch instead
 of serializing as `null`. Coordinate order is preserved and inputs are copied,
 including frozen arrays/objects. Padding is either one number or
@@ -79,7 +82,8 @@ Host regression tests reproduced a sparse-array gap in explicit fit requests:
 The request builder now validates every array index before serializing. Tests
 cover gaps at the first/middle/last position and the 1000-point limit, an entirely
 sparse collection, malformed elements, frozen input and ordered boundary values.
-The existing count, padding, duration and 64KiB request-budget checks remain.
+The count and fit-request byte caps described in that historical run have since
+been removed; padding, duration and nesting validation remain.
 
 This is JavaScript request validation only. It does not add native fit, projection,
 viewport, animation or lifecycle acceptance beyond the separately recorded

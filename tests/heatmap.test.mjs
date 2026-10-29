@@ -44,3 +44,16 @@ test('Heatmap samples the upstream gradient configuration and validates all entr
   ])
     assert.throws(() => heatmap.normalizeHeatmap(bad));
 });
+
+test('Heatmap accepts more than 50000 points and validates the final point', () => {
+  const points = Array.from({ length: 50001 }, () => ({
+    latitude: 1,
+    longitude: 2,
+  }));
+  assert.equal(
+    heatmap.normalizeHeatmap({ points }).data.features.length,
+    50001,
+  );
+  points[50000] = { latitude: NaN, longitude: 2 };
+  assert.throws(() => heatmap.normalizeHeatmap({ points }), /Invalid Heatmap/);
+});

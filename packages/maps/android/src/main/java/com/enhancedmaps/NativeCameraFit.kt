@@ -13,7 +13,6 @@ internal object NativeCameraFit {
     fun add(latitude:Double,longitude:Double,acceptedGeometry:Boolean=false) {
       require(latitude.isFinite() && kotlin.math.abs(latitude)<=90) { "Invalid fit coordinate" }
       val normalized=FitLongitude.coordinate(longitude,acceptedGeometry)
-      require(points.size<100000) { "Too many fit positions" }
       points.add(LatLng(latitude,normalized))
     }
     fun positions(value:JSONArray,depth:Int) {
@@ -32,7 +31,7 @@ internal object NativeCameraFit {
     }
     val explicit=request.getString("coordinatesJSON")
     if(explicit.isNotEmpty()) {
-      val input=JSONArray(explicit); require(input.length() in 1..1000)
+      val input=JSONArray(explicit); require(input.length()>=1)
       for(i in 0 until input.length()) input.getJSONArray(i).let { require(it.length()==2); add(it.getDouble(0),it.getDouble(1)) }
     } else {
       acceptedScene?.let { JSONObject(it).getJSONArray("sources").let { sources -> for(i in 0 until sources.length()) { val source=sources.getJSONObject(i);if(source.optString("type")!="raster" && (request.optInt("markersOnly")==0 || source.has("cluster"))) geometry(source.getJSONObject("data"),0) } } }

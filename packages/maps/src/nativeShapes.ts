@@ -233,7 +233,7 @@ export function nativeShapes(
       data: unchanged ? old.data : { type: 'FeatureCollection', features },
       revision: old ? old.revision + (unchanged ? 0 : 1) : 0,
     });
-    layers.push(...groupLayers);
+    for (const layer of groupLayers) layers.push(layer);
   }
   sources.sort((a, b) => a.id.localeCompare(b.id));
   return {

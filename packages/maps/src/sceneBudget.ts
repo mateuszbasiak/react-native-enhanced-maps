@@ -1,21 +1,4 @@
 import type { GeoJSONData } from './layers';
-import type { Coordinate } from './types';
-export const MAX_SCENE_BYTES = 4 * 1024 * 1024;
-const geometryBytes = new WeakMap<readonly Coordinate[], number>();
-/** A geometry-only lower bound on scene bytes, cached for immutable paths. */
-export function shapeGeometryByteLength(path: readonly Coordinate[]): number {
-  const cached = geometryBytes.get(path);
-  if (cached !== undefined) return cached;
-  let bytes = path.length === 0 ? 0 : 1;
-  for (const point of path) {
-    bytes += JSON.stringify([point.longitude, point.latitude]).length + 1;
-    if (bytes > MAX_SCENE_BYTES)
-      throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
-  }
-  geometryBytes.set(path, bytes);
-  return bytes;
-}
-
 /** UTF-8 size without depending on Buffer or TextEncoder in React Native. */
 export function utf8ByteLength(value: string): number {
   let bytes = 0;
@@ -46,8 +29,5 @@ export function serializeMapScene(
   )[],
   layers: readonly Readonly<Record<string, unknown>>[],
 ): string {
-  const json = JSON.stringify({ sources, layers });
-  if (json.length > MAX_SCENE_BYTES || utf8ByteLength(json) > MAX_SCENE_BYTES)
-    throw new Error('Scene exceeds 4 MiB UTF-8 byte limit');
-  return json;
+  return JSON.stringify({ sources, layers });
 }

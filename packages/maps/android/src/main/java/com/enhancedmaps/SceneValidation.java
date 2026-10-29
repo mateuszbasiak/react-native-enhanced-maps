@@ -43,7 +43,7 @@ public final class SceneValidation {
       else if(key.equals("lineJoin"))require(v instanceof String && Set.of("miter","round","bevel").contains(v),"Invalid line join");
       else if(key.equals("lineDasharray")){int n=array(v,"Invalid line dash pattern");require(n>=2 && n<=32 && n%2==0,"Invalid line dash pattern");for(int i=0;i<n;i++)require(number(r.at(v,i),0,10000000)>0,"Invalid line dash pattern");}
       else if(key.equals("lineGradient") || key.equals("heatmapGradient")){
-        int n=array(v,"Invalid line gradient");require((type.equals("line") || type.equals("heatmap")) && n>=2 && n<=(type.equals("heatmap")?1024:10000),"Invalid line gradient");double previous=-1;
+        int n=array(v,"Invalid line gradient");require((type.equals("line") || type.equals("heatmap")) && n>=2 && (!type.equals("heatmap") || n<=1024),"Invalid line gradient");double previous=-1;
         for(int i=0;i<n;i++){Object stop=r.at(v,i);require(array(stop,"Invalid line gradient")==2,"Invalid line gradient");double offset=number(r.at(stop,0),0,1);Object color=r.at(stop,1);
           require(offset>previous && (i!=0 || offset==0) && (i!=n-1 || offset==1) && color instanceof String && COLOR.matcher((String)color).matches(),"Invalid line gradient");previous=offset;}
       }

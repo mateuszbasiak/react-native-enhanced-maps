@@ -19,7 +19,6 @@ internal object MarkerClusterLayout {
         }
       }
       val result=JSONObject().put("sourceRevision",sourceRevision).put("indexRevision",indexRevision).put("features",JSONArray(features)).toString()
-      require(result.toByteArray(Charsets.UTF_8).size<=4*1024*1024) { "Marker cluster layout exceeds 4 MiB" }
       return result
     }
   }

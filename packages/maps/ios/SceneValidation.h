@@ -43,7 +43,7 @@ static void EMSceneStyle(id value,NSString *type){
     else if([key isEqual:@"lineCap"])EMSceneRequire([@[@"butt",@"round",@"square"] containsObject:v],@"Invalid line cap");
     else if([key isEqual:@"lineJoin"])EMSceneRequire([@[@"miter",@"round",@"bevel"] containsObject:v],@"Invalid line join");
     else if([key isEqual:@"lineDasharray"]){NSUInteger n=EMSceneArray(v,@"Invalid line dash pattern");EMSceneRequire(n>=2 && n<=32 && n%2==0,@"Invalid line dash pattern");for(id item in v)EMSceneRequire(EMSceneNumber(item,0,10000000)>0,@"Invalid line dash pattern");}
-    else if([key isEqual:@"lineGradient"] || [key isEqual:@"heatmapGradient"]){NSUInteger n=EMSceneArray(v,@"Invalid line gradient");EMSceneRequire(([type isEqual:@"line"] || [type isEqual:@"heatmap"]) && n>=2 && n<=([type isEqual:@"heatmap"]?1024:10000),@"Invalid line gradient");double previous=-1;
+    else if([key isEqual:@"lineGradient"] || [key isEqual:@"heatmapGradient"]){NSUInteger n=EMSceneArray(v,@"Invalid line gradient");EMSceneRequire(([type isEqual:@"line"] || [type isEqual:@"heatmap"]) && n>=2 && (![type isEqual:@"heatmap"] || n<=1024),@"Invalid line gradient");double previous=-1;
       NSRegularExpression *pattern=[NSRegularExpression regularExpressionWithPattern:@"^#[A-Fa-f0-9]{6}([A-Fa-f0-9]{2})?\\z" options:0 error:nil];
       for(NSUInteger i=0;i<n;i++){id stop=v[i];EMSceneRequire(EMSceneArray(stop,@"Invalid line gradient")==2,@"Invalid line gradient");double offset=EMSceneNumber(stop[0],0,1);id color=stop[1];
         EMSceneRequire(offset>previous && (i!=0 || offset==0) && (i+1!=n || offset==1) && [color isKindOfClass:NSString.class] && [pattern numberOfMatchesInString:color options:0 range:NSMakeRange(0,[color length])]==1,@"Invalid line gradient");previous=offset;}

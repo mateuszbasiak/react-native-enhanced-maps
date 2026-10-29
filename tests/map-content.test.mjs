@@ -374,3 +374,22 @@ test('batch resource references remain valid as siblings are removed and inserte
     previous = next;
   }
 });
+
+test('polygons accept more than 128 validated holes', async () => {
+  const { compileMapContent, Polygon } = await load();
+  const outer = [
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 10 },
+    { latitude: 10, longitude: 0 },
+  ];
+  const hole = [
+    { latitude: 1, longitude: 1 },
+    { latitude: 1, longitude: 2 },
+    { latitude: 2, longitude: 1 },
+  ];
+  const holes = Array.from({ length: 129 }, () => hole);
+  const scene = compileMapContent(
+    React.createElement(Polygon, { coordinates: outer, holes }),
+  );
+  assert.equal(scene.items[0].holes.length, 129);
+});

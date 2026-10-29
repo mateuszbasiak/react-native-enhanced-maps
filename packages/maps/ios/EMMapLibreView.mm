@@ -371,7 +371,6 @@ static UIColor *EMColor(id value) {
 }
 - (BOOL)applySceneJSON:(NSString *)json {
   if(!_ready || !_map.style)return NO;
-  if([json lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>4*1024*1024) { [self emitSceneError:@"Scene exceeds 4 MiB UTF-8 byte limit"];return NO; }
   NSError *error=nil;
   NSDictionary *scene=[NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:&error];
   if(error || ![scene isKindOfClass:NSDictionary.class] || ![scene[@"sources"] isKindOfClass:NSArray.class] || ![scene[@"layers"] isKindOfClass:NSArray.class]) { [self emitSceneError:@"Invalid scene JSON"];return NO; }
@@ -529,10 +528,12 @@ static UIColor *EMColor(id value) {
   double revision=p.styleRevision;
   NSString *result=@"", *failure=@"";
   @try {
-    if(!std::isfinite(requestId) || requestId<1 || std::floor(requestId)!=requestId || [requestJSON lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>65536)
+    if(!std::isfinite(requestId) || requestId<1 || std::floor(requestId)!=requestId)
       @throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
     NSDictionary *request=[NSJSONSerialization JSONObjectWithData:[requestJSON dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     if(![request isKindOfClass:NSDictionary.class])@throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
+    if(![request[@"kind"] isEqual:@"fit"] && [requestJSON lengthOfBytesUsingEncoding:NSUTF8StringEncoding]>65536)
+      @throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query" userInfo:nil];
     auto number=[&](NSString *key)->double {
       id value=request[key];
       if(![value isKindOfClass:NSNumber.class] || !std::isfinite([value doubleValue]))@throw [NSException exceptionWithName:@"MapQuery" reason:@"Invalid map query number" userInfo:nil];

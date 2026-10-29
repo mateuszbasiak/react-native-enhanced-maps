@@ -365,13 +365,17 @@ export function nativeGeoJSONFixtures() {
     },
     2,
   );
-  shape('generated world copy exceeds byte-derived envelope', {
-    type: 'LineString',
-    coordinates: [
-      [180 * (Math.floor((4 * 1024 * 1024) / 6) + 1) + 1, 0],
-      [0, 0],
-    ],
-  });
+  shape(
+    'generated world copy has no byte-derived envelope',
+    {
+      type: 'LineString',
+      coordinates: [
+        [180 * (Math.floor((4 * 1024 * 1024) / 6) + 1) + 1, 0],
+        [0, 0],
+      ],
+    },
+    2,
+  );
   shape(
     'generated latitude bound',
     {

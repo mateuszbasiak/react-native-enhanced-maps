@@ -5,11 +5,9 @@ export function fitRequest(
 ) {
   if (
     coordinates !== undefined &&
-    (!Array.isArray(coordinates) ||
-      coordinates.length < 1 ||
-      coordinates.length > 1000)
+    (!Array.isArray(coordinates) || coordinates.length < 1)
   )
-    throw new RangeError('Fit requires 1 to 1000 coordinates');
+    throw new RangeError('Fit requires at least one coordinate');
   let coordinatesJSON = '';
   if (coordinates !== undefined) {
     const positions: [number, number][] = [];
