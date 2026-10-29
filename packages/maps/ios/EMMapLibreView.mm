@@ -16,6 +16,7 @@
 #import "PolygonHitTest.h"
 #import "LineGradient.h"
 #import "HeatmapLayer.h"
+#import "ShapeBatch.h"
 #import "ImageOverlay.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
@@ -107,6 +108,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   NSMutableArray<NSString *> *_layerIDs;
   NSDictionary<NSString *,NSString *> *_layerSources;
   NSMutableSet<NSString *> *_interactiveLayers;
+  NSMutableSet<NSString *> *_shapeBatchLayers;
   NSUInteger _sequence;
   EMMapSnapshot *_snapshotOperation;
   enhancedmaps::SnapshotGeneration _snapshotGeneration;
@@ -383,8 +385,6 @@ static UIColor *EMColor(id value) {
     for(MLNSource *source in style.sources)if(![_sourceIDs containsObject:source.identifier])[externalSources addObject:source.identifier];
     for(MLNStyleLayer *layer in style.layers)if(![_layerIDs containsObject:layer.identifier])[externalLayers addObject:layer.identifier];
     EMValidateScene(scene,externalSources,externalLayers);
-    NSUInteger remainingPositions=50000;
-    NSUInteger remainingShapePositions=10000;
     // Validate all source versions and parse geometry before removing the accepted scene.
     for(NSDictionary *entry in scene[@"sources"]) {
       if([entry[@"type"] isEqual:@"raster"]) {
@@ -404,10 +404,7 @@ static UIColor *EMColor(id value) {
       EMGeoJSONRequire(!coordinateSpace || [@"unwrapped" isEqual:coordinateSpace],@"Invalid source coordinate space");
       BOOL generatedShape=[@"unwrapped" isEqual:coordinateSpace];
       EMGeoJSONRequire(!generatedShape || !entry[@"cluster"],@"Generated shapes cannot use clustering");
-      NSUInteger positions=EMValidateGeoJSON(entry[@"data"],generatedShape);
-      EMGeoJSONRequire(positions<=remainingPositions,@"Scene GeoJSON position limit exceeded");
-      remainingPositions-=positions;
-      if(generatedShape) { EMGeoJSONRequire(positions<=remainingShapePositions,@"Scene shape position limit exceeded");remainingShapePositions-=positions; }
+      EMValidateGeoJSON(entry[@"data"],generatedShape);
       id rawRevision=entry[@"revision"];
       if(rawRevision && (![rawRevision isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)rawRevision)==CFBooleanGetTypeID())) { [self emitSceneError:@"Source revision must be a number"];return NO; }
       NSData *data=[NSJSONSerialization dataWithJSONObject:entry[@"data"] options:NSJSONWritingSortedKeys error:&error];
@@ -446,6 +443,7 @@ static UIColor *EMColor(id value) {
       else if([type isEqual:@"fill"]) { MLNFillStyleLayer *l=[[MLNFillStyleLayer alloc] initWithIdentifier:entry[@"id"] source:source]; if(s[@"fillColor"])l.fillColor=[NSExpression expressionForConstantValue:EMColor(s[@"fillColor"])]; if(s[@"fillOpacity"])l.fillOpacity=[NSExpression expressionForConstantValue:s[@"fillOpacity"]]; layer=l; }
       if(!layer)@throw [NSException exceptionWithName:@"Scene" reason:@"Unsupported layer type" userInfo:nil];
       if(entry[@"clusterFilter"] && [layer isKindOfClass:MLNVectorStyleLayer.class])((MLNVectorStyleLayer *)layer).predicate=[entry[@"clusterFilter"] isEqual:@"clusters"]?[NSPredicate predicateWithFormat:@"cluster == YES"]:[NSPredicate predicateWithFormat:@"cluster != YES"];
+      EMApplyShapeBatch(layer,entry);
       layer.visible=entry[@"visible"]?[entry[@"visible"] boolValue]:YES;
       [parsedLayers addObject:layer];
     }
@@ -453,12 +451,13 @@ static UIColor *EMColor(id value) {
     ++_clusterIndexRevision;
     for(NSString *identifier in [_layerIDs reverseObjectEnumerator]) { MLNStyleLayer *layer=[style layerWithIdentifier:identifier]; if(layer)[style removeLayer:layer]; }
     for(NSString *identifier in _sourceIDs) { MLNSource *source=[style sourceWithIdentifier:identifier]; if(source)[style removeSource:source]; }
-    [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; NSMutableDictionary *sources=[NSMutableDictionary new]; _interactiveLayers=[NSMutableSet new];
+    [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; NSMutableDictionary *sources=[NSMutableDictionary new]; _interactiveLayers=[NSMutableSet new]; _shapeBatchLayers=[NSMutableSet new];
     for(MLNSource *source in parsedSources) { [style addSource:source]; [_sourceIDs addObject:source.identifier]; }
     NSUInteger layerIndex=0;
     for(NSDictionary *entry in scene[@"layers"]) {
       MLNStyleLayer *layer=parsedLayers[layerIndex++];
       if([entry[@"interactive"] boolValue])[_interactiveLayers addObject:layer.identifier];
+      if(entry[@"shapeGroup"])[_shapeBatchLayers addObject:layer.identifier];
       MLNStyleLayer *before=entry[@"beforeId"]?[style layerWithIdentifier:entry[@"beforeId"]]:nil; if(before)[style insertLayer:layer belowLayer:before];else [style addLayer:layer]; [_layerIDs addObject:layer.identifier]; sources[layer.identifier]=entry[@"source"];
     } _layerSources=sources;
     _sourceRevisions.commit(revisions);
@@ -490,7 +489,10 @@ static UIColor *EMColor(id value) {
     NSString *layer=styleLayer.identifier;
     if(![_interactiveLayers containsObject:layer])continue;
     id<MLNFeature> feature=nil;
-    for(id<MLNFeature> candidate in [_map visibleFeaturesAtPoint:point inStyleLayersWithIdentifiers:[NSSet setWithObject:layer]]) {
+    NSArray *candidates=[_map visibleFeaturesAtPoint:point inStyleLayersWithIdentifiers:[NSSet setWithObject:layer]];
+    BOOL batch=[_shapeBatchLayers containsObject:layer];
+    for(id<MLNFeature> candidate in batch?EMShapeHitOrder(candidates):candidates) {
+      if(batch && ![candidate.attributes[@"__shape_tappable"] boolValue])continue;
       if(![styleLayer isKindOfClass:MLNFillStyleLayer.class] || EMAcceptsFillHit(candidate,coordinate)){feature=candidate;break;}
     }
     if(!feature)continue;

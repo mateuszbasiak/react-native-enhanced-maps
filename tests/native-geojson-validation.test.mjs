@@ -100,6 +100,48 @@ fixtures.push({
   positions: 5,
   generatedShape: true,
 });
+const batch = nativeShapes(
+  compileMapContent(
+    Array.from({ length: 200 }, (_, i) =>
+      React.createElement(Polyline, {
+        id: 'batch-' + i,
+        coordinates: [
+          { latitude: 0, longitude: 179 },
+          { latitude: 1, longitude: -179 },
+        ],
+        strokeColor: i % 2 ? 'red' : 'blue',
+      }),
+    ),
+  ),
+  { sources: [], layers: [] },
+).sources[0].data;
+fixtures.push({
+  label: '200 batched dateline lines',
+  data: batch,
+  positions: 400,
+  generatedShape: true,
+});
+for (const [key, value] of [
+  ['__shape_order', -1],
+  ['__shape_order', 0.5],
+  ['__shape_line_group', '0'],
+  ['__shape_visible', 1],
+  ['__shape_tappable', 'true'],
+  ['__shape_width', 257],
+  ['__shape_opacity', 2],
+  ['__shape_fill', '#112233\n'],
+  ['__shape_stroke', 'red'],
+  ['unexpected', true],
+]) {
+  const data = structuredClone(batch);
+  data.features[0].properties[key] = value;
+  fixtures.push({
+    label: 'invalid batch property ' + key + JSON.stringify(value),
+    data,
+    positions: null,
+    generatedShape: true,
+  });
+}
 const corpus = path.join(output, 'fixtures.json');
 writeFileSync(corpus, JSON.stringify(fixtures));
 // Preserve the same raw JSON tree in the JVM without a test-only JSON dependency.

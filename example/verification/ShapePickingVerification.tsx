@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MapView, Polygon } from 'react-native-maplibre-maps';
+import { MapView, Polygon, Polyline, Circle } from 'react-native-maplibre-maps';
 import type { Coordinate, MapViewRef } from 'react-native-maplibre-maps';
 const outer = [
   { latitude: -2, longitude: -2 },
@@ -30,7 +30,12 @@ const lower = [
   { latitude: 1.5, longitude: 1.5 },
   { latitude: 1.5, longitude: -1.5 },
 ];
-type Configuration = { underlay: boolean; top: boolean; outline: boolean };
+type Configuration = {
+  underlay: boolean;
+  top: boolean;
+  outline: boolean;
+  batch: boolean;
+};
 type Result = {
   count: number;
   identifier: string;
@@ -62,6 +67,7 @@ export default function ShapePickingVerification() {
     underlay: true,
     top: true,
     outline: false,
+    batch: false,
   });
   const [result, setResult] = useState<Result>({
     count: 0,
@@ -88,7 +94,7 @@ export default function ShapePickingVerification() {
       configure: (value: Partial<Configuration>) => {
         for (const [key, enabled] of Object.entries(value)) {
           if (
-            !['underlay', 'top', 'outline'].includes(key) ||
+            !['underlay', 'top', 'outline', 'batch'].includes(key) ||
             typeof enabled !== 'boolean'
           )
             throw new Error('Invalid shape-picking configuration');
@@ -146,6 +152,12 @@ export default function ShapePickingVerification() {
               setConfiguration((old) => ({ ...old, outline: !old.outline }))
             }
           />
+          <Button
+            title={`Batch 200 ${configuration.batch ? 'on' : 'off'}`}
+            onPress={() =>
+              setConfiguration((old) => ({ ...old, batch: !old.batch }))
+            }
+          />
           <Button title="Remount" onPress={remount} />
         </View>
       </ExampleControls>
@@ -192,10 +204,61 @@ export default function ShapePickingVerification() {
             fillColor="#ef427480"
             strokeColor="#ef4274"
             strokeWidth={configuration.outline ? 12 : 0}
-            zIndex={10}
+            zIndex={configuration.batch ? 0 : 10}
             tappable
             onPress={(event) => record('top', event.nativeEvent.coordinate)}
           />
+          {configuration.batch && (
+            <>
+              {Array.from({ length: 200 }, (_, i) => {
+                const longitude = 4 + (i % 20) * 0.3,
+                  latitude = -2 + Math.floor(i / 20) * 0.3;
+                return (
+                  <Polygon
+                    key={i}
+                    id={`batch-${i}`}
+                    coordinates={[
+                      { latitude, longitude },
+                      { latitude, longitude: longitude + 0.2 },
+                      { latitude: latitude + 0.2, longitude: longitude + 0.2 },
+                      { latitude: latitude + 0.2, longitude },
+                    ]}
+                    fillColor={i % 2 ? '#ff000080' : '#00ff0080'}
+                    strokeWidth={1}
+                  />
+                );
+              })}
+              <Polygon
+                id="passive"
+                coordinates={outer}
+                fillColor="#00000000"
+                strokeWidth={0}
+              />
+              <Circle
+                id="batch-circle"
+                center={{ latitude: 0, longitude: -5 }}
+                radius={50000}
+                fillColor="orange"
+                tappable
+                onPress={(event) =>
+                  record('batch-circle', event.nativeEvent.coordinate)
+                }
+              />
+              <Polyline
+                id="batch-line"
+                coordinates={[
+                  { latitude: -2, longitude: -5 },
+                  { latitude: -1, longitude: -5 },
+                ]}
+                strokeColor="purple"
+                strokeWidth={16}
+                tappable
+                onPress={(event) =>
+                  record('batch-line', event.nativeEvent.coordinate)
+                }
+              />
+            </>
+          )}
         </MapView>
       </View>
       <Text>

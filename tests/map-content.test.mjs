@@ -257,13 +257,17 @@ test('shape press callbacks remain out of JSON and only tappable shapes register
     coordinate: { latitude: 52, longitude: 21 },
     position: { x: 12, y: 34 },
   };
-  scene.presses.get('active')('geometry', event);
+  scene.presses.get('active')('active', event);
   assert.deepEqual(received, [
     { nativeEvent: { ...event, identifier: 'active' } },
   ]);
   const json = JSON.parse(scene.json);
   assert.equal(json.layers[0].interactive, true);
-  assert.equal(json.layers[1].interactive, false);
+  assert.equal(json.layers.length, 1);
+  assert.equal(
+    json.sources[0].data.features[1].properties.__shape_tappable,
+    false,
+  );
 });
 test('zero-radius circles have no rendered geometry even with a visible stroke', async () => {
   const { compileMapContent, Circle } = await load();
@@ -345,39 +349,28 @@ test('shape color strings normalize to one native RGBA representation', async ()
   );
 });
 
-test('shape layer IDs retain their source identity when siblings are removed or inserted', async () => {
+test('batch resource references remain valid as siblings are removed and inserted', async () => {
   const { compileMapContent, Polygon } = await load();
   const { nativeShapes } = await import('../packages/maps/lib/nativeShapes.js');
   const points = [...line, { latitude: 52, longitude: 21.01 }];
   const shape = (id) =>
     React.createElement(Polygon, { id, coordinates: points });
-  const before = nativeShapes(
-    compileMapContent([shape('lower'), shape('top')]),
-    { sources: [], layers: [] },
-  );
-  const after = nativeShapes(compileMapContent([shape('top')]), before);
-  assert.deepEqual(
-    after.layers.map((layer) => layer.id),
-    before.layers
-      .filter((layer) => layer.source === 'top')
-      .map((layer) => layer.id),
-  );
-  for (const layer of after.layers) {
-    const old = before.layers.find((candidate) => candidate.id === layer.id);
+  let previous = { sources: [], layers: [] };
+  for (const ids of [['lower', 'top'], ['top'], ['earlier', 'top']]) {
+    const next = nativeShapes(compileMapContent(ids.map(shape)), previous);
+    const sources = new Set(next.sources.map((source) => source.id));
     assert.equal(
-      old.source,
-      layer.source,
-      'an SDK layer ID must never be repurposed for another source',
+      new Set(next.layers.map((layer) => layer.id)).size,
+      next.layers.length,
     );
+    assert(next.layers.every((layer) => sources.has(layer.source)));
+    assert.equal(
+      next.sources.reduce(
+        (count, source) => count + source.data.features.length,
+        0,
+      ),
+      ids.length,
+    );
+    previous = next;
   }
-  const inserted = nativeShapes(
-    compileMapContent([shape('earlier'), shape('top')]),
-    after,
-  );
-  assert.deepEqual(
-    inserted.layers
-      .filter((layer) => layer.source === 'top')
-      .map((layer) => layer.id),
-    after.layers.map((layer) => layer.id),
-  );
 });

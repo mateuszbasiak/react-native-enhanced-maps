@@ -88,6 +88,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var clusterIndexRevision = 0L
   private var sceneLayers = listOf<String>()
   private val interactiveLayers = mutableSetOf<String>()
+  private val shapeBatchLayers = mutableSetOf<String>()
   private val layerSources = mutableMapOf<String,String>()
   private var orderDirty = true
   private var orderStyle: Style? = null
@@ -173,8 +174,11 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         val point = nativeMap.projection.toScreenLocation(coordinate)
         for (layer in (nativeMap.style?.layers ?: emptyList()).filter { it.id in interactiveLayers }.asReversed()) {
           val id=layer.id
-          val feature = nativeMap.queryRenderedFeatures(point, id).firstOrNull {
-            layer !is FillLayer || NativeFillHit.accepts(it.geometry(),coordinate.longitude,coordinate.latitude)
+          val candidates=nativeMap.queryRenderedFeatures(point, id)
+          val ordered=if(id in shapeBatchLayers)candidates.sortedByDescending { it.getNumberProperty("__shape_order")?.toDouble() ?: 0.0 } else candidates
+          val feature = ordered.firstOrNull {
+            (id !in shapeBatchLayers || it.getBooleanProperty("__shape_tappable")==true) &&
+            (layer !is FillLayer || NativeFillHit.accepts(it.geometry(),coordinate.longitude,coordinate.latitude))
           } ?: continue
           val source = layerSources[id] ?: ""
           val properties=feature.properties()?.deepCopy() ?: com.google.gson.JsonObject()
@@ -334,14 +338,9 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         style.layers.map { it.id }.filter { it !in sceneLayers }.toSet())
       val sources = scene.getJSONArray("sources")
       val layers = scene.getJSONArray("layers")
-      var remainingPositions=50000
-      var remainingShapePositions=10000
       val parsedSources=(0 until sources.length()).map {
         val raw=sources.getJSONObject(it)
-        if(raw.optString("type")=="raster") null else NativeClustering.parse(raw,clusterIndexRevision+1,remainingPositions,remainingShapePositions).also { source ->
-          remainingPositions-=source.positions
-          if(source.generatedShape)remainingShapePositions-=source.positions
-        }
+        if(raw.optString("type")=="raster") null else NativeClustering.parse(raw,clusterIndexRevision+1)
       }
       // Parse first so malformed JSON never removes a working scene.
       val revisions = (0 until sources.length()).map { sources.getJSONObject(it).let { source ->
@@ -389,17 +388,19 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           val filter=if(definition.getString("clusterFilter")=="clusters") predicate else org.maplibre.android.style.expressions.Expression.not(predicate)
           when(layer) { is CircleLayer -> layer.setFilter(filter); is LineLayer -> layer.setFilter(filter); is FillLayer -> layer.setFilter(filter) }
         }
+        NativeShapeBatch.apply(layer,definition)
         layer.setProperties(visibility(if(definition.optBoolean("visible",true)) "visible" else "none"))
         layer
       }
       require(clusterIndexRevision<9007199254740991L) { "Cluster index revisions exhausted" }
       ++clusterIndexRevision
       sceneLayers.asReversed().forEach { style.removeLayer(it) }; sceneSources.forEach { style.removeSource(it) }
-      sceneSources = emptyList(); sceneLayers = emptyList(); layerSources.clear(); interactiveLayers.clear()
+      sceneSources = emptyList(); sceneLayers = emptyList(); layerSources.clear(); interactiveLayers.clear(); shapeBatchLayers.clear()
       sdkSources.forEach { source -> style.addSource(source); sceneSources = sceneSources + source.id }
       parsedLayers.forEachIndexed { index,definition ->
         val id=definition.getString("id"); val source=definition.getString("source");val layer=sdkLayers[index]
         if(definition.optBoolean("interactive",false))interactiveLayers.add(id)
+        if(definition.has("shapeGroup"))shapeBatchLayers.add(id)
         val before = definition.optString("beforeId")
         if(before.isNotEmpty() && style.getLayer(before) != null) style.addLayerBelow(layer,before) else style.addLayer(layer)
         sceneLayers = sceneLayers + id; layerSources[id] = source

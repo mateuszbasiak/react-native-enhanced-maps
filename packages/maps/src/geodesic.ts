@@ -1,4 +1,5 @@
 import type { Coordinate } from './types';
+import { MAX_SCENE_BYTES, shapeGeometryByteLength } from './sceneBudget.ts';
 
 type Path = readonly Coordinate[];
 type Polygon = { readonly coordinates: Path; readonly holes: readonly Path[] };
@@ -28,7 +29,18 @@ const latitude = (z: number): number => Math.asin(Math.max(-1, Math.min(1, z)));
 export function geodesicPathInfo(input: Path): GeodesicPath {
   const cached = paths.get(input);
   if (cached) return cached;
-  const output: Coordinate[] = [input[0]!];
+  const output: Coordinate[] = [];
+  let geometryBytes = 1;
+  const append = (point: Coordinate) => {
+    // Numbers/punctuation are ASCII. Bound expansion by the retained transport
+    // byte budget before allocating millions of intermediate coordinate objects.
+    geometryBytes +=
+      JSON.stringify([point.longitude, point.latitude]).length + 1;
+    if (geometryBytes > MAX_SCENE_BYTES)
+      throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
+    output.push(point);
+  };
+  append(input[0]!);
   const vertexIndices = [0];
   for (let i = 1; i < input.length; i++) {
     const start = input[i - 1]!,
@@ -51,8 +63,6 @@ export function geodesicPathInfo(input: Path): GeodesicPath {
       );
     const angle = Math.atan2(sine, cosine);
     const steps = Math.max(1, Math.ceil(angle / maxStep));
-    if (output.length + steps > 10000)
-      throw new RangeError('Geodesic point resource limit exceeded');
     if (angle > 1e-12) {
       const tangent = b.map((v, axis) => (v - cosine * a[axis]!) / sine);
       // Check the analytic latitude extrema, including those between sample points.
@@ -72,7 +82,7 @@ export function geodesicPathInfo(input: Path): GeodesicPath {
         const p = a.map(
           (v, axis) => v * Math.cos(t) + tangent[axis]! * Math.sin(t),
         );
-        output.push({
+        append({
           latitude: latitude(p[2]!) / radians,
           longitude: unwrap(
             Math.atan2(p[1]!, p[0]!) / radians,
@@ -81,7 +91,7 @@ export function geodesicPathInfo(input: Path): GeodesicPath {
         });
       }
     }
-    output.push({
+    append({
       latitude: end.latitude,
       longitude: unwrap(end.longitude, output.at(-1)!.longitude),
     });
@@ -136,7 +146,7 @@ export function geodesicPolygon(input: Path, holes: readonly Path[]): Polygon {
   const cached = variants.get(holes);
   if (cached) return cached;
   const coordinates = closedPath(input);
-  let points = coordinates.length;
+  let geometryBytes = shapeGeometryByteLength(coordinates);
   const exterior = coordinates.map((p) => ({
     x: p.longitude,
     y: mercatorY(p.latitude),
@@ -149,9 +159,9 @@ export function geodesicPolygon(input: Path, holes: readonly Path[]): Polygon {
   }
   const aligned = holes.map((hole) => {
     const path = closedPath(hole);
-    points += path.length;
-    if (points > 10000)
-      throw new RangeError('Geodesic point resource limit exceeded');
+    geometryBytes += shapeGeometryByteLength(path);
+    if (geometryBytes > MAX_SCENE_BYTES)
+      throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
     const first = path[0]!;
     const minWorld = Math.ceil((west - first.longitude) / 360);
     const maxWorld = Math.floor((east - first.longitude) / 360);

@@ -94,6 +94,8 @@ export type LayerDefinition =
       readonly source: string;
       readonly type: 'line';
       readonly visible: boolean;
+      /** Private generated-shape feature group. */
+      readonly shapeGroup?: number;
       readonly style: LineStyle & {
         readonly lineColor: string;
         readonly lineWidth: number;
@@ -105,6 +107,8 @@ export type LayerDefinition =
       readonly source: string;
       readonly type: 'fill';
       readonly visible: boolean;
+      /** Private generated-shape feature group. */
+      readonly shapeGroup?: number;
       readonly style: Required<FillStyle>;
     };
 export interface LayerScene {
@@ -138,7 +142,7 @@ function validateData(data: GeoJSONData): number {
       Math.abs(p[1]!) > 90
     )
       throw new Error('GeoJSON position must be finite [longitude, latitude]');
-    if (++positions > 50000) throw new Error('GeoJSON position limit exceeded');
+    positions++;
   };
   const line = (points: readonly GeoJSONPosition[], ring = false) => {
     if (!Array.isArray(points) || points.length < (ring ? 4 : 2))
@@ -286,7 +290,6 @@ export function compileLayers(children: ReactNode): LayerScene {
   const layers: LayerDefinition[] = [];
   const sourceIds = new Set<string>();
   const layerIds = new Set<string>();
-  let positions = 0;
   const visit = (nodes: ReactNode, parent?: string, depth = 0): void => {
     if (depth > 32) throw new Error('Map content nesting limit exceeded');
     Children.forEach(nodes, (node) => {
@@ -317,8 +320,8 @@ export function compileLayers(children: ReactNode): LayerScene {
           throw new Error(
             'Source revision must be a non-negative safe integer',
           );
-        positions += validateData(p.data);
-        if (positions > 50000) throw new Error('Scene position limit exceeded');
+        validateData(p.data);
+
         sources.push({
           id: p.id,
           type: 'geojson',
@@ -381,15 +384,10 @@ export function compileLayers(children: ReactNode): LayerScene {
     });
   };
   visit(children);
-  if (sources.length > 64 || layers.length > 64)
-    throw new Error('Scene supports at most 64 sources and 64 layers');
-  let renderedPositions = 0;
+
   for (const layer of layers) {
     const source = sources.find((item) => item.id === layer.source);
     if (!source) throw new Error('Layer references a missing source');
-    renderedPositions += validateData(source.data);
-    if (renderedPositions > 100000)
-      throw new Error('Rendered scene position limit exceeded');
   }
   return { sources, layers };
 }

@@ -112,8 +112,7 @@ same exact string and enables clustering unless `cluster={false}` explicitly
 overrides it. `cluster={true}` without a group uses the default group. Omitting
 both props keeps a marker independent. Names must be nonblank and at most 512
 characters. Custom cluster components receive `clusterGroup`, undefined for the
-default group. Each group uses one source/layer within shared scene limits of
-64 sources and 128 layers. Different groups can overlap visually; distance and
+default group. Each group uses one source/layer within the shared scene byte budget. Different groups can overlap visually; distance and
 zoom still control clustering within each group. Changing groups invalidates old
 cluster operations. There is no fixed participating-marker count cap; scene byte and geometry budgets still apply. Native marker dragging is supported. See
 [location, snapshots and dragging](../../../docs/location-snapshots-dragging.md).
@@ -169,14 +168,17 @@ accept `strokeColors`. Polyline/Polygon accept opt-in `geodesic` great-circle ed
 including polygon holes. Use immutable geometry/color arrays and explicit IDs in
 changing lists.
 
-The collection supports 64 shapes and 10000 total points, including generated
-circle vertices. Coordinates are within ±85° latitude / ±180° longitude. Circle
+There is no fixed shape-count, position-count or scene source/layer-count cap.
+Generated circle/geodesic vertices share the 4 MiB UTF-8 scene budget. Coordinates are within ±85° latitude / ±180° longitude. Circle
 radius is 0–1000000m; zero radius is invisible. Supported React Native color strings
 normalize before transport; dynamic/native color objects are unsupported.
 
 `tappable` defaults false. Shape press receives
 `{nativeEvent:{identifier,coordinate,position}}`. Higher shape zIndex draws later;
-ties retain declaration order. This is a compatibility subset. See the
+within each zIndex group all fills draw below all outlines, with declaration
+order preserved within fills and stroke runs. Shapes share sources and per-feature
+paint layers; incompatible layout/dash/gradient settings split ordered stroke runs.
+This is a compatibility subset. See the
 [shape contract](https://github.com/mateuszbasiak/react-native-maplibre-maps/blob/main/docs/shapes.md)
 for exact geometry, styling and picking limits and current validation results.
 

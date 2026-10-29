@@ -105,9 +105,8 @@ test('UrlTile rejects malformed templates, out-of-range options and ambiguous re
     () => scene([tile({ id: 'same' }), tile({ id: 'same' })]),
     /Duplicate source/,
   );
-  assert.throws(
-    () => scene(Array.from({ length: 65 }, (_, i) => tile({ id: 't' + i }))),
-    /resource limit/,
+  assert.doesNotThrow(() =>
+    scene(Array.from({ length: 65 }, (_, i) => tile({ id: 't' + i }))),
   );
   assert.deepEqual(
     normalizeUrlTile({

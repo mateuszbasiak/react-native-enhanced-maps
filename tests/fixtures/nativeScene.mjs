@@ -121,15 +121,27 @@ add('invalid cap', (s) => {
   s.layers[0].type = 'line';
   s.layers[0].style = { lineCap: 'invalid' };
 });
-add('too many sources', (s) => {
-  s.sources = Array.from({ length: 65 }, (_, i) => ({
-    ...source,
-    id: 's' + i,
-  }));
-});
-add('too many layers', (s) => {
-  s.layers = Array.from({ length: 129 }, (_, i) => ({ ...layer, id: 'l' + i }));
-});
+add(
+  'more than 64 sources',
+  (s) => {
+    s.sources = Array.from({ length: 65 }, (_, i) => ({
+      ...source,
+      id: 's' + i,
+    }));
+    s.layers[0].source = 's0';
+  },
+  true,
+);
+add(
+  'more than 128 layers',
+  (s) => {
+    s.layers = Array.from({ length: 129 }, (_, i) => ({
+      ...layer,
+      id: 'l' + i,
+    }));
+  },
+  true,
+);
 fixtures.push({
   label: 'source collision',
   scene: valid(),

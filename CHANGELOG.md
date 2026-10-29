@@ -5,6 +5,12 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Batch native Polyline/Polygon/Circle components into shared sources and
+  per-feature paint layers, including differing colors, widths and opacity.
+  At equal zIndex fills draw below outlines; incompatible layout/dash/gradient
+  settings retain ordered stroke runs. Remove shape/source/layer/scene-position
+  count caps while retaining the 4 MiB UTF-8 scene bound and native validation.
+
 - Add initial RN Maps Geojson, Heatmap, Overlay, WMSTile and LocalTile children,
   with bounded native preflight and a deterministic rendering verification scenario.
   Unsupported tile controls and broader asynchronous image recovery remain tracked.

@@ -43,10 +43,13 @@ The exact MIT-licensed `@react-native/normalize-colors@0.85.3` helper is an expl
 runtime dependency; it is already part of the pinned RN baseline. This does not
 change shader uniform colors or imply full browser CSS Color compatibility.
 
-Higher zIndex draws later within the shape collection; ties retain declaration
-order. Explicit `id` is optional; omitted IDs use shape declaration order. Give
+Higher zIndex draws later within the shape collection. Within the same zIndex
+group, all polygon/circle fills draw below all outlines; declaration order is
+preserved within fills and within strokes. In particular, an earlier outline can
+remain visible above a later fill. Explicit `id` is optional; omitted IDs use shape declaration order. Give
 changing lists explicit stable IDs. Geometry arrays are immutable. The collection
-is bounded to 64 shapes and 10,000 total points, including generated circle points.
+has no fixed shape-count or position-count cap. The combined native scene remains
+bounded to 4 MiB of UTF-8 JSON, including generated circle/geodesic geometry.
 
 `tappable` defaults to false. With `tappable` and `onPress`, a native hit dispatches
 `{nativeEvent: {identifier, coordinate: {latitude, longitude}, position: {x, y}}}`.
@@ -68,8 +71,24 @@ performance.
 The example's “Show native layers” screen includes all three shapes and displays
 the selected shape identifier after a press.
 
-Shapes also contribute to the shared [scene input budgets](scene-budgets.md),
-including generated circle points and repeated fill/stroke references.
+Shapes share native GeoJSON sources and use per-feature colors, widths, opacity,
+visibility and tap eligibility. Two hundred ordinary polygons at one zIndex use
+one source, one fill layer and one stroke layer, even with different paint styles.
+Polyline, Polygon and Circle can share the same source/stroke layer. Layout-only
+settings (caps, joins, miter limits, normalized dashes) and gradient changes split
+ordered stroke runs when necessary. Different zIndex groups and intervening
+image/tile/heatmap components remain separate ordering groups. Hidden features
+retain their geometry for fitting; passive features allow hits through to
+interactive features below them. Component IDs remain public callback IDs.
+
+These are resource-count reductions, not a frame-time guarantee. Large datasets
+still require application-level performance checks. Raster/image resources,
+independent heatmap datasets and native marker views keep their own rendering
+semantics; marker clustering already shares sources/layers per group.
+
+Shapes share the [scene transport budget](scene-budgets.md). Source/layer/count
+caps have been removed, while geographic, style and malformed-input checks remain.
+Rebuild both native hosts together with the updated JavaScript package.
 
 ## Color-string verification, 2026-10-24
 
@@ -102,7 +121,8 @@ angle, then sends ordinary geometry to both native hosts. This is an angular
 approximation, not a fixed screen-pixel error guarantee. It does not recompile on
 camera gestures. Immutable geometry is cached, so style-only changes retain source
 geometry. Generated points, including holes and closing points, count toward the
-existing 10000-point collection budget and scene transport limits.
+scene transport byte budget. Geodesic expansion rejects incrementally when its
+geometry alone exceeds that budget.
 
 Input remains within ±85 degrees latitude and ±180 degrees longitude. Dateline
 arcs unwrap consecutive longitudes into the nearest world copy; polygon holes
@@ -184,3 +204,29 @@ presses select `gradient-route` before and after the geodesic update on both.
 A separate dashed reference remains visible in the flat fixture. iOS initially
 rejected hex-string expression casts; native UIColor interpolation stops fix that
 SDK bridge behavior. Physical-device testing remains maintainer-owned follow-up.
+
+## Shared-layer verification — 2026-10-29
+
+The compiler contract verifies that 200 polygons with different colors and stroke
+widths use one source and two layers. Mixed Polyline/Polygon/Circle features,
+nonconsecutive paint styles, gradient runs, visibility, callback IDs, source
+revisions and pre-batch source-ID collisions have regression coverage. Shared
+Java/Foundation corpora validate batched features, their private paint/order
+metadata and values beyond the former count boundaries. Geodesic tests verify
+early rejection of oversized individual and aggregate expansion by byte size.
+
+Full local CI passes 367 tests, declarations, Codegen, packed-package checks and
+both production bundles. Final iOS ARM64 simulator and Android ARM64 Debug builds
+pass. On iPhone 17 Pro / iOS 26.1 and EnhancedMapsVerification / Android 16 API 36,
+the shape-picking fixture renders 200 small polygons together with overlapping
+polygons, a hole, a passive overlay, a Circle and a Polyline. Native projected taps
+verify the top fill, hole fall-through to the underlay, hidden-top fall-through,
+map fall-through, and exact Circle/Polyline callback IDs on both platforms.
+The gradient/dashed-line fixture also renders and picks the gradient route on
+both platforms while sharing its line-metrics source. The Android gradient
+fixture initially failed external basemap DNS; it passed after switching to the
+same basemap used by the shape-picking fixture. This is not a rendering failure.
+
+Local evidence is saved under `artifacts/verification/shape-batching/`. These are
+bounded Debug rendering/picking checks, not release frame-time/memory benchmarks.
+Physical-device validation remains maintainer-owned follow-up.

@@ -31,19 +31,18 @@ const points = (count, properties = null) => ({
     },
   ],
 });
-test('combined scene positions cannot bypass independently valid source limits', async () => {
+test('combined scene positions have no arbitrary count cap', async () => {
   const { compileScene, InternalSource } = await load();
   const source = (id, count) =>
     React.createElement(InternalSource, { id, data: points(count) });
   assert.doesNotThrow(() =>
     compileScene([source('a', 25000), source('b', 25000)]),
   );
-  assert.throws(
-    () => compileScene([source('a', 25000), source('b', 25001)]),
-    /position limit/i,
+  assert.doesNotThrow(() =>
+    compileScene([source('a', 25000), source('b', 25001)]),
   );
 });
-test('referencing one source many times remains bounded by rendered positions', async () => {
+test('layer references do not impose an arbitrary rendered-position cap', async () => {
   const { compileScene, InternalSource, InternalLayer } = await load();
   const scene = (count) =>
     React.createElement(
@@ -54,7 +53,7 @@ test('referencing one source many times remains bounded by rendered positions', 
       ),
     );
   assert.doesNotThrow(() => compileScene(scene(25000)));
-  assert.throws(() => compileScene(scene(25001)), /rendered.*position limit/i);
+  assert.doesNotThrow(() => compileScene(scene(25001)));
 });
 test('combined scene payload is bounded in UTF-8 bytes rather than UTF-16 code units', async () => {
   const { compileScene, InternalSource } = await load();
@@ -89,7 +88,7 @@ test('scene UTF-8 accounting matches encoded bytes for every Unicode width', asy
     assert.equal(utf8ByteLength(value), Buffer.byteLength(value, 'utf8'));
 });
 
-test('scene counts include all geometry kinds and generated shapes', async () => {
+test('all geometry kinds and generated shapes share the transport-size budget', async () => {
   const { serializeMapScene } =
     await import('../packages/maps/lib/sceneBudget.js');
   const geometry = (type, coordinates) => ({
@@ -122,30 +121,26 @@ test('scene counts include all geometry kinds and generated shapes', async () =>
     data: geometry(type, coordinates),
   }));
   assert.doesNotThrow(() => serializeMapScene(sources, []));
-  // Count MultiPolygon's four positions for every reference, rather than its array depth.
-  assert.throws(
-    () =>
-      serializeMapScene(
-        [sources.at(-1)],
-        Array.from({ length: 25001 }, () => ({ source: '5' })),
-      ),
-    /rendered.*position limit/i,
+  // Many references remain valid when the serialized scene fits the byte budget.
+  assert.doesNotThrow(() =>
+    serializeMapScene(
+      [sources.at(-1)],
+      Array.from({ length: 25001 }, () => ({ source: '5' })),
+    ),
   );
   const { compileScene, InternalSource } = await load();
   const { Circle } = await import('../packages/maps/lib/mapContent.js');
-  assert.throws(
-    () =>
-      compileScene([
-        React.createElement(InternalSource, {
-          id: 'points',
-          data: points(49900),
-        }),
-        React.createElement(Circle, {
-          id: 'circle',
-          center: { latitude: 1, longitude: 1 },
-          radius: 10,
-        }),
-      ]),
-    /position limit/i,
+  assert.doesNotThrow(() =>
+    compileScene([
+      React.createElement(InternalSource, {
+        id: 'points',
+        data: points(49900),
+      }),
+      React.createElement(Circle, {
+        id: 'circle',
+        center: { latitude: 1, longitude: 1 },
+        radius: 10,
+      }),
+    ]),
   );
 });

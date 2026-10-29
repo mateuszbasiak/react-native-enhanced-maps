@@ -170,7 +170,7 @@ export default function GradientVerification() {
           key={generation}
           ref={map}
           style={{ flex: 1 }}
-          styleURL="https://demotiles.maplibre.org/style.json"
+          styleURL="https://tiles.openfreemap.org/styles/liberty"
           initialCamera={cameras[configuration.geodesic ? 1 : 0]}
           onMapReady={() => setReady(true)}
           onError={(e) => setError(e.code + ': ' + e.message)}

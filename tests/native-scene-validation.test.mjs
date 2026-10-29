@@ -55,6 +55,54 @@ for (const [label, component, props] of [
     scene: JSON.parse(compileScene(React.createElement(component, props)).json),
     accepted: true,
   });
+const batchScene = JSON.parse(
+  compileScene(
+    Array.from({ length: 200 }, (_, i) =>
+      React.createElement(Polygon, {
+        id: 'batch-' + i,
+        coordinates: [
+          { latitude: 0, longitude: 0 },
+          { latitude: 1, longitude: 0 },
+          { latitude: 0, longitude: 1 },
+        ],
+        fillColor: i % 2 ? 'red' : 'blue',
+      }),
+    ),
+  ).json,
+);
+fixtures.push({
+  label: '200 batched polygons',
+  scene: batchScene,
+  accepted: true,
+});
+for (const value of [-1, 0.5, '0', true, null]) {
+  const scene = structuredClone(batchScene);
+  scene.layers[0].shapeGroup = value;
+  fixtures.push({
+    label: 'invalid batch group ' + JSON.stringify(value),
+    scene,
+    accepted: false,
+  });
+}
+for (const [label, mutate] of [
+  [
+    'batch source must be generated',
+    (s) => delete s.sources[0].coordinateSpace,
+  ],
+  [
+    'batch features need properties',
+    (s) => (s.sources[0].data.features[0].properties = null),
+  ],
+  [
+    'batch cannot use cluster filters',
+    (s) => (s.layers[0].clusterFilter = 'points'),
+  ],
+  ['batch cannot use a circle layer', (s) => (s.layers[0].type = 'circle')],
+]) {
+  const scene = structuredClone(batchScene);
+  mutate(scene);
+  fixtures.push({ label, scene, accepted: false });
+}
 const { Heatmap } = await import('../packages/maps/lib/heatmap.js');
 const heatmapScene = JSON.parse(
   compileScene(

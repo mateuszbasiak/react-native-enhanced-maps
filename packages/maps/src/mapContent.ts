@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { Coordinate } from './types';
 import { geodesicPathInfo, geodesicPolygon } from './geodesic.ts';
 import { polylineGradient } from './polylineGradient.ts';
+import { MAX_SCENE_BYTES, shapeGeometryByteLength } from './sceneBudget.ts';
 import type { GradientStops } from './polylineGradient';
 
 export interface ShapePressEvent {
@@ -157,11 +158,7 @@ function coordinates(
   values: readonly Coordinate[],
   ring = false,
 ): readonly Coordinate[] {
-  if (
-    !Array.isArray(values) ||
-    values.length < (ring ? 3 : 2) ||
-    values.length > 10000
-  )
+  if (!Array.isArray(values) || values.length < (ring ? 3 : 2))
     throw new Error('Invalid coordinate count');
   const cache = ring ? ringCache : coordinatesCache;
   const cached = cache.get(values);
@@ -246,7 +243,7 @@ function circleRing(center: Coordinate, radius: number): readonly Coordinate[] {
 export function compileMapContent(children: ReactNode): RenderScene {
   const items: RenderItem[] = [];
   const ids = new Set<string>();
-  let totalPoints = 0;
+  let geometryBytes = 0;
   const visit = (nodes: ReactNode, depth = 0): void => {
     if (depth > 32) throw new Error('Map content nesting limit exceeded');
     Children.forEach(nodes, (node) => {
@@ -323,7 +320,10 @@ export function compileMapContent(children: ReactNode): RenderScene {
             vertexIndices = path.vertexIndices;
           }
         }
-        totalPoints += c.length;
+        geometryBytes += shapeGeometryByteLength(c);
+        for (const hole of h) geometryBytes += shapeGeometryByteLength(hole);
+        if (geometryBytes > MAX_SCENE_BYTES)
+          throw new RangeError('Shape geometry exceeds 4 MiB scene byte limit');
         const strokeColor = color(p.strokeColor, '#0088ff'),
           strokeWidth = number(p.strokeWidth, 0, 256, 2);
         allowed.push(
@@ -333,7 +333,6 @@ export function compileMapContent(children: ReactNode): RenderScene {
         );
         if (ring) {
           allowed.push('fillColor', ...(node.type === Circle ? [] : ['holes']));
-          totalPoints += h.reduce((sum, r) => sum + r.length, 0);
           items.push({
             ...common,
             type: 'polygon',
@@ -359,8 +358,6 @@ export function compileMapContent(children: ReactNode): RenderScene {
         throw new TypeError('onPress must be a function');
       if (Object.keys(p).some((key) => !allowed.includes(key)))
         throw new Error('Unsupported map component prop');
-      if (items.length > 64 || totalPoints > 10000)
-        throw new Error('Map content resource limit exceeded');
     });
   };
   visit(children);

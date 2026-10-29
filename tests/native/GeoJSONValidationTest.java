@@ -14,6 +14,7 @@ public final class GeoJSONValidationTest {
     public boolean isNull(Object value) { return value == null; }
     public boolean has(Object value, String key) { return ((Map<?,?>) value).containsKey(key); }
     public Object get(Object value, String key) { return ((Map<?,?>) value).get(key); }
+    public Iterable<String> keys(Object value) { return ((Map<String,Object>)value).keySet(); }
     public int length(Object value) { return ((List<?>) value).size(); }
     public Object at(Object value, int index) { return ((List<?>) value).get(index); }
   };

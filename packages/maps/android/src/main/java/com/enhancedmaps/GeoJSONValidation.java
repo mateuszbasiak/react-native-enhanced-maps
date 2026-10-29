@@ -5,6 +5,8 @@ import java.util.Set;
 
 /** Strict source framing/geometry checks over the platform JSON tree, without copying it. */
 public final class GeoJSONValidation {
+  // Six JSON bytes per position at minimum; at most 180 degrees per world-copy step.
+  private static final double GENERATED_LONGITUDE_LIMIT=180.0*(4*1024*1024/6+1);
   public interface Reader {
     boolean isObject(Object value);
     boolean isArray(Object value);
@@ -12,6 +14,7 @@ public final class GeoJSONValidation {
     boolean has(Object value, String key);
     Object get(Object value, String key);
     int length(Object value);
+    Iterable<String> keys(Object value);
     Object at(Object value, int index);
   }
   private final Reader reader;
@@ -31,9 +34,7 @@ public final class GeoJSONValidation {
     require(x instanceof Number,"GeoJSON longitude must be a number");
     require(y instanceof Number,"GeoJSON latitude must be a number");
     double longitude=((Number)x).doubleValue(), latitude=((Number)y).doubleValue();
-    // At most 10k generated vertices, each unwrapped to its nearest world copy.
-    require(Double.isFinite(longitude) && Double.isFinite(latitude) && Math.abs(longitude)<=(generatedShape?1800000:180) && Math.abs(latitude)<=90,"GeoJSON position is outside geographic bounds");
-    require(positions<(generatedShape?10000:50000),"GeoJSON position limit exceeded");
+    require(Double.isFinite(longitude) && Double.isFinite(latitude) && Math.abs(longitude)<=(generatedShape?GENERATED_LONGITUDE_LIMIT:180) && Math.abs(latitude)<=90,"GeoJSON position is outside geographic bounds");
     ++positions;
   }
   private void line(Object value, boolean ring) {
@@ -73,7 +74,6 @@ public final class GeoJSONValidation {
     GeoJSONValidation validation=new GeoJSONValidation(reader,generatedShape);
     Object features=reader.get(data,"features");
     int count=validation.array(features,"Expected GeoJSON features array");
-    require(!generatedShape || count<=1,"GeoJSON feature limit exceeded");
     Set<String> ids=new HashSet<>();
     for(int i=0;i<count;i++) {
       Object feature=reader.at(features,i);
@@ -84,7 +84,16 @@ public final class GeoJSONValidation {
       require(ids.add((String)id),"Duplicate GeoJSON feature ID");
       Object properties=reader.get(feature,"properties");
       require(reader.has(feature,"properties") && (reader.isNull(properties) || reader.isObject(properties)),"GeoJSON properties must be an object or null");
-      require(!generatedShape || ("geometry".equals(id) && reader.isNull(properties)),"Invalid generated shape feature");
+      if(generatedShape && !reader.isNull(properties)) {
+        int propertyCount=0;for(String key:reader.keys(properties))propertyCount++;
+        require(propertyCount==8,"Invalid generated shape feature");
+        for(String key:new String[]{"__shape_order","__shape_line_group","__shape_width","__shape_opacity"}) {
+          Object raw=reader.get(properties,key);require(raw instanceof Number,"Invalid generated shape number");double n=((Number)raw).doubleValue();
+          require(Double.isFinite(n) && n>=0 && (key.equals("__shape_opacity")?n<=1:key.equals("__shape_width")?n<=256:(Math.floor(n)==n && n<=9007199254740991.0)),"Invalid generated shape number");
+        }
+        for(String key:new String[]{"__shape_visible","__shape_tappable"})require(reader.get(properties,key) instanceof Boolean,"Invalid generated shape boolean");
+        for(String key:new String[]{"__shape_stroke","__shape_fill"}){Object v=reader.get(properties,key);require(v instanceof String && ((String)v).matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"),"Invalid generated shape color");}
+      } else require(!generatedShape || "geometry".equals(id),"Invalid generated shape feature");
       validation.geometry(reader.get(feature,"geometry"));
     }
     return validation.positions;
