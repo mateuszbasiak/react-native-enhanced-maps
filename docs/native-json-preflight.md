@@ -61,12 +61,35 @@ On iPad Pro 13-inch (M5) / iOS 26.4, a debugger-free native run accepts a comple
 feature picking, then accepts and picks a corrected scene: four checks pass.
 Evidence is in the ignored `artifacts/verification/scene-json-depth/measured/`.
 
-Android's isolated SDK conversion accepts complete scenes through 513 containers.
-Full revised Android UI verification remains pending: one API 37 run encountered
-a Hermes null-read crash during native touch dispatch; the API 36 emulator then
-reported application initialization timeouts. These observations do not establish
-a JSON nesting failure and are not counted as passing runtime checks. Earlier
-64-container-build Android rejection/recovery checks remain historical evidence.
+## Android boundary acceptance — 2026-10-30
+
+Android's isolated SDK conversion accepts complete scenes through 513 containers;
+512 remains the common Foundation-derived compatibility ceiling, not a measured
+Android capacity limit. A new Small_Phone / Android 17 API 37 ARM64 run now passes
+all four raw native UI checks: 512 accepted, 513 and 100,000 rejected recoverably
+with the accepted fit/feature retained, and corrected input accepted. All four
+checks report `fitPreserved: true`; presses return `accepted` three times and
+`repaired` once, with exactly two expected `layer-scene` errors and no unexpected
+error. The final UI reads “Passed 4 native scene checks”.
+
+Both the integrated binary from `a70c5c8` (Overlay PR #98) and a separately
+rebuilt main-only code baseline `00caff1` (merged #96) pass the four checks. The
+main-only rerun establishes this evidence independently of unmerged overlay work.
+It starts from
+the Debug **Run parser boundary checks** button and uses only native accessibility
+and taps during the four checks. A direct Metro connection selects the scenario
+beforehand and reads the bounded snapshot after completion; no JavaScript
+debugger is active during input. Receipts are in
+`artifacts/verification/scene-json-depth/measured/android-main-runtime.json` and
+`android-main-pass.png` (ignored local artifacts).
+
+The emulator is locked to portrait for this run: its landscape logical size and
+portrait physical size produced inconsistent tool tap coordinates. Native fixture
+targets are projected/measured after layout. The previous API 37 Hermes null-read
+crash and API 36 initialization timeouts are historical failed attempts, not
+passes. The crash does not recur in this debugger-free run; its cause is still
+unresolved, and this result does not claim a Hermes/debugger fix. Earlier
+64-container-build checks remain historical evidence.
 
 Native property-node and string complexity, asynchronous SDK failure recovery,
 parsing/rebuild cost, index memory and broader rendering acceptance remain
