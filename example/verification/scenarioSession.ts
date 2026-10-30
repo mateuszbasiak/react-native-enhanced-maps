@@ -15,6 +15,7 @@ export const scenarios = [
   'shader',
   'webgpu',
   'shader-lifecycle',
+  'shader-fields',
 ] as const;
 export type Scenario = (typeof scenarios)[number];
 export type Selection = Readonly<{ id: Scenario; generation: number }>;
@@ -45,6 +46,7 @@ const instrumented: readonly Scenario[] = [
   'native-scene',
   'fit',
   'shader-lifecycle',
+  'shader-fields',
   'shapes',
   'settings',
   'runtime',

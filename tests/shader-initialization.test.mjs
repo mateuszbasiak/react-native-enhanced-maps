@@ -151,7 +151,8 @@ function fixture(boundary) {
     './shaderRecovery': { runShaderRecovery, releaseShaderResources },
     './shaderContract': {
       validateShaderOptions: () => {},
-      packShaderGrid: () => ({ metadata: [], values: [] }),
+      packShaderFields: () => ({ metadata: [], values: [], fields: [] }),
+      shaderFieldsPrelude: () => '',
       shaderFrameByteLength: 160,
       shaderGridPrelude: '',
       defaultShaderVertex: 'vertex',

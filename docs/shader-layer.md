@@ -23,6 +23,12 @@ const fragment = /* wgsl */ `
 </MapView>;
 ```
 
+The v1 authoring scope is WGSL programs, packed uniforms, geographic grid
+snapshots and optional persistent compute storage. Schema-generated uniform
+layouts, arbitrary texture streaming and GPU feature picking are outside v1.
+The host remains experimental while the broader platform acceptance gates stay
+open; this does not change the bounded input/update behavior documented below.
+
 ## Coordinates, stages and inputs
 
 Coverage is the Mercator ground plane, with repeating longitude. This is a planar map, not a spherical globe; polar regions outside Web Mercator are excluded. The default viewport quad supplies normalized output UV and geographically anchored Mercator world coordinates. Screen UV uses nonperspective interpolation, while world coordinates use perspective-correct interpolation under pitch. There are no atlas tiles or tile seams.
@@ -95,7 +101,7 @@ const wind: ShaderGrid = {
 
 Nodes are row-major from north-west to south-east, including the bounds' endpoints. `equirectangular` spaces rows uniformly in latitude; `mercator` spaces rows uniformly in Mercator y. Width or height 1 describes a constant field along that axis. Values must have exactly `width * height * channels` finite float32-compatible numbers, including finite placeholders for masked nodes. Bounds must have positive width/height and remain within ±85.0511287798066° latitude. West is in [-180, 180]; east is unwrapped and at most 360° greater than west. For dateline coverage use `[170, south, 190, north]`. Samples select the nearest repeated world copy. A full-world grid includes both longitude endpoints; provide matching values there for seam continuity.
 
-`units` is required descriptive metadata; no implicit conversion occurs. Vector channels always mean east then north. In a scalar grid the sampled second component is zero. One grid is limited to 1,048,576 nodes (16 MiB GPU storage); replacement can briefly hold both old and new allocations. This API uses immutable ordinary numeric arrays. Memoize the grid and replace its object/arrays to upload a new field. Shape, bounds, projection, mask and value changes upload together at a rendering frame boundary without resetting particles or compiling new pipelines. Removing `data` produces invalid samples. Superseded packets are replaced; GPU buffers are disposed on replacement and teardown. Uploads occur only when data changes, on the rendering runtime, without per-frame data copies through the React/JS bridge.
+`units` is required descriptive metadata; no implicit conversion occurs. Vector channels always mean east then north. In a scalar grid the sampled second component is zero. One grid is limited to 1,048,576 nodes (16 MiB GPU storage); replacement can briefly hold both old and new allocations. This API uses immutable numeric arrays or typed arrays. Memoize the grid and replace its object/arrays to upload a new field. Shape, bounds, projection, mask and value changes upload together at a rendering frame boundary without resetting particles or compiling new pipelines. Removing `data` produces invalid samples. Superseded packets are replaced; GPU buffers are disposed on replacement and teardown. Uploads occur only when data changes, on the rendering runtime, without per-frame data copies through the React/JS bridge.
 
 All stages receive `mapSampleGrid(world)`, returning `{ value: vec2f, valid: f32 }`. It returns zero value and validity outside coverage, for absent data, or for missing samples. Linear interpolation is bilinear and invalidates a sample when any missing node has nonzero weight; it does not interpolate across holes. A small float32 boundary tolerance prevents exact edge nodes becoming invalid through rounding. Shader code controls how invalid samples affect output: fragment shaders should `discard` invalid samples to keep no-data areas transparent, and particle compute should retire or reseed invalid particles. Custom vertex shaders should pass world positions to the fragment stage for coverage clipping. The wind example demonstrates both. No automatic clipping is inserted into arbitrary shader entry points.
 
@@ -105,11 +111,118 @@ if (sample.valid < 0.5) { discard; } // fragment stage
 // sample.value.xy holds east/north velocity, or .x holds a scalar.
 ```
 
-Bindings 3 (read-only storage) and 4 (48-byte uniform metadata) are reserved; do not redeclare them. `mapGrid` exposes `bounds` (west/south/east/north), `shape` (width/height/channels/linear flag), and `options` (equirectangular flag/data-present flag/Mercator north/Mercator south). `mapGridUV(world)` returns geographic UV, which can fall outside [0,1]; call it only when data is present. `mapGridValues` stores one `vec4f(value.x, value.y, validity, 0)` per node. Prefer `mapSampleGrid` for ordinary sampling.
+Bindings 3 (read-only sample storage), 4 (48-byte legacy uniform metadata), and 5 (read-only named-field metadata) are reserved; do not redeclare them. `mapGrid` exposes `bounds` (west/south/east/north), `shape` (width/height/channels/linear flag), and `options` (equirectangular flag/data-present flag/Mercator north/Mercator south). `mapGridUV(world)` returns geographic UV, which can fall outside [0,1]; call it only when data is present. `mapGridValues` stores one `vec4f(value.x, value.y, validity, 0)` per node. Prefer `mapSampleGrid` for ordinary sampling.
 
 `minZoom` is inclusive; `maxZoom` is exclusive. Both accept finite fractional levels and are optional. Outside that range the layer publishes a transparent atlas once, then skips drawing, compute and uniform callbacks while freezing simulation time. It retains GPU resources and particle state for reentry; unlike `visible={false}`, it does not dispose the layer. Hiding takes effect on the next available output lease. Returning to the range resumes without accumulating the hidden interval.
 
 The actual fractional camera zoom is available as WGSL `frame.zoom` and uniform-worklet `frame.zoom`. Use camera zoom for opacity fades, particle widths, speed or shader-controlled density. For example, `smoothstep(8.0, 10.0, frame.zoom)` fades particles in while zooming closer. The grid is sampled in float32; very small geographic extents and high zooms share the renderer's existing precision limitations. Tiled loading/caching and forecast-time interpolation remain future work.
+
+## Named weather fields
+
+`fields` supplies multiple geographic grids to the same render/compute program.
+The existing `data` prop and `mapSampleGrid(world)` remain supported independently.
+Both accept immutable `Float32Array` values and `Uint8Array` masks, as well as
+ordinary numeric arrays. Replace the containing grid and `fields` record when
+updating any array; in-place mutations are not observed.
+
+```tsx
+const fields = useMemo(
+  () => ({
+    detail: gustkitField(detailFlowGrid),
+    backdrop: gustkitField(backdropFlowGrid),
+  }),
+  [detailFlowGrid, backdropFlowGrid],
+);
+
+<ShaderLayer
+  id="wind"
+  fields={fields}
+  shaders={{ fragment: windFragment, compute: windCompute }}
+  simulation={{ byteLength: particleCount * 128, workgroups: [32] }}
+/>;
+```
+
+`gustkitField` above is the structural adapter in
+[`example/gpu/gustkitField.ts`](../example/gpu/gustkitField.ts). Applications own
+fetching, decoding, caching, model/forecast-time selection and palette conversion.
+The map package has no GustKit runtime dependency.
+
+Each field generates a helper available in vertex, fragment and compute stages:
+
+```wgsl
+let detail = mapSampleField_detail(world);
+let backdrop = mapSampleField_backdrop(world);
+let velocity = select(backdrop.value, detail.value, detail.valid > 0.5);
+```
+
+The result is `MapFieldSample { value: vec2f, valid: f32, scalar: f32,
+scalarValid: f32 }`. Names start with an ASCII letter, then contain letters,
+digits or underscores, up to 128 characters, with no double underscores.
+Accessors use sorted names, so reordering a record does not change pipelines.
+Adding, removing or renaming fields changes shader structure and recreates the
+layer, resetting its simulation. A reference to a removed helper is a shader
+compilation error. Updating values, bounds, masks, dimensions or scalar presence
+with the same names publishes one complete snapshot at a frame boundary without
+resetting simulation. Superseded pending snapshots are replaced. Names used by a
+shader must be present; an empty field record generates no named accessors.
+
+A two-channel `ShaderField` may additionally supply `scalar` (one finite value
+per node) and `scalarMask` (optional 0/1 flags). This supports wave velocity plus
+wave height, or wind velocity plus gust magnitude. The vector and scalar share
+the geographic lattice and interpolation mode, but have independent validity.
+A missing vector does not invalidate a present scalar, and vice versa. Scalar
+units are application-defined, with no conversion; `units` describes the vector.
+Absent or invalid scalar samples return zero and `scalarValid: 0`. The scalar
+plane is allowed only on two-channel fields. A scalar-only named field instead
+uses `channels: 1`, with its result in `value.x` and `valid`.
+
+Fallback and edge feathering are shader policy: helpers sample each grid
+independently. They do not blend detail/backdrop automatically or interpolate
+forecast times. Separate masks allow coloring valid wave heights even where no
+flow is available. Compute code should explicitly choose a fallback, retire or
+reseed particles when its chosen flow is invalid.
+
+All `data` and named-field sample planes share a 16 MiB upload budget. Each vector
+or scalar-only grid uses 16 bytes per node; an additional independent scalar uses
+another 16 bytes per node. Each grid also retains the 1,048,576-node maximum.
+Named descriptors cost 64 bytes per field, plus the existing 48-byte legacy
+metadata and an absent-data placeholder where needed; these small allocations
+are outside the sample budget. Generated accessor source has a separate 256 KiB
+budget. Old/new GPU buffers can overlap during replacement, and JS input,
+validation and packing add memory overhead. This is bounded snapshot upload,
+not tiled streaming. Binding 5 is reserved read-only field metadata; bindings
+0–4 and legacy helpers keep their existing meanings.
+
+### GustKit 1.4 conversion
+
+Fleet currently uses `@gustkit/client` and `@gustkit/react-native` 1.4.0.
+`source.flowGrid(product, bounds, maxDim)` copies samples from already decoded
+GKT1 weather tiles. It does not fetch all missing tiles when given world bounds.
+Its `u`/`v` arrays already contain eastward/northward travel components in m/s.
+Rows start at the south, and missing values are `NaN`.
+
+The example adapter reverses rows, interleaves components, creates independent
+masks and finite placeholders, normalizes west longitude, and derives bounds
+from `west/south + index * stepX/stepY`. It crops polar rows to actual remaining
+sample coordinates within Web Mercator; it never relabels latitude bounds to
+stretch samples. It requires at least two remaining rows/columns and rejects
+longitude spans over 360 degrees rather than silently distorting a snapped
+world grid. Request/resample such grids on a suitable lattice first. Full-world
+longitude endpoints must agree for seam continuity. GustKit's separate scalar
+passes through unchanged, so its palette must use the corresponding units.
+
+Fleet's detail/backdrop grids can be supplied together. The example shows the
+conversion boundary; reproducing Fleet's exact feathering, dye renderer,
+forecast playback and visual styling remains application work.
+
+## Interaction contract
+
+Shader layers are visual-only in v1. They supply no hit-test geometry, feature
+IDs, press callbacks or GPU readback picking. Their opaque and transparent pixels
+do not intercept map, shape, marker or callout interactions. Ordinary content
+keeps its own draw/hit ordering; shader placement changes visual composition
+only. Use ordinary selectable geometry or accessible application controls to
+represent shader content. GPU feature picking is outside v1 scope.
 
 ## Persistent simulation and tile boundaries
 
@@ -125,7 +238,7 @@ Viewport camera matrices use a binary-aligned world origin to retain float32 pre
 
 Resizing the map or changing `resolutionScale` currently recreates layer resources and resets simulation; ordinary pan/zoom/pitch/rotation do not. A native rebuild is required for the rectangular allocation and camera-snapshot transport. There is no CPU pixel readback and no per-frame RN bridge call.
 
-Simulation survives camera changes and ordinary data/uniforms/pause/zoom-limit updates. Shader, allocation/draw configuration, placement, style reload and mount changes currently recreate the layer. Texture swaps retain the old front until the replacement is complete, but do not crossfade different resolutions. Large camera jumps can briefly expose areas until the next viewport is produced. This is bounded rendering, not a weather-data tile cache or texture-streaming API.
+Simulation survives camera changes and ordinary data/uniforms/pause/zoom-limit updates. Shader, field-name schema, allocation/draw configuration, placement, style reload and mount changes currently recreate the layer. Texture swaps retain the old front until the replacement is complete, but do not crossfade different resolutions. Large camera jumps can briefly expose areas until the next viewport is produced. This is bounded rendering, not a weather-data tile cache or texture-streaming API.
 
 ## Placement, errors and lifecycle
 
@@ -196,3 +309,5 @@ Broader initialization, shader-edit, background, style, multiple-layer and lifet
 stress coverage remains open under GPU-12.
 
 Native composition also enforces `minZoom <= cameraZoom < maxZoom` on every map frame, independently of the worklet. An out-of-range layer is skipped completely even if the last completed texture still contains visible output. Zoom-limit prop updates reach this native visibility gate directly and request a repaint; the worklet still freezes time and compute while outside the range.
+
+See [named-field acceptance](shader-fields-acceptance.md) for the bounded reference matrix and remaining platform limits.

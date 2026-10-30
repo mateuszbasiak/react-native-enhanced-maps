@@ -13,13 +13,14 @@ import type { ShaderDeviceLease } from './shaderDevice';
 import { runShaderRecovery, releaseShaderResources } from './shaderRecovery';
 import {
   defaultShaderVertex,
-  packShaderGrid,
+  packShaderFields,
+  shaderFieldsPrelude,
   shaderPrelude,
   shaderFrameByteLength,
   shaderGridPrelude,
   validateShaderOptions,
 } from './shaderContract';
-import type { ShaderLayerProps, ShaderGridPacket } from './shaderContract';
+import type { ShaderLayerProps, ShaderFieldsPacket } from './shaderContract';
 import type { ShaderNativeHandle, ShaderWorkletConfig } from './shaderWorklet';
 interface Pool {
   id: string;
@@ -39,14 +40,18 @@ export function ShaderLayer(props: ShaderLayerProps) {
   validateShaderOptions(props);
   const host = useContext(ShaderMapContext);
   if (!host) throw new Error('ShaderLayer must be a MapView child');
-  const grid = useMemo(() => packShaderGrid(props.data), [props.data]);
+  const grid = useMemo(
+    () => packShaderFields(props.data, props.fields),
+    [props.data, props.fields],
+  );
+  const fieldsPrelude = shaderFieldsPrelude(Object.keys(props.fields ?? {}));
   const latestGrid = useRef(grid);
   latestGrid.current = grid;
   const latest = useRef(props);
   latest.current = props;
   const serial = useRef<Promise<void>>(Promise.resolve());
   const controlRef = useRef<ShaderControlChannel | null>(null);
-  const gridRef = useRef<Synchronizable<ShaderGridPacket> | null>(null);
+  const gridRef = useRef<Synchronizable<ShaderFieldsPacket> | null>(null);
   const nativeRef = useRef<ShaderNativeHandle | null>(null);
   const {
     id,
@@ -102,7 +107,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
     };
     let stopped = false;
     let localControl: ShaderControlChannel | undefined;
-    let localGrid: Synchronizable<ShaderGridPacket> | undefined;
+    let localGrid: Synchronizable<ShaderFieldsPacket> | undefined;
     let cancelRetryWait: (() => void) | undefined;
     const stop = () => {
       stopped = true;
@@ -240,7 +245,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
         }
         const module = async (code: string) => {
           const value = device!.createShaderModule({
-            code: shaderPrelude + shaderGridPrelude + code,
+            code: shaderPrelude + shaderGridPrelude + fieldsPrelude + code,
           });
           const info = await value.getCompilationInfo();
           const errors = info.messages.filter(
@@ -304,6 +309,13 @@ export function ShaderLayer(props: ShaderLayerProps) {
                   : renderVisibility,
                 buffer: { type: 'uniform' },
               },
+              {
+                binding: 5,
+                visibility: computing
+                  ? gpu.GPUShaderStage.COMPUTE
+                  : renderVisibility,
+                buffer: { type: 'read-only-storage' },
+              },
             ],
           });
         const renderLayout = layout(false);
@@ -353,7 +365,11 @@ export function ShaderLayer(props: ShaderLayerProps) {
           size: 48,
           usage: gpu.GPUBufferUsage.UNIFORM | gpu.GPUBufferUsage.COPY_DST,
         });
-        buffers.push(gridPlaceholder, gridMetadata);
+        const fieldMetadata = device.createBuffer({
+          size: 64,
+          usage: gpu.GPUBufferUsage.STORAGE | gpu.GPUBufferUsage.COPY_DST,
+        });
+        buffers.push(gridPlaceholder, gridMetadata, fieldMetadata);
         const group = (bindingLayout: GPUBindGroupLayout) =>
           device!.createBindGroup({
             layout: bindingLayout,
@@ -366,6 +382,7 @@ export function ShaderLayer(props: ShaderLayerProps) {
               { binding: 2, resource: { buffer: storage } },
               { binding: 3, resource: { buffer: gridPlaceholder } },
               { binding: 4, resource: { buffer: gridMetadata } },
+              { binding: 5, resource: { buffer: fieldMetadata } },
             ],
           });
         let computeConfig: ShaderWorkletConfig['compute'];
@@ -414,7 +431,9 @@ export function ShaderLayer(props: ShaderLayerProps) {
           renderLayout,
           computeLayout,
           storage,
+          schema: grid.schema,
           metadata: gridMetadata,
+          fields: fieldMetadata,
           storageUsage:
             gpu.GPUBufferUsage.STORAGE | gpu.GPUBufferUsage.COPY_DST,
         };
@@ -548,6 +567,8 @@ export function ShaderLayer(props: ShaderLayerProps) {
     id,
     vertex,
     fragment,
+    fieldsPrelude,
+    grid.schema,
     compute,
     vertexEntryPoint,
     fragmentEntryPoint,
