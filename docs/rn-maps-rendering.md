@@ -101,8 +101,22 @@ image sources follow camera projection, heading and pitch.
 
 Images accept required React Native assets or `{uri}` HTTP(S)/file sources.
 Android drawable/asset resources are resolved natively. URI request headers,
-methods/cache policies and data URIs reject explicitly. Up to eight images are
-allowed; URI length is at most 4096 characters. There is not yet a package-enforced decoded-image byte/pixel budget.
+methods/cache policies and data URIs reject explicitly. Overlay counts and URI
+lengths have no fixed application cap. Native image staging is serial per map:
+HTTP(S) acquisition uses temporary files, and loading/decoding stays off the UI
+thread. A replacement scene commits only after every candidate image has decoded.
+Until then, accepted native images, geometry, fitting and picking remain active;
+HTTP/decode failures report a recoverable `layer-scene` error. Input/style changes,
+backgrounding, detach and disposal cancel obsolete work; resume retries the current
+candidate. Style reload reinstalls accepted resources before staging new images.
+
+Oversized images downsample according to Android's queried `GL_MAX_TEXTURE_SIZE`
+or the iOS runtime Metal GPU family and Apple's published texture dimensions.
+Actual allocation/decode failures may retry smaller images. There is no invented
+encoded-byte quota, decoded-byte quota or fraction-of-RAM budget. This does not
+promise that every image can be allocated, or make total scene memory constant.
+Only images referenced by the accepted scene remain cached. See
+[staging verification and limitations](overlay-image-loading.md).
 
 Opacity defaults to one and tappable to false. Presses use a transparent native
 polygon matching the image quad and report `nativeEvent.action: 'overlay-press'`,

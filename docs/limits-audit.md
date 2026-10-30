@@ -6,6 +6,19 @@ the reviewed baseline; see the implementation update below. The original audit
 included no performance measurements or new native acceptance runs. A numerical guard is not evidence of an SDK requirement.
 Generated files, dependency internals and test fixture sizes are outside scope.
 
+## Current policy — 2026-10-30
+
+Application limits require measurements or actual platform/protocol constraints;
+otherwise remove them. The original recommendations below are historical source
+review, not approval of their numerical values. Replacing one arbitrary count
+with an arbitrary byte quota does not satisfy this policy. Outstanding limits
+still need independent evidence or removal; this audit alone does not justify them.
+
+Overlay's eight-image and 4096-character URI caps are removed. Serial cancellable
+native staging preserves accepted scenes and uses renderer/platform texture
+capabilities plus allocation feedback for downsampling. No replacement byte or
+RAM-fraction quota is introduced. See [the loading contract](overlay-image-loading.md).
+
 ## Limits worth removing or replacing
 
 - **64 non-point Geojson shapes** (`src/geojson.ts`, `expandGeojson`): a leftover
@@ -52,7 +65,8 @@ Generated files, dependency internals and test fixture sizes are outside scope.
 - **React nesting 32** (`mapContent`, `maplibreContent`, `markerClustering`,
   `calloutContent`, `layers`): keep recursion protection for now. An iterative
   traversal plus a work budget is a better route to supporting deep wrappers.
-- **8 image overlays** (`src/maplibreContent.tsx`, native scene validators): keep
+- **8 image overlays** (`src/maplibreContent.tsx`, native scene validators):
+  removed by the implementation update above. Historical recommendation: keep
   temporarily. Scene JSON bytes do not bound remotely decoded image memory; eight
   huge images can already exceed a sensible memory budget. Replace the count with
   decoded-pixel/byte accounting, loading concurrency and cancellation. Raising the

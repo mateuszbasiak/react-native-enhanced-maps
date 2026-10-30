@@ -133,11 +133,6 @@ export function compileScene(
         const p = node.props as OverlayProps,
           value = normalizeOverlay(p, resolveImage);
         const id = `em-overlay:${tileIndex++}`;
-        if (
-          sources.filter((s) => 'tileKind' in s && s.tileKind === 'image')
-            .length >= 8
-        )
-          throw new Error('Overlay image limit exceeded');
         sources.push({
           id,
           type: 'raster',

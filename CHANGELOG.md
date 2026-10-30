@@ -5,6 +5,12 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Stage native Overlay image loading and decoding off the UI thread before scene
+  replacement. Preserve accepted images, fitting and hit geometry on failure;
+  cancel obsolete/lifecycle work and retry after resume. Downsample to queried
+  renderer/platform texture capabilities, with allocation-failure fallback.
+  Remove unmeasured image-count and URI-length caps without adding byte quotas.
+
 - Add `UrlTile.flipY` for native TMS row addressing on both hosts, with XYZ
   unchanged by default and shared native input validation.
 
@@ -12,7 +18,7 @@ changes, not accepted production support or closed release gates.
   and camera-fit dataset count caps, including polygon holes and per-vertex line
   gradient stops. Large cluster layouts and feature-hit
   properties retain interaction delivery. Property complexity guards apply per
-  feature; geometry/style validation, image overlay limits, cluster query bounds
+  feature; geometry/style validation, cluster query bounds
   and snapshot/GPU allocation limits remain.
 
 - Batch native Polyline/Polygon/Circle components into shared sources and

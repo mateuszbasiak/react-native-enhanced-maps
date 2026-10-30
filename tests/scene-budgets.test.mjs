@@ -199,3 +199,26 @@ test('large incompatible stroke runs avoid JavaScript argument-count limits', as
   const scene = compileScene(children);
   assert.equal(JSON.parse(scene.json).layers.length, children.length);
 });
+
+test('overlays have no unmeasured image-count or URI-length caps', async () => {
+  const { compileScene } = await load();
+  const { Overlay } = await import('../packages/maps/lib/imageOverlay.js');
+  const scene = compileScene(
+    Array.from({ length: 9 }, (_, i) =>
+      React.createElement(Overlay, {
+        key: i,
+        image: {
+          uri: 'https://example.com/image.png?token=' + 'x'.repeat(5000),
+        },
+        bounds: [
+          [2, 3],
+          [0, 1],
+        ],
+      }),
+    ),
+  );
+  assert.equal(
+    JSON.parse(scene.json).sources.filter((s) => s.tileKind === 'image').length,
+    9,
+  );
+});

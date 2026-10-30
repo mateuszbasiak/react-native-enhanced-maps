@@ -17,15 +17,16 @@ const chunk = (type, data) => {
   sum.writeUInt32BE(crc(Buffer.concat([name, data])));
   return Buffer.concat([size, name, data, sum]);
 };
-function png(quadrants = false) {
+function png(quadrants = false, width = 32, height = 32) {
   const header = Buffer.alloc(13);
-  header.writeUInt32BE(32);
-  header.writeUInt32BE(32, 4);
+  header.writeUInt32BE(width);
+  header.writeUInt32BE(height, 4);
   header[8] = 8;
   header[9] = 6;
-  const rows = Buffer.alloc(32 * 129);
-  for (let y = 0; y < 32; y++)
-    for (let x = 0; x < 32; x++) {
+  const stride = width * 4 + 1;
+  const rows = Buffer.alloc(height * stride);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
       const colors = quadrants
         ? [
             [229, 57, 53, 255],
@@ -35,8 +36,10 @@ function png(quadrants = false) {
           ]
         : [[0, 180, 220, 255]];
       rows.set(
-        colors[quadrants ? (y >= 16 ? 2 : 0) + (x >= 16 ? 1 : 0) : 0],
-        y * 129 + 1 + x * 4,
+        colors[
+          quadrants ? (y >= height / 2 ? 2 : 0) + (x >= width / 2 ? 1 : 0) : 0
+        ],
+        y * stride + 1 + x * 4,
       );
     }
   return Buffer.concat([
@@ -48,7 +51,9 @@ function png(quadrants = false) {
 }
 const image = png(true),
   tile = png(),
-  requests = [];
+  wide = png(true, 50000, 2),
+  requests = [],
+  transport = [];
 const directory = process.argv[2] ?? '/private/tmp/rendering-tiles';
 for (let z = 0; z <= 4; z++)
   for (let x = 0; x < 2 ** z; x++)
@@ -82,6 +87,43 @@ createServer((req, res) => {
     res.end(JSON.stringify(requests));
     return;
   }
+  if (url.pathname === '/transport') {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(transport));
+    return;
+  }
+  transport.push({ event: 'request', path: url.pathname, time: Date.now() });
+  res.on('close', () =>
+    transport.push({
+      event: 'close',
+      path: url.pathname,
+      time: Date.now(),
+      finished: res.writableFinished,
+    }),
+  );
+  if (url.pathname === '/wide.png') {
+    res.setHeader('Content-Type', 'image/png');
+    res.end(wide);
+    return;
+  }
+  if (url.pathname === '/corrupt') {
+    res.end('invalid image data');
+    return;
+  }
+  if (url.pathname === '/slow') {
+    const delay = Number(url.searchParams.get('delay') ?? 1500);
+    if (!Number.isFinite(delay) || delay < 0) {
+      res.writeHead(400);
+      res.end();
+      return;
+    }
+    const timer = setTimeout(() => {
+      res.setHeader('Content-Type', 'image/png');
+      res.end(image);
+    }, delay);
+    res.on('close', () => clearTimeout(timer));
+    return;
+  }
   requests.push(url.pathname + url.search);
   if (requests.length > 1024) requests.shift();
   if (url.pathname === '/image.png' || url.pathname === '/wms') {
@@ -91,6 +133,11 @@ createServer((req, res) => {
   }
   res.writeHead(404);
   res.end();
-}).listen(8102, '0.0.0.0', () =>
-  console.log(`Rendering fixture on 8102; local tiles in ${directory}`),
+}).listen(
+  Number(process.env.ENHANCED_MAPS_FIXTURE_PORT ?? 8102),
+  '0.0.0.0',
+  () =>
+    console.log(
+      `Rendering fixture on ${process.env.ENHANCED_MAPS_FIXTURE_PORT ?? 8102}; local tiles in ${directory}`,
+    ),
 );

@@ -15,6 +15,8 @@ const base =
   Platform.OS === 'android' ? 'http://10.0.2.2:8102' : 'http://127.0.0.1:8102';
 const initial = {
   mode: 'geojson',
+  imageURI: '',
+  latitudeOffset: 0,
   asset: false,
   bearing: 0,
   opacity: 1,
@@ -148,11 +150,15 @@ export default function RenderingVerification() {
             image={
               options.asset
                 ? overlayAsset
-                : { uri: `${base}/image.png?variant=${options.variant}` }
+                : {
+                    uri:
+                      options.imageURI ||
+                      `${base}/image.png?variant=${options.variant}`,
+                  }
             }
             bounds={[
-              [5, 8],
-              [-5, -8],
+              [5 + options.latitudeOffset, 8],
+              [-5 + options.latitudeOffset, -8],
             ]}
             bearing={options.bearing}
             opacity={options.opacity}
