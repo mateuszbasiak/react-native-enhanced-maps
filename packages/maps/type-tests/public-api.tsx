@@ -189,7 +189,7 @@ void Layer;
 
 // Shader entry declarations remain independent of GPU implementation types.
 import { ShaderLayer } from '../src/shaders.js';
-import type { ShaderGrid } from '../src/shaders.js';
+import type { ShaderGrid, ShaderFields } from '../src/shaders.js';
 const shaderGrid: ShaderGrid = {
   width: 1,
   height: 1,
@@ -201,6 +201,16 @@ const shaderGrid: ShaderGrid = {
   values: [8, 2],
 };
 void shaderGrid;
+const weatherFields: ShaderFields = {
+  detail: {
+    ...shaderGrid,
+    values: new Float32Array([8, 2]),
+    mask: new Uint8Array([1]),
+    scalar: new Float32Array([12]),
+    scalarMask: new Uint8Array([0]),
+  },
+  backdrop: shaderGrid,
+};
 const shaders = (
   <ShaderLayer
     id="wind"
@@ -209,6 +219,7 @@ const shaders = (
         '@fragment fn fragmentMain() -> @location(0) vec4f { return vec4f(0); }',
     }}
     data={shaderGrid}
+    fields={weatherFields}
     resolutionScale={0.75}
     minZoom={8.5}
     maxZoom={18}

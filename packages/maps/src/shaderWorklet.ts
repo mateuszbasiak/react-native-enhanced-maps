@@ -3,7 +3,7 @@ import { installWebGPU } from 'react-native-webgpu';
 import type { GPUSharedTextureMemory } from 'react-native-webgpu';
 import type { Synchronizable } from 'react-native-worklets';
 import { packShaderUniforms, shaderFrameByteLength } from './shaderContract';
-import type { ShaderFrame, ShaderGridPacket } from './shaderContract';
+import type { ShaderFrame, ShaderFieldsPacket } from './shaderContract';
 import { expandShaderCamera, scaleShaderCamera } from './shaderViewport';
 export interface ShaderNativeHandle {
   acquire(): number;
@@ -43,11 +43,13 @@ export interface ShaderWorkletConfig {
   builtin: GPUBuffer;
   user: GPUBuffer;
   gridResources?: {
-    data: Synchronizable<ShaderGridPacket>;
+    schema: string;
+    data: Synchronizable<ShaderFieldsPacket>;
     renderLayout: GPUBindGroupLayout;
     computeLayout?: GPUBindGroupLayout | undefined;
     storage: GPUBuffer;
     metadata: GPUBuffer;
+    fields: GPUBuffer;
     storageUsage: GPUBufferUsageFlags;
   };
   vertexCount: number;
@@ -77,9 +79,12 @@ export async function runShaderFrames(
     frames = 0;
   let group = initialGroup,
     computeGroup = compute?.group;
+  let fieldBuffer: GPUBuffer | undefined;
   let gridBuffer: GPUBuffer | undefined,
     gridVersion = -1;
   let hidden = false;
+  let pendingData: ShaderFieldsPacket | undefined;
+  let pendingVersion = -1;
   try {
     while (!control.getBlocking().stopped) {
       await new Promise<void>((resolve) =>
@@ -119,17 +124,41 @@ export async function runShaderFrames(
         last = now;
         if (hidden) continue;
       }
+      const resources = config.gridResources;
+      const version = state.gridVersion ?? 0;
+      if (
+        inRange &&
+        resources &&
+        gridVersion !== version &&
+        pendingVersion !== version
+      ) {
+        pendingData = resources.data.getBlocking();
+        pendingVersion = version;
+      }
+      const data = inRange ? pendingData : undefined;
+      // A name change recreates pipelines. Never bind new slots to old accessors.
+      if (data && resources && data.schema !== resources.schema) break;
       const slot = handle.acquire();
       if (slot < 0) continue;
       last = now;
-      const resources = config.gridResources;
-      if (inRange && resources && gridVersion !== (state.gridVersion ?? 0)) {
-        const data = resources.data.getBlocking();
+      if (data && resources) {
         const next = device.createBuffer({
+          label: 'shader-grid',
           size: data.values.length * 4,
           usage: resources.storageUsage,
         });
+        let nextFields: GPUBuffer | undefined;
         try {
+          nextFields = device.createBuffer({
+            label: 'shader-fields',
+            size: data.fields.length * 4,
+            usage: resources.storageUsage,
+          });
+          device.queue.writeBuffer(
+            nextFields,
+            0,
+            new Float32Array(data.fields),
+          );
           device.queue.writeBuffer(next, 0, new Float32Array(data.values));
           device.queue.writeBuffer(
             resources.metadata,
@@ -148,6 +177,7 @@ export async function runShaderFrames(
                 { binding: 2, resource: { buffer: resources.storage } },
                 { binding: 3, resource: { buffer: next } },
                 { binding: 4, resource: { buffer: resources.metadata } },
+                { binding: 5, resource: { buffer: nextFields! } },
               ],
             });
           group = bind(resources.renderLayout);
@@ -155,11 +185,16 @@ export async function runShaderFrames(
             computeGroup = bind(resources.computeLayout);
         } catch (error) {
           next.destroy();
+          nextFields?.destroy();
           throw error;
         }
         gridBuffer?.destroy();
+        fieldBuffer?.destroy();
         gridBuffer = next;
-        gridVersion = state.gridVersion ?? 0;
+        fieldBuffer = nextFields;
+        gridVersion = version;
+        pendingData = undefined;
+        pendingVersion = -1;
       }
       const step = state.paused || !inRange ? 0 : delta;
       time += step;
@@ -261,6 +296,7 @@ export async function runShaderFrames(
       }
     }
   } finally {
+    fieldBuffer?.destroy();
     gridBuffer?.destroy();
   }
 }

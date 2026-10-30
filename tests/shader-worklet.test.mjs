@@ -173,19 +173,35 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
   const { runShaderFrames } = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
   );
-  const { packShaderGrid } =
+  const { packShaderFields } =
     await import('../packages/maps/lib/shaderContract.js');
   const grid = (value) =>
-    packShaderGrid({
-      width: 1,
-      height: 1,
-      bounds: [-10, -10, 10, 10],
-      channels: 1,
-      projection: 'mercator',
-      units: 'K',
-      interpolation: 'nearest',
-      values: [value],
-    });
+    packShaderFields(
+      {
+        width: 1,
+        height: 1,
+        bounds: [-10, -10, 10, 10],
+        channels: 1,
+        projection: 'mercator',
+        units: 'K',
+        interpolation: 'nearest',
+        values: [value],
+      },
+      {
+        detail: {
+          width: 1,
+          height: 1,
+          bounds: [-value, -10, value, 10],
+          channels: 2,
+          projection: 'equirectangular',
+          units: 'm/s',
+          interpolation: 'linear',
+          values: new Float32Array([value, 2]),
+          scalar: new Float32Array([value + 1]),
+          scalarMask: new Uint8Array([value === 7 ? 1 : 0]),
+        },
+      },
+    );
   const control = {
     stopped: false,
     active: true,
@@ -213,7 +229,8 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
   const builtin = {},
     user = {},
     storage = {},
-    metadata = {};
+    metadata = {},
+    fields = {};
   const device = {
     createBuffer(options) {
       const buffer = {
@@ -275,7 +292,7 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
         control.grid = grid(9);
         control.gridVersion++;
       }
-      if (tick > 6) control.stopped = true;
+      if (tick > 8) control.stopped = true;
       setImmediate(() => cb(tick * 20));
       return tick;
     };
@@ -287,6 +304,7 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
       pipeline: {},
       group: {},
       gridResources: {
+        schema: 'detail',
         data: {
           getBlocking: () => {
             gridReads++;
@@ -298,6 +316,7 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
         computeLayout: {},
         storage,
         metadata,
+        fields,
       },
       compute: { pipeline: {}, group: {}, workgroups: [1] },
       vertexCount: 3,
@@ -342,7 +361,7 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
           0,
           1,
         ],
-        acquire: () => 0,
+        acquire: () => (tick === 5 || tick === 6 ? -1 : 0),
         publishViewport() {
           published++;
           return true;
@@ -364,9 +383,12 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
     frames.map((f) => f.zoom),
     [6.25, 5, 5],
   );
-  assert.ok(frames.every((f) => Math.abs(f.delta - 0.02) < 1e-6));
+  assert.deepEqual(
+    frames.map((f) => f.delta),
+    [0.02, 0.05, 0.02],
+  );
   const gridUploads = writes.filter(
-    (w) => w.buffer !== builtin && w.buffer !== user && w.buffer !== metadata,
+    (w) => w.buffer.options?.label === 'shader-grid',
   );
   assert.deepEqual(
     gridUploads.map((w) => w.values[0]),
@@ -379,6 +401,75 @@ test('zoom hides stale output, freezes simulation and applies grid replacement o
       (g) => g.entries.find((e) => e.binding === 2).resource.buffer === storage,
     ),
   );
-  assert.equal(destroyed.length, 2); // replaced and final grid buffers
+  const fieldUploads = writes.filter(
+    (w) => w.buffer.options?.label === 'shader-fields',
+  );
+  assert.deepEqual(
+    fieldUploads.map((w) => w.values[0]),
+    [-7, -9],
+  );
+  const scalarOffsets = fieldUploads.map((w) => w.values[13]);
+  assert.deepEqual(
+    gridUploads.map((w, i) => w.values[scalarOffsets[i] * 4 + 2]),
+    [1, 0],
+  );
+  assert.ok(groups.every((g) => g.entries.some((e) => e.binding === 5)));
+  assert.equal(destroyed.length, 4); // replaced and final values + descriptor buffers
+  assert.equal(new Set(destroyed).size, 4);
   assert.equal(writes.find((w) => w.buffer === builtin).values[12], 6.25);
+});
+
+test('an old field pipeline stops before consuming a replacement field schema', async () => {
+  const url = new URL('../packages/maps/lib/shaderWorklet.js', import.meta.url);
+  const code = readFileSync(url, 'utf8')
+    .replace(
+      /import \{ installWebGPU \} from 'react-native-webgpu';/,
+      'const installWebGPU=()=>{};',
+    )
+    .replace(
+      /from '(\.\/[^']+)'/g,
+      (_, p) => `from '${new URL(p + '.js', url).href}'`,
+    );
+  const { runShaderFrames } = await import(
+    `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+  );
+  const previousRAF = globalThis.requestAnimationFrame;
+  let acquired = 0;
+  try {
+    globalThis.requestAnimationFrame = (cb) => {
+      setImmediate(cb);
+      return 1;
+    };
+    await runShaderFrames({
+      device: {
+        createBuffer() {
+          throw Error('old pipeline must not upload new schema');
+        },
+      },
+      viewport: { width: 10, height: 10, pixelRatio: 1 },
+      outputs: [],
+      control: { getBlocking: () => ({ stopped: false, active: true }) },
+      handle: {
+        camera: () => [0, 0, 1, 1, 1, 10, 10, ...Array(20).fill(0)],
+        acquire: () => {
+          acquired++;
+          return 0;
+        },
+      },
+      gridResources: {
+        schema: 'detail',
+        data: {
+          getBlocking: () => ({
+            schema: 'backdrop,detail',
+            values: [0, 0, 0, 0],
+            metadata: Array(12).fill(0),
+            fields: Array(16).fill(0),
+          }),
+        },
+      },
+    });
+  } finally {
+    globalThis.requestAnimationFrame = previousRAF;
+  }
+  assert.equal(acquired, 0);
 });

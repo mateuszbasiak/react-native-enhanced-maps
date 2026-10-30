@@ -26,6 +26,8 @@ export interface ShaderSimulation {
  * Vector channels are eastward then northward; units are descriptive, never converted.
  * Longitude bounds are unwrapped: use [170, south, 190, north] across the dateline.
  */
+export type ShaderValues = readonly number[] | Float32Array;
+export type ShaderMask = readonly number[] | Uint8Array;
 export interface ShaderGrid {
   readonly width: number;
   readonly height: number;
@@ -39,9 +41,72 @@ export interface ShaderGrid {
   readonly channels: 1 | 2;
   readonly units: string;
   readonly interpolation: 'nearest' | 'linear';
-  readonly values: readonly number[];
+  readonly values: ShaderValues;
   /** One validity flag per node: 1 is valid, 0 is missing. */
-  readonly mask?: readonly number[];
+  readonly mask?: ShaderMask;
+}
+/** A named scalar/vector field, optionally carrying an independent colour scalar. */
+export interface ShaderField extends ShaderGrid {
+  /** Additional scalar for a two-channel vector field; shares the sample lattice. */
+  readonly scalar?: ShaderValues;
+  readonly scalarMask?: ShaderMask;
+}
+export type ShaderFields = Readonly<Record<string, ShaderField>>;
+export interface ShaderFieldsPacket extends ShaderGridPacket {
+  readonly schema: string;
+  /** Sorted named-field descriptors, each four vec4f values. */
+  readonly fields: readonly number[];
+}
+const shaderDataByteBudget = 16 * 1024 * 1024;
+function numericInput(value: unknown): value is ShaderValues | Uint8Array {
+  return (
+    Array.isArray(value) ||
+    value instanceof Float32Array ||
+    value instanceof Uint8Array
+  );
+}
+function finiteValues(value: unknown, length: number): value is ShaderValues {
+  if (
+    !numericInput(value) ||
+    value instanceof Uint8Array ||
+    value.length !== length
+  )
+    return false;
+  for (let i = 0; i < length; i++) {
+    const number = value[i];
+    if (
+      typeof number !== 'number' ||
+      !Number.isFinite(number) ||
+      Math.abs(number) > 3.4028234663852886e38
+    )
+      return false;
+  }
+  return true;
+}
+function validMask(value: unknown, length: number): value is ShaderMask {
+  if (
+    !numericInput(value) ||
+    value instanceof Float32Array ||
+    value.length !== length
+  )
+    return false;
+  for (let i = 0; i < length; i++)
+    if (value[i] !== 0 && value[i] !== 1) return false;
+  return true;
+}
+function fieldNames(fields: ShaderFields | undefined): string[] {
+  if (
+    fields !== undefined &&
+    (!fields || typeof fields !== 'object' || Array.isArray(fields))
+  )
+    throw new Error('Shader fields must be a named record');
+  const names = Object.keys(fields ?? {}).sort();
+  for (const name of names)
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,127}$/.test(name) || name.includes('__'))
+      throw new Error('Invalid shader field name');
+  if (names.reduce((bytes, name) => bytes + name.length + 100, 0) > 262144)
+    throw new RangeError('Shader field accessor source budget exceeded');
+  return names;
 }
 export interface ShaderGridPacket {
   readonly values: readonly number[];
@@ -86,18 +151,8 @@ export function validateShaderGrid(data: ShaderGrid): void {
       'Invalid shader grid layout, projection, interpolation or units',
     );
   if (
-    !Array.isArray(values) ||
-    values.length !== width * height * channels ||
-    !Array.from(values).every(
-      (v) =>
-        typeof v === 'number' &&
-        Number.isFinite(v) &&
-        Math.abs(v) <= 3.4028234663852886e38,
-    ) ||
-    (mask !== undefined &&
-      (!Array.isArray(mask) ||
-        mask.length !== width * height ||
-        !Array.from(mask).every((v) => v === 0 || v === 1)))
+    !finiteValues(values, width * height * channels) ||
+    (mask !== undefined && !validMask(mask, width * height))
   )
     throw new RangeError('Invalid shader grid values or validity mask');
 }
@@ -133,6 +188,60 @@ export function packShaderGrid(data: ShaderGrid | undefined): ShaderGridPacket {
     ],
   };
 }
+/** One immutable upload snapshot; legacy grid remains at offset zero. */
+export function packShaderFields(
+  data: ShaderGrid | undefined,
+  fields?: ShaderFields,
+): ShaderFieldsPacket {
+  const names = fieldNames(fields);
+  if (data) validateShaderGrid(data);
+  let bytes = data ? data.width * data.height * 16 : 0;
+  for (const name of names) {
+    const field = fields![name]!;
+    validateShaderGrid(field);
+    const count = field.width * field.height;
+    if (
+      field.scalar !== undefined &&
+      (field.channels !== 2 || !finiteValues(field.scalar, count))
+    )
+      throw new RangeError('Invalid shader field scalar');
+    if (
+      field.scalarMask !== undefined &&
+      (field.scalar === undefined || !validMask(field.scalarMask, count))
+    )
+      throw new RangeError('Invalid shader field scalar mask');
+    bytes += count * 16 * (field.scalar === undefined ? 1 : 2);
+  }
+  if (bytes > shaderDataByteBudget)
+    throw new RangeError('Shader field sample budget exceeds 16 MiB');
+  const legacy = packShaderGrid(data);
+  const values = [...legacy.values];
+  const descriptors: number[] = [];
+  for (const name of names) {
+    const field = fields![name]!;
+    const packed = packShaderGrid(field);
+    const offset = values.length / 4;
+    // Avoid spread argument limits for geographic payloads.
+    for (const value of packed.values) values.push(value);
+    const scalarOffset = values.length / 4;
+    if (field.scalar !== undefined)
+      for (let i = 0; i < field.scalar.length; i++)
+        values.push(field.scalar[i]!, 0, field.scalarMask?.[i] ?? 1, 0);
+    descriptors.push(
+      ...packed.metadata,
+      offset,
+      scalarOffset,
+      field.scalar === undefined ? 0 : 1,
+      0,
+    );
+  }
+  return {
+    schema: names.join(','),
+    values,
+    metadata: legacy.metadata,
+    fields: descriptors.length ? descriptors : Array(16).fill(0),
+  };
+}
 export interface ShaderLayerProps {
   readonly id: string;
   readonly coverage?: 'world';
@@ -141,6 +250,8 @@ export interface ShaderLayerProps {
   readonly shaders: ShaderPrograms;
   /** Replace immutably to upload a new grid without resetting simulation. */
   readonly data?: ShaderGrid;
+  /** Named immutable fields. Values update together without resetting simulation. */
+  readonly fields?: ShaderFields;
   /** Inclusive lower and exclusive upper camera zoom limits. */
   readonly minZoom?: number;
   readonly maxZoom?: number;
@@ -198,45 +309,76 @@ fn mapGridMercatorY(latitude:f32)->f32 {
  return (1.0-log(tan(0.7853981633974483+radians*0.5))/3.141592653589793)*0.5;
 }
 // Returns geographic UV, including outside [0,1] for locations beyond coverage.
-fn mapGridUV(world:vec2f)->vec2f {
- let b=mapGrid.bounds;
+fn mapGridUVFor(grid:MapGridMetadata,world:vec2f)->vec2f {
+ let b=grid.bounds;
  let x=world.x+round((b.x+b.z)/720.0+0.5-world.x);
  let u=(x*360.0-180.0-b.x)/(b.z-b.x);
- var v=(world.y-mapGrid.options.z)/(mapGrid.options.w-mapGrid.options.z);
- if(mapGrid.options.x>0.5) { v=(b.w-mapLngLat(world).y)/(b.w-b.y); }
- if(world.y==mapGrid.options.z) { v=0.0; }
- if(world.y==mapGrid.options.w) { v=1.0; }
+ var v=(world.y-grid.options.z)/(grid.options.w-grid.options.z);
+ if(grid.options.x>0.5) { v=(b.w-mapLngLat(world).y)/(b.w-b.y); }
+ if(world.y==grid.options.z) { v=0.0; }
+ if(world.y==grid.options.w) { v=1.0; }
  return vec2f(u,v);
 }
-fn mapGridNode(node:vec2u)->vec4f {
- return mapGridValues[node.y*u32(mapGrid.shape.x)+node.x];
+fn mapGridNodeFor(grid:MapGridMetadata,offset:u32,node:vec2u)->vec4f {
+ return mapGridValues[offset+node.y*u32(grid.shape.x)+node.x];
 }
 // Missing nodes with nonzero interpolation weight invalidate the sample.
 // No extrapolation beyond bounds; invalid samples have zero value.
-fn mapSampleGrid(world:vec2f)->MapGridSample {
- if(mapGrid.options.y<0.5) { return MapGridSample(vec2f(0),0); }
- var uv=mapGridUV(world);
+fn mapSampleGridFor(grid:MapGridMetadata,offset:u32,world:vec2f)->MapGridSample {
+ if(grid.options.y<0.5) { return MapGridSample(vec2f(0),0); }
+ var uv=mapGridUVFor(grid,world);
  // Float32 projection arithmetic can move exact boundary nodes a few ulps.
  if(any(uv<vec2f(-0.000001)) || any(uv>vec2f(1.000001))) { return MapGridSample(vec2f(0),0); }
  uv=clamp(uv,vec2f(0),vec2f(1));
  uv=select(uv,round(uv),abs(uv-round(uv))<vec2f(0.000001));
- let p=uv*(mapGrid.shape.xy-vec2f(1));
- if(mapGrid.shape.w<0.5) {
-  let node=mapGridNode(vec2u(floor(p+vec2f(0.5))));
+ let p=uv*(grid.shape.xy-vec2f(1));
+ if(grid.shape.w<0.5) {
+  let node=mapGridNodeFor(grid,offset,vec2u(floor(p+vec2f(0.5))));
   return MapGridSample(select(vec2f(0),node.xy,node.z>0.5),node.z);
  }
  let low=vec2u(floor(p));
- let high=min(low+vec2u(1),vec2u(mapGrid.shape.xy)-vec2u(1));
+ let high=min(low+vec2u(1),vec2u(grid.shape.xy)-vec2u(1));
  let f=fract(p);
  let weights=vec4f((1.0-f.x)*(1.0-f.y),f.x*(1.0-f.y),(1.0-f.x)*f.y,f.x*f.y);
- let a=mapGridNode(low);let b=mapGridNode(vec2u(high.x,low.y));
- let c=mapGridNode(vec2u(low.x,high.y));let d=mapGridNode(high);
+ let a=mapGridNodeFor(grid,offset,low);let b=mapGridNodeFor(grid,offset,vec2u(high.x,low.y));
+ let c=mapGridNodeFor(grid,offset,vec2u(low.x,high.y));let d=mapGridNodeFor(grid,offset,high);
  if(any((weights>vec4f(0)) & (vec4f(a.z,b.z,c.z,d.z)<vec4f(0.5)))) {
   return MapGridSample(vec2f(0),0);
  }
  return MapGridSample(a.xy*weights.x+b.xy*weights.y+c.xy*weights.z+d.xy*weights.w,1);
 }
+fn mapGridUV(world:vec2f)->vec2f { return mapGridUVFor(mapGrid,world); }
+fn mapGridNode(node:vec2u)->vec4f { return mapGridNodeFor(mapGrid,0u,node); }
+fn mapSampleGrid(world:vec2f)->MapGridSample { return mapSampleGridFor(mapGrid,0u,world); }
 `;
+/** Field names define pipeline structure; ordinary field values do not. */
+export function shaderFieldsPrelude(names: readonly string[]): string {
+  const sorted = fieldNames(
+    Object.fromEntries(
+      names.map((name) => [name, undefined]),
+    ) as unknown as ShaderFields,
+  );
+  return (
+    /* wgsl */ `
+struct MapFieldMetadata { grid:MapGridMetadata, offsets:vec4f };
+@group(0) @binding(5) var<storage,read> mapFields:array<MapFieldMetadata>;
+struct MapFieldSample { value:vec2f, valid:f32, scalar:f32, scalarValid:f32 };
+fn mapReadField(index:u32,world:vec2f)->MapFieldSample {
+ let field=mapFields[index];
+ let vector=mapSampleGridFor(field.grid,u32(field.offsets.x),world);
+ var scalar=MapGridSample(vec2f(0),0);
+ if(field.offsets.z>0.5) { scalar=mapSampleGridFor(field.grid,u32(field.offsets.y),world); }
+ return MapFieldSample(vector.value,vector.valid,scalar.value.x,scalar.valid);
+}
+` +
+    sorted
+      .map(
+        (name, index) =>
+          `fn mapSampleField_${name}(world:vec2f)->MapFieldSample { return mapReadField(${index}u,world); }`,
+      )
+      .join('\n')
+  );
+}
 export const defaultShaderVertex = /* wgsl */ `
 struct MapShaderVertex { @builtin(position) position:vec4f, @location(0) @interpolate(linear) uv:vec2f, @location(1) world:vec2f };
 @vertex fn vertexMain(@builtin(vertex_index) index:u32)->MapShaderVertex {
@@ -267,7 +409,7 @@ export function packShaderUniforms(values: readonly number[]): Float32Array {
   return out;
 }
 export function validateShaderLayer(p: ShaderLayerProps): ShaderLayerProps {
-  if (p.data) validateShaderGrid(p.data);
+  packShaderFields(p.data, p.fields);
   return validateShaderOptions(p);
 }
 /** Validate changing layer options separately from potentially large immutable grids. */

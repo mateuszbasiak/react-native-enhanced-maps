@@ -26,6 +26,7 @@ import RenderingVerification from './verification/RenderingVerification';
 import UrlTileVerification from './verification/UrlTileVerification';
 import ShaderPrototype from './gpu/ShaderPrototype';
 import WebGPUPrototype from './gpu/WebGPUPrototype';
+import ShaderFieldVerification from './gpu/ShaderFieldVerification';
 import ShaderLifecycleVerification from './gpu/ShaderLifecycleVerification';
 import {
   createScenarioSession,
@@ -52,6 +53,7 @@ const controls: readonly [Scenario, string][] = [
   ['lifecycle', 'lifecycle'],
   ['shader', 'GPU prototype'],
   ['webgpu', 'WebGPU prototype'],
+  ['shader-fields', 'Shader field reference'],
   ['shader-lifecycle', 'Shader lifecycle'],
   ['shape-picking', 'shape picking'],
   ['gradients', 'gradients'],
@@ -127,7 +129,9 @@ export default function App() {
         <Button title="Examples" onPress={() => setPickerOpen(true)} />
       </View>
       <View key={selection.generation} style={{ flex: 1 }}>
-        {id === 'rendering' && __DEV__ ? (
+        {id === 'shader-fields' && __DEV__ ? (
+          <ShaderFieldVerification />
+        ) : id === 'rendering' && __DEV__ ? (
           <RenderingVerification />
         ) : id === 'callouts' && __DEV__ ? (
           <CalloutVerification />
