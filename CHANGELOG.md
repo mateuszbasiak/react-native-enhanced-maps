@@ -5,6 +5,11 @@ changes, not accepted production support or closed release gates.
 
 ## Unreleased
 
+- Add ShaderLayer typed grids and named fields with independently masked color
+  scalars, preserving the single-grid API. Include a GustKit adapter and
+  visual-only/touch-through picking contract. Bounded native checks cover
+  alignment, placement and alpha; broader GPU acceptance remains open.
+
 - Stage native Overlay image loading and decoding off the UI thread before scene
   replacement. Preserve accepted images, fitting and hit geometry on failure;
   cancel obsolete/lifecycle work and retry after resume. Downsample to queried

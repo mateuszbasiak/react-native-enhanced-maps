@@ -309,3 +309,5 @@ Broader initialization, shader-edit, background, style, multiple-layer and lifet
 stress coverage remains open under GPU-12.
 
 Native composition also enforces `minZoom <= cameraZoom < maxZoom` on every map frame, independently of the worklet. An out-of-range layer is skipped completely even if the last completed texture still contains visible output. Zoom-limit prop updates reach this native visibility gate directly and request a repaint; the worklet still freezes time and compute while outside the range.
+
+See [named-field acceptance](shader-fields-acceptance.md) for the bounded reference matrix and remaining platform limits.
