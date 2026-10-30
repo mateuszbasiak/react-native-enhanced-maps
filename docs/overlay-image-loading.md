@@ -56,8 +56,9 @@ nested/escaped `asset://` paths. JS and both native validator corpora accept nin
 and seventeen images and image URIs over 4096 characters; malformed inputs still
 reject.
 
-Full repository checks and both ARM64 Debug native builds are required for this
-change. Detailed local receipts/screenshots are under the ignored
+After integration with main’s measured JSON guard, `npm run check` passes
+394 tests, lint/formatting, types/declarations, Codegen and package checks. Both
+ARM64 Debug native builds and both production JavaScript bundles pass. Detailed local receipts/screenshots are under the ignored
 `artifacts/verification/staged-overlay/`. The debugger tool's device-discovery
 error required a direct Metro connection that checked app ID and device name on
 every evaluation. Earlier lifecycle attempts whose URLs completed immediately
