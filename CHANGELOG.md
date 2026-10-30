@@ -78,6 +78,10 @@ changes, not accepted production support or closed release gates.
 
 ### Fixed
 
+- Guard native scene JSON nesting and lexical forms before platform parsing,
+  preventing recursive-parser overflow while preserving accepted scenes and
+  corrected-input recovery. Scene/dataset count and byte caps stay removed.
+
 - Background snapshot cancellation invalidates generation ownership before native
   cleanup, preventing interrupted completions from publishing stale output.
 
