@@ -96,7 +96,6 @@ export function normalizeOverlay(
     typeof image === 'object' ? image.uri : resolveImage?.(image)?.uri;
   if (
     typeof uri !== 'string' ||
-    uri.length > 4096 ||
     !(
       /^https?:\/\/[^\s]+$/.test(uri) ||
       /^file:\/\/\/[^\s]+$/.test(uri) ||

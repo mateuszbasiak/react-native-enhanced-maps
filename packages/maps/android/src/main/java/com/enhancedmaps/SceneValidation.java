@@ -16,7 +16,7 @@ public final class SceneValidation {
   private double number(Object value,double min,double max){require(value instanceof Number,"Invalid layer style number");double n=((Number)value).doubleValue();require(Double.isFinite(n) && n>=min && n<=max,"Invalid layer style number");return n;}
   private void image(Object source){
     for(String key:r.keys(source))require(Set.of("id","type","tileKind","uri","coordinates").contains(key),"Unsupported image source field");
-    Object uri=r.get(source,"uri");require(uri instanceof String && ((String)uri).length()<=4096 && ((String)uri).matches("(?:https?://[^\\s]+|file:///[^\\s]+|asset://[^\\s]+|[a-z][a-z0-9_]*)"),"Invalid image URI");
+    Object uri=r.get(source,"uri");require(uri instanceof String && ((String)uri).matches("(?:https?://[^\\s]+|file:///[^\\s]+|asset://[^\\s]+|[a-z][a-z0-9_]*)"),"Invalid image URI");
     Object corners=r.get(source,"coordinates");require(array(corners,"Invalid image coordinates")==4,"Invalid image coordinates");
     for(int i=0;i<4;i++){Object c=r.at(corners,i);require(array(c,"Invalid image coordinate")==2,"Invalid image coordinate");number(r.at(c,0),-540,540);number(r.at(c,1),-85,85);}
   }
@@ -56,8 +56,7 @@ public final class SceneValidation {
     require(r.isObject(scene),"Invalid scene JSON");Object sources=r.get(scene,"sources"),layers=r.get(scene,"layers");
     int ns=array(sources,"Invalid scene sources"),nl=array(layers,"Invalid scene layers");
     Map<String,Object> sourceMap=new HashMap<>();
-    int images=0;
-    for(int i=0;i<ns;i++){Object s=r.at(sources,i);require(r.isObject(s),"Invalid scene source");String id=name(r.get(s,"id"),128);require(!externalSources.contains(id),"Scene source ID collides with existing style");require(sourceMap.put(id,s)==null,"Duplicate scene source ID");require(!r.has(s,"type") || Set.of("geojson","raster").contains(r.get(s,"type")),"Unsupported source type");if("raster".equals(r.get(s,"type")))raster(s);if("image".equals(r.get(s,"tileKind")))require(++images<=8,"Image source limit exceeded");}
+    for(int i=0;i<ns;i++){Object s=r.at(sources,i);require(r.isObject(s),"Invalid scene source");String id=name(r.get(s,"id"),128);require(!externalSources.contains(id),"Scene source ID collides with existing style");require(sourceMap.put(id,s)==null,"Duplicate scene source ID");require(!r.has(s,"type") || Set.of("geojson","raster").contains(r.get(s,"type")),"Unsupported source type");if("raster".equals(r.get(s,"type")))raster(s);}
     Set<String> ids=new HashSet<>(),inserted=new HashSet<>(externalLayers);
     for(int i=0;i<nl;i++){Object l=r.at(layers,i);require(r.isObject(l),"Invalid scene layer");String id=name(r.get(l,"id"),135);require(!externalLayers.contains(id),"Scene layer ID collides with existing style");require(ids.add(id),"Duplicate scene layer ID");
       Object rawType=r.get(l,"type");require(rawType instanceof String && Set.of("circle","line","fill","raster","heatmap").contains(rawType),"Unsupported layer type");String type=(String)rawType;

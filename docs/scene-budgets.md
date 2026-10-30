@@ -18,7 +18,7 @@ recoverable `layer-scene` errors. Property complexity guards apply per feature:
 internal sources allow 65,536 property nodes, 1,048,576 string/key characters and
 nesting depth 16; the Geojson compatibility component allows 100,000 property
 values, 1,048,576 characters and depth 16. Component nesting, ID/URL/style limits,
-the eight-image-overlay limit, paginated cluster query bounds and snapshot/GPU
+paginated cluster query bounds and snapshot/GPU
 allocation limits remain separate guards.
 
 Ordinary shape components share native sources and data-driven paint layers. At

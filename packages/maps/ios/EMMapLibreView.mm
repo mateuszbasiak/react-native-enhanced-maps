@@ -19,6 +19,7 @@
 #import "HeatmapLayer.h"
 #import "ShapeBatch.h"
 #import "ImageOverlay.h"
+#import "StagedOverlayImages.h"
 #include <cmath>
 #import <MapLibre/MapLibre.h>
 #import "EMShaderPrototype.h"
@@ -122,6 +123,12 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   uint64_t _clusterIndexRevision;
   NSSet<NSString *> *_clusteredSources;
   NSString *_acceptedSceneJSON;
+  EMStagedOverlayImages *_overlayLoader;
+  NSDictionary<NSString *,UIImage *> *_overlayImages;
+  NSString *_pendingOverlayScene;
+  NSString *_failedOverlayScene;
+  uint64_t _overlayGeneration;
+  BOOL _overlayPaused;
   NSArray<NSDictionary *> *_markerLayoutSources;
   NSDictionary *_lastMarkerLayout;
   enhancedmaps::GestureEventGate _gestureEvents;
@@ -132,12 +139,13 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
 + (BOOL)shouldBeRecycled { return NO; }
 + (ComponentDescriptorProvider)componentDescriptorProvider { return concreteComponentDescriptorProvider<EnhancedMapLibreViewComponentDescriptor>(); }
 - (instancetype)initWithFrame:(CGRect)frame { if((self=[super initWithFrame:frame])) { _props=std::make_shared<const EnhancedMapLibreViewProps>(); _markers=[NSMutableArray new]; _sourceIDs=[NSMutableArray new]; _layerIDs=[NSMutableArray new]; }return self; }
-- (void)didMoveToWindow { [super didMoveToWindow]; if(!self.window){[self cancelSnapshot];[self cancelNativeGestures];[_userLocation pause];} [self configure];if(self.window)[_userLocation resume]; }
+- (void)didMoveToWindow { [super didMoveToWindow]; if(!self.window){[self cancelOverlayLoad];[self cancelSnapshot];[self cancelNativeGestures];[_userLocation pause];} [self configure];if(self.window){[_userLocation resume];if(_ready)[self applyScene];} }
 - (void)configure {
   if(_configured || !self.window)return; _configured=YES;
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
   NSURL *url=p.styleURL.empty()?nil:[NSURL URLWithString:@(p.styleURL.c_str())];
   _loadingStyleRevision=p.styleRevision;
+  _overlayPaused=UIApplication.sharedApplication.applicationState!=UIApplicationStateActive;
   _map=[[EMNativeMap alloc] initWithFrame:self.bounds styleURL:url]; _map.delegate=self; self.contentView=_map;
   _map.automaticallyAdjustsContentInset=NO;
   __weak EMMapLibreView *weakSelf=self;
@@ -221,6 +229,7 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   BOOL styleChanged=old.styleURL!=next.styleURL || old.styleRevision!=next.styleRevision; BOOL sceneChanged=old.sceneJSON!=next.sceneJSON;
   if(old.gestureEventsEnabled!=next.gestureEventsEnabled || old.gestureSubscriptionRevision!=next.gestureSubscriptionRevision)_gestureEvents.reset();
   [super updateProps:props oldProps:oldProps]; [self configure]; [self applyMapSettings];
+  if(styleChanged || sceneChanged)[self cancelOverlayLoad];
   if(styleChanged && _map) {
 #if DEBUG && MLN_RENDER_BACKEND_METAL
     [_shaderPrototype stop];_shaderPrototype=nil;
@@ -254,7 +263,9 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   _lastMarkerLayout=nil;
   [_layerIDs removeAllObjects]; [_sourceIDs removeAllObjects]; _ready=YES; _readyStyleRevision=_loadingStyleRevision;
   const auto &locationProps=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);[_userLocation configure:locationProps.locationEnabled];
-  if(![self applyScene] && _acceptedSceneJSON)[self applySceneJSON:_acceptedSceneJSON];
+  NSString *previous=_acceptedSceneJSON;
+  if(previous)[self applySceneJSON:previous];
+  [self applyScene];
   if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapReady({true, enhancedmaps::nativeMapCapabilitiesJSON(), _readyStyleRevision});
 }
 - (void)mapViewDidFinishRenderingFrame:(MLNMapView *)map fullyRendered:(BOOL)fullyRendered {
@@ -308,8 +319,8 @@ static int EMGestureKind(UIGestureRecognizer *recognizer) {
   for(const auto &sample:_gestureEvents.cancelAll(CACurrentMediaTime()*1000))[self emitGesture:sample];
 }
 - (void)cancelSnapshot { _snapshotGeneration.invalidate();[_snapshotOperation cancel];_snapshotOperation=nil; }
-- (void)onApplicationResignActive:(NSNotification *)notification { [self cancelSnapshot]; [_userLocation pause];[self cancelNativeGestures]; }
-- (void)onApplicationBecameActive:(NSNotification *)notification { if(self.window)[_userLocation resume]; }
+- (void)onApplicationResignActive:(NSNotification *)notification { _overlayPaused=YES;[self cancelOverlayLoad];[self cancelSnapshot]; [_userLocation pause];[self cancelNativeGestures]; }
+- (void)onApplicationBecameActive:(NSNotification *)notification { _overlayPaused=NO;if(self.window){[_userLocation resume];if(_ready)[self applyScene];} }
 - (void)emitError:(NSString *)message { [self emitError:message code:@"maplibre"]; }
 - (void)emitError:(NSString *)message code:(NSString *)code { const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);if(_eventEmitter)std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapError({std::string(code.UTF8String),std::string(message.UTF8String ?: "Map error"),p.styleRevision}); }
 - (void)mapViewDidFailLoadingMap:(MLNMapView *)map withError:(NSError *)error { if(map==_map)[self emitError:error.localizedDescription code:@"style-load"]; }
@@ -370,7 +381,22 @@ static UIColor *EMColor(id value) {
   const auto &p=*std::static_pointer_cast<const EnhancedMapLibreViewProps>(_props);
   return [self applySceneJSON:p.sceneJSON.empty()?@"{\"sources\":[],\"layers\":[]}":@(p.sceneJSON.c_str())];
 }
-- (BOOL)applySceneJSON:(NSString *)json {
+- (void)cancelOverlayLoad { ++_overlayGeneration;[_overlayLoader cancel];_pendingOverlayScene=nil;_failedOverlayScene=nil; }
+- (void)stageOverlayScene:(NSString *)json uris:(NSArray<NSString *> *)uris {
+  if(!_overlayLoader)_overlayLoader=[EMStagedOverlayImages new];
+  _pendingOverlayScene=[json copy];uint64_t generation=++_overlayGeneration;
+  MLNStyle *style=_map.style;double revision=_readyStyleRevision;
+  __weak EMMapLibreView *weakSelf=self;
+  [_overlayLoader loadURIs:uris accepted:_overlayImages completion:^(NSDictionary *images,NSString *error){
+    EMMapLibreView *owner=weakSelf;
+    if(!owner || generation!=owner->_overlayGeneration || !owner.window || owner->_overlayPaused || !owner->_ready || revision!=owner->_readyStyleRevision || style!=owner->_map.style)return;
+    owner->_pendingOverlayScene=nil;
+    if(error){owner->_failedOverlayScene=[json copy];[owner emitSceneError:error];}
+    else [owner applySceneJSON:json images:images];
+  }];
+}
+- (BOOL)applySceneJSON:(NSString *)json { return [self applySceneJSON:json images:nil]; }
+- (BOOL)applySceneJSON:(NSString *)json images:(NSDictionary<NSString *,UIImage *> *)images {
   if(!_ready || !_map.style)return NO;
   NSData *sceneData=[json dataUsingEncoding:NSUTF8StringEncoding];
   if(!sceneData) { [self emitSceneError:@"Invalid scene JSON"];return NO; }
@@ -388,6 +414,14 @@ static UIColor *EMColor(id value) {
     for(MLNSource *source in style.sources)if(![_sourceIDs containsObject:source.identifier])[externalSources addObject:source.identifier];
     for(MLNStyleLayer *layer in style.layers)if(![_layerIDs containsObject:layer.identifier])[externalLayers addObject:layer.identifier];
     EMValidateScene(scene,externalSources,externalLayers);
+    NSMutableArray<NSString *> *imageURIs=[NSMutableArray new];
+    NSMutableDictionary<NSString *,UIImage *> *candidateImages=[NSMutableDictionary new];
+    BOOL missing=NO;
+    for(NSDictionary *entry in scene[@"sources"])if([entry[@"tileKind"] isEqual:@"image"]){
+      NSString *uri=entry[@"uri"];[imageURIs addObject:uri];UIImage *image=(images?:_overlayImages)[uri];
+      if(image)candidateImages[uri]=image;else missing=YES;
+    }
+    if(missing){if(self.window && !_overlayPaused)[self stageOverlayScene:json uris:imageURIs];return YES;}
     // Validate all source versions and parse geometry before removing the accepted scene.
     for(NSDictionary *entry in scene[@"sources"]) {
       if([entry[@"type"] isEqual:@"raster"]) {
@@ -397,7 +431,7 @@ static UIColor *EMColor(id value) {
         EMSceneRequire(identityData!=nil,@"Invalid raster source");
         std::string identity((const char *)identityData.bytes,identityData.length);
         revisions.push_back({std::string(identifier.UTF8String),revision?std::optional<double>([revision doubleValue]):std::nullopt,identity});
-        if([entry[@"tileKind"] isEqual:@"image"]) { [parsedSources addObject:EMImageOverlaySource(entry)];continue; }
+        if([entry[@"tileKind"] isEqual:@"image"]) { [parsedSources addObject:EMImageOverlaySource(entry,candidateImages[entry[@"uri"]])];continue; }
         EMSceneRequire(![entry[@"urlTemplate"] hasPrefix:@"asset:"],@"LocalTile useAssets is Android-only");
         NSDictionary *options=@{MLNTileSourceOptionTileSize:entry[@"tileSize"],MLNTileSourceOptionMinimumZoomLevel:entry[@"minZoom"],MLNTileSourceOptionMaximumZoomLevel:entry[@"maxZoom"],MLNTileSourceOptionTileCoordinateSystem:@([entry[@"scheme"] isEqual:@"tms"]?MLNTileCoordinateSystemTMS:MLNTileCoordinateSystemXYZ)};
         [parsedSources addObject:[[MLNRasterTileSource alloc] initWithIdentifier:identifier tileURLTemplates:@[entry[@"urlTemplate"]] options:options]];
@@ -478,6 +512,7 @@ static UIColor *EMColor(id value) {
       }
     }
     _markerLayoutSources=[markerLayoutSources copy];
+    _overlayImages=[candidateImages copy];
     _acceptedSceneJSON=[json copy];
     return YES;
   } @catch(NSException *exception) { [self emitSceneError:exception.reason?:@"Could not apply scene"];return NO; }
@@ -737,6 +772,7 @@ static UIColor *EMColor(id value) {
   std::static_pointer_cast<const EnhancedMapLibreViewEventEmitter>(_eventEmitter)->onMapPress({action,coordinate.latitude,coordinate.longitude,point.x,point.y,_readyStyleRevision});
 }
 - (void)dealloc {
+  [self cancelOverlayLoad];[_overlayLoader close];_overlayImages=nil;
   [self cancelSnapshot];[_userLocation close];
 #if DEBUG && MLN_RENDER_BACKEND_METAL
   [_shaderPrototype stop];

@@ -219,6 +219,21 @@ for (const [label, mutate] of [
   mutate(scene);
   fixtures.push({ label, scene, accepted: false });
 }
+for (const count of [9, 17]) {
+  const scene = structuredClone(overlayScene);
+  const original = scene.sources[0];
+  scene.sources = Array.from({ length: count }, (_, i) => ({
+    ...original,
+    id: original.id + ':' + i,
+    uri: 'https://example.com/image.png?q=' + 'x'.repeat(5000),
+  }));
+  scene.layers = [];
+  fixtures.push({
+    label: 'overlay count and URI exceed former caps ' + count,
+    scene,
+    accepted: true,
+  });
+}
 mkdirSync(output, { recursive: true });
 writeFileSync(output + '/fixtures.json', JSON.stringify(fixtures));
 const chunks = [];

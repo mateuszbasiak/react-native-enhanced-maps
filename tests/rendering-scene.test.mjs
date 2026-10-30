@@ -78,7 +78,7 @@ test('Overlay native image and hit layers preserve declaration order with shapes
     layers: [],
   });
 });
-test('Heatmap, WMS and local tiles share a bounded scene without becoming live React hosts', () => {
+test('Heatmap, WMS and local tiles share a scene without becoming live React hosts', () => {
   const scene = compileScene([
     React.createElement(Heatmap, { key: 'h', points: [] }),
     React.createElement(WMSTile, {
@@ -100,18 +100,16 @@ test('Heatmap, WMS and local tiles share a bounded scene without becoming live R
     ['wms', 'local'],
   );
   assert.equal(scene.live.length, 0);
-  assert.throws(
-    () =>
-      compileScene(
-        Array.from({ length: 9 }, (_, i) =>
-          React.createElement(Overlay, {
-            key: i,
-            bounds,
-            image: { uri: 'https://example.com/image.png' },
-          }),
-        ),
+  assert.doesNotThrow(() =>
+    compileScene(
+      Array.from({ length: 9 }, (_, i) =>
+        React.createElement(Overlay, {
+          key: i,
+          bounds,
+          image: { uri: 'https://example.com/image.png' },
+        }),
       ),
-    /limit/,
+    ),
   );
 });
 

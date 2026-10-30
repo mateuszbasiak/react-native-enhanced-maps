@@ -79,6 +79,36 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var loadedURL: String? = null
   private var appliedScene: String? = null
   private var acceptedScene: String? = null
+  private val overlayLoader=StagedOverlayImages(reactContext.applicationContext)
+  private var overlayImages=emptyMap<String,android.graphics.Bitmap>()
+  private var pendingOverlayScene:String?=null
+  private var failedOverlayScene:String?=null
+  private var overlayGeneration=0L
+  private fun cancelOverlayLoad(){++overlayGeneration;pendingOverlayScene=null;failedOverlayScene=null;overlayLoader.cancel()}
+  private fun stageOverlayImages(json:String,uris:List<String>) {
+    pendingOverlayScene=json
+    val generation=++overlayGeneration
+    val revision=styleGeneration
+    val accepted=overlayImages
+    queueEvent {
+      val dimension=IntArray(1)
+      android.opengl.GLES20.glGetIntegerv(android.opengl.GLES20.GL_MAX_TEXTURE_SIZE,dimension,0)
+      post {
+        if(disposed || generation!=overlayGeneration || revision!=styleGeneration || !lifecycle.isRunning)return@post
+        if(dimension[0]<=0){pendingOverlayScene=null;failedOverlayScene=json;error("layer-scene","Overlay renderer texture capability is unavailable");return@post}
+        val weak=java.lang.ref.WeakReference(this)
+        overlayLoader.load(uris,accepted,dimension[0]) { images,failure ->
+          weak.get()?.post completion@{
+            val owner=weak.get() ?: return@completion
+            if(owner.disposed || generation!=owner.overlayGeneration || revision!=owner.styleGeneration || !owner.lifecycle.isRunning)return@completion
+            owner.pendingOverlayScene=null
+            if(failure!=null){owner.failedOverlayScene=json;owner.error("layer-scene",failure)}
+            else if(images!=null)owner.applyScene(json,images)
+          }
+        }
+      }
+    }
+  }
   private var markerLayoutSources = emptyList<MarkerClusterLayout.Source>()
   private val sourceRevisions = SourceRevisionGate()
   private var styleGeneration = 0L
@@ -95,7 +125,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   private var disposed = false
   private var configured = false
   private val lifecycle = MapLifecycleGate(reactContext.reactApplicationContext.lifecycleState==LifecycleState.RESUMED,
-    { onStart() }, { onResume(); userLocation.resume(); scheduleFrame(); scheduleMarkerClusters() },
+    { onStart() }, { onResume(); userLocation.resume(); scheduleFrame(); scheduleMarkerClusters(); applyScene() },
     { onPause() }, { onStop() })
   private val clusterLayoutTask=CoalescedTask({ post(it) }, { removeCallbacks(it) }, { publishMarkerClusters() })
   private var framePending = false
@@ -310,6 +340,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       loadedURL = requestedURL
       loadedStyleRevision = requestedRevision
       cancelSnapshot()
+      cancelOverlayLoad()
       markers.forEach{it.cancelDrag()}
       shaderLayerOwners.clear()
       userLocation.configure(false)
@@ -319,18 +350,24 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
           updateLocationSource()
           lastMarkerLayout = null
           appliedScene = null; sceneSources = emptyList(); sceneLayers = emptyList(); orderStyle = null
-          if (!applyScene()) acceptedScene?.let { applyScene(it) }
+          val previous=acceptedScene
+          previous?.let { applyScene(it) }
+          if(previous!=sceneJSON)applyScene()
           orderDirty = true; scheduleFrame()
           emit("topMapReady", Arguments.createMap().apply { putBoolean("ready", true); putString("capabilitiesJSON", NativeMapCapabilities.JSON); putDouble("styleRevision", requestedRevision) })
         }
       }
     } else applyScene()
   }
-  fun applyScene(json: String = sceneJSON): Boolean {
+  fun applyScene(json: String = sceneJSON, images:Map<String,android.graphics.Bitmap>?=null): Boolean {
     if (disposed) return false
+    if(pendingOverlayScene!=null && pendingOverlayScene!=json)cancelOverlayLoad()
+    if(failedOverlayScene!=json)failedOverlayScene=null
     val style = map?.style ?: return false
     if (!style.isFullyLoaded) return false
     if (appliedScene == json) return true
+    if(pendingOverlayScene==json)return true
+    if(failedOverlayScene==json)return false
     try {
       require(SceneJSONDepth.allowed(json)) { "Invalid or overly nested scene JSON" }
       val scene = JSONObject(json)
@@ -350,6 +387,12 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
         SourceRevisionGate.Source(source.getString("id"), (rawRevision as? Number)?.toDouble(), parsedSources[it]?.identity ?: source.toString())
       } }
       sourceRevisions.validate(revisions)
+      val imageURIs=(0 until sources.length()).map { sources.getJSONObject(it) }.filter { it.optString("tileKind")=="image" }.map { it.getString("uri") }
+      val candidateImages=images ?: overlayImages.filterKeys { it in imageURIs }
+      if(imageURIs.any { it !in candidateImages }) {
+        if(lifecycle.isRunning)stageOverlayImages(json,imageURIs)
+        return true
+      }
       // Extract before mutating the style; commit only after the scene succeeds.
       val nextMarkerLayoutSources=(0 until sources.length()).map { sources.getJSONObject(it) }
         .filter { it.optString("type")!="raster" && it.has("cluster") && it.getString("id").let { id -> id=="em-marker-clusters" || id.startsWith("em-marker-clusters:") } }
@@ -367,7 +410,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       val sdkSources=parsedSources.mapIndexed { index, source ->
         if(source!=null) GeoJsonSource(source.id,source.data,source.options) else {
           val raw=sources.getJSONObject(index)
-          if(raw.optString("tileKind")=="image") NativeImageOverlay.source(reactContext,raw) else {
+          if(raw.optString("tileKind")=="image") NativeImageOverlay.source(raw,requireNotNull(candidateImages[raw.getString("uri")])) else {
           val tiles=TileSet("2.2.0",raw.getString("urlTemplate"))
           if(raw.optString("scheme")=="tms")tiles.scheme="tms"
           tiles.setMinZoom(raw.getInt("minZoom").toFloat());tiles.setMaxZoom(raw.getInt("maxZoom").toFloat())
@@ -410,6 +453,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
       sourceRevisions.commit(revisions)
       clusteredSources=parsedSources.filterNotNull().filter { it.options["cluster"]==true }.map { it.id }.toSet()
       markerLayoutSources = nextMarkerLayoutSources
+      overlayImages=candidateImages.filterKeys { it in imageURIs }
       appliedScene = json; acceptedScene = json; orderDirty = true
       return true
     } catch (exception: Exception) { error("layer-scene", exception.message ?: "Invalid scene"); return false }
@@ -449,7 +493,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
     orderDirty = false; orderStyle = style
   }
   private fun scheduleFrame() { if(!framePending && !disposed && lifecycle.isRunning && markers.isNotEmpty()) { framePending = true; clock.postFrameCallback(frame) } }
-  private fun pauseMapWork() { clusterLayoutTask.cancel();cancelSnapshot();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
+  private fun pauseMapWork() { cancelOverlayLoad();clusterLayoutTask.cancel();cancelSnapshot();userLocation.pause();markers.forEach{it.cancelDrag()};cancelNativeGestures();markerGestures.end();clock.removeFrameCallback(frame);framePending=false }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); lifecycle.setAttached(true) }
   override fun onDetachedFromWindow() { cancelSnapshot();pauseMapWork();lifecycle.setAttached(false);super.onDetachedFromWindow() }
   override fun requestLayout() {
@@ -706,7 +750,7 @@ class EnhancedMapLibreView(private val reactContext: ThemedReactContext) : MapVi
   override fun onHostResume() { lifecycle.setHostResumed(true) }
   override fun onHostPause() { pauseMapWork();if(disposed)lifecycle.close() else lifecycle.setHostResumed(false) }
   override fun onHostDestroy() { dispose() }
-  fun dispose() { if(disposed)return; clusterLayoutTask.close();cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
+  fun dispose() { if(disposed)return; cancelOverlayLoad();overlayLoader.close();overlayImages=emptyMap();clusterLayoutTask.close();cancelSnapshot();userLocation.close();markers.forEach{it.cancelDrag()};disposed=true; ++styleGeneration; sourceRevisions.close(); cameraOrigins.reset(); gestureEvents.reset(); acceptedScene=null; markerLayoutSources=emptyList(); appliedScene=null; clock.removeFrameCallback(frame); textures.values.forEach { it.close() }; textures.clear(); markers.forEach { it.owner=null }; markerGestures.end(); onHostPause(); reactContext.removeLifecycleEventListener(this); onDestroy() }
   private fun error(code:String,message:String) { if(disposed)return;emit("topMapError",Arguments.createMap().apply { putString("code",code); putString("message",message); putDouble("styleRevision",styleRevision) }) }
   private fun emit(name:String,data:WritableMap) { if(disposed || id==View.NO_ID)return; UIManagerHelper.getEventDispatcherForReactTag(reactContext,id)?.dispatchEvent(MapEvent(UIManagerHelper.getSurfaceId(this),id,name,data)) }
 }
